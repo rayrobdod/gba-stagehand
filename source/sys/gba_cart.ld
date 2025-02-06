@@ -80,13 +80,13 @@ SECTIONS
         *(.gnu.linkonce.r.*) /* Used for vague linking */
     } > ROM
 
-   /*
-    * Required for C++ and for C programs that try to examine backtraces. Each
-    * function that can throw exceptions has entries in exidx and extab.
-    *
-    * - exidx is used to contain index entries for stack unwinding.
-    * - extab names sections containing exception unwinding information.
-    */
+    /*
+     * Required for C++ and for C programs that try to examine backtraces. Each
+     * function that can throw exceptions has entries in exidx and extab.
+     *
+     * - exidx is used to contain index entries for stack unwinding.
+     * - extab names sections containing exception unwinding information.
+     */
 
     .ARM.extab : ALIGN(4)
     {
