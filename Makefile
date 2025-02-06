@@ -27,7 +27,7 @@ LIBDIRS		:= # A list of paths
 # Include paths
 # -------------
 
-INCLUDES	:= # A list of paths
+INCLUDES	+= source
 
 # Tools
 # -----

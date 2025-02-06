@@ -2,6 +2,7 @@
  * SPDX-License-Identifier: CC0-1.0
  *
  * SPDX-FileContributor: Antonio Niño Díaz, 2022
+ * SPDX-FileContributor: Raymond Dodge, 2024
  */
 
 /*
@@ -20,6 +21,10 @@ ENTRY(entrypoint)
 
 MEMORY {
     ROM     : ORIGIN = 0x08000000, LENGTH = 32M
+    HWREG   : ORIGIN = 0x04000000, LENGTH = 0x800
+    PALETTE : ORIGIN = 0x05000000, LENGTH = 0x400
+    VRAM    : ORIGIN = 0x06000000, LENGTH = 96K
+    OAM     : ORIGIN = 0x07000000, LENGTH = 0x400
     IWRAM   : ORIGIN = 0x03000000, LENGTH = 32K
     EWRAM   : ORIGIN = 0x02000000, LENGTH = 256K
 }
@@ -38,6 +43,9 @@ __STACK_IRQ_START__ = __STACK_IRQ_END__ - __STACK_IRQ_SIZE__;
 __STACK_USR_END__   = __STACK_IRQ_START__;
 __STACK_USR_START__ = __STACK_USR_END__ - __STACK_USR_SIZE_MIN__;
 __STACK_START__     = __STACK_USR_START__;
+
+REG_ISR_MAIN = 0x03007FFC;
+REG_IFBIOS = 0x03007FF8;
 
 SECTIONS
 {
@@ -78,6 +86,7 @@ SECTIONS
         *(.rodata)
         *(.rodata*)
         *(.gnu.linkonce.r.*) /* Used for vague linking */
+        */crtbegin.o(.eh_frame)
     } > ROM
 
     /*
@@ -218,6 +227,8 @@ SECTIONS
         *(.ewram*)
         *ewram.*(.text*)
         *ewram.*(.data*)
+        */crtbegin.o(.tm_clone_table)
+        */crtend.o(.tm_clone_table)
         . = ALIGN(4);
         __EWRAM_END__ = .;
     } > EWRAM AT > ROM
@@ -230,4 +241,43 @@ SECTIONS
     __HEAP_START__  = __EWRAM_END__;
     __HEAP_END__    = ORIGIN(EWRAM) + LENGTH(EWRAM);
     __HEAP_SIZE__   = __HEAP_END__ - __HEAP_START__;
+
+    /* */
+
+    .palette (NOLOAD) : ALIGN(4)
+    {
+        *(.palette.bg)
+        . = 0x200;
+        *(.palette.obj)
+        . = ALIGN(4);
+    } > PALETTE
+
+    .vram (NOLOAD) : ALIGN(4)
+    {
+        *(.vram)
+        . = ALIGN(4);
+    } > VRAM
+
+    .oam (NOLOAD) : ALIGN(4)
+    {
+        *(.oam)
+        . = ALIGN(4);
+    } > OAM
+
+    .hw_reg (NOLOAD) : ALIGN(4)
+    {
+        *(.hw_reg.lcd)
+        . = 0x60;
+        . = 0x130;
+        *(.hw_reg.keypad)
+        . = 0x200;
+        *(.hw_reg.interrupt)
+        . = ALIGN(4);
+    } > HWREG
+
+    /* Discard everything not specifically mentioned above. */
+    /DISCARD/ :
+    {
+        *(*);
+    }
 }
