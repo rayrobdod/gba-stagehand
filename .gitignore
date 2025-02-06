@@ -3,4 +3,5 @@
 *.map
 *.sav
 *.swp
+*.sym
 build/

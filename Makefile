@@ -1,6 +1,7 @@
 # SPDX-License-Identifier: CC0-1.0
 #
 # SPDX-FileContributor: Antonio Niño Díaz, 2022
+# SPDX-FileContributor: Raymond Dodge, 2025
 
 # User config
 # ===========
@@ -38,6 +39,7 @@ OBJDUMP		:= $(PREFIX)objdump
 OBJCOPY		:= $(PREFIX)objcopy
 MKDIR		:= mkdir
 RM		:= rm -rf
+PERL	:= perl
 
 # Verbose flag
 # ------------
@@ -58,6 +60,7 @@ ELF		:= $(NAME).elf
 DUMP		:= $(NAME).dump
 ROM		:= $(NAME).gba
 MAP		:= $(NAME).map
+SYM		:= $(NAME).sym
 
 GBAFIX		:= gbafix/gbafix
 
@@ -132,6 +135,15 @@ $(BUILDDIR)/%.cpp.o : $(SOURCEDIR)/%.cpp
 # Targets
 # -------
 
+# Clear the default suffixes
+.SUFFIXES:
+# Don't delete intermediate files
+.SECONDARY:
+# Delete files that weren't built properly
+.DELETE_ON_ERROR:
+# Secondary expansion is required for dependency variables in object rules.
+.SECONDEXPANSION:
+
 .PHONY: all clean dump
 
 all: $(ROM)
@@ -155,9 +167,15 @@ $(DUMP): $(ELF)
 
 dump: $(DUMP)
 
+$(SYM): $(ELF)
+	@echo "  OBJDUMP $@"
+	$(V)$(OBJDUMP) -t $< | sort -u | grep -E "^0[2356789]" | $(PERL) -p -e 's/^(\w{8}) (\w).{6} \S+\t(\w{8}) (\S+)$$/\1 \2 \3 \4/g' > $@
+
+sym: $(SYM)
+
 clean:
 	@echo "  CLEAN"
-	$(V)$(RM) $(ROM) $(ELF) $(DUMP) $(MAP) $(BUILDDIR)
+	$(V)$(RM) $(ROM) $(ELF) $(DUMP) $(SYM) $(MAP) $(BUILDDIR)
 	$(V)cd gbafix && make clean
 
 # Include dependency files if they exist
