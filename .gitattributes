@@ -1,0 +1,9 @@
+*.c	filter=remove_trailing_whitespace
+*.cpp	filter=remove_trailing_whitespace
+*.h	filter=remove_trailing_whitespace
+*.hpp	filter=remove_trailing_whitespace
+*.ld	filter=remove_trailing_whitespace
+*.s	filter=remove_trailing_whitespace
+.gitattributes	filter=sort
+.gitignore	filter=sort
+Makefile	filter=remove_trailing_whitespace
