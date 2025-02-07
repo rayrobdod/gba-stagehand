@@ -52,6 +52,7 @@ V		:= @
 
 SOURCEDIR	:= source
 BUILDDIR	:= build
+BUILDOBJDIR	:= $(BUILDDIR)/objs
 
 # Build artfacts
 # --------------
@@ -107,26 +108,26 @@ LDFLAGS		:= -mthumb -mthumb-interwork $(LIBDIRSFLAGS) \
 # ------------------------
 
 OBJS		:= \
-	$(patsubst $(SOURCEDIR)/%.s,$(BUILDDIR)/%.s.o,$(SOURCES_S)) \
-	$(patsubst $(SOURCEDIR)/%.c,$(BUILDDIR)/%.c.o,$(SOURCES_C)) \
-	$(patsubst $(SOURCEDIR)/%.cpp,$(BUILDDIR)/%.cpp.o,$(SOURCES_CPP))
+	$(patsubst $(SOURCEDIR)/%.s,$(BUILDOBJDIR)/%.s.o,$(SOURCES_S)) \
+	$(patsubst $(SOURCEDIR)/%.c,$(BUILDOBJDIR)/%.c.o,$(SOURCES_C)) \
+	$(patsubst $(SOURCEDIR)/%.cpp,$(BUILDOBJDIR)/%.cpp.o,$(SOURCES_CPP))
 
 DEPS		:= $(OBJS:.o=.d)
 
 # Rules
 # -----
 
-$(BUILDDIR)/%.s.o : $(SOURCEDIR)/%.s
+$(BUILDOBJDIR)/%.s.o : $(SOURCEDIR)/%.s
 	@echo "  AS      $<"
 	@$(MKDIR) -p $(@D) # Build target's directory if it doesn't exist
 	$(V)$(CC) $(ASFLAGS) -MMD -MP -c -o $@ $<
 
-$(BUILDDIR)/%.c.o : $(SOURCEDIR)/%.c
+$(BUILDOBJDIR)/%.c.o : $(SOURCEDIR)/%.c
 	@echo "  CC      $<"
 	@$(MKDIR) -p $(@D) # Build target's directory if it doesn't exist
 	$(V)$(CC) $(CFLAGS) -MMD -MP -c -o $@ $<
 
-$(BUILDDIR)/%.cpp.o : $(SOURCEDIR)/%.cpp
+$(BUILDOBJDIR)/%.cpp.o : $(SOURCEDIR)/%.cpp
 	@echo "  CXX     $<"
 	@$(MKDIR) -p $(@D) # Build target's directory if it doesn't exist
 	$(V)$(CXX) $(CXXFLAGS) -MMD -MP -c -o $@ $<
