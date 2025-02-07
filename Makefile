@@ -62,7 +62,7 @@ ROM		:= $(NAME).gba
 MAP		:= $(NAME).map
 SYM		:= $(NAME).sym
 
-GBAFIX		:= gbafix/gbafix
+GBAFIX		:= tools/gbafix/gbafix
 
 # Source files
 # ------------
@@ -148,8 +148,8 @@ $(BUILDDIR)/%.cpp.o : $(SOURCEDIR)/%.cpp
 
 all: $(ROM)
 
-$(GBAFIX):
-	$(V)cd gbafix && make
+$(GBAFIX): $(wildcard tools/gbafix/*.c)
+	$(V)cd tools/gbafix && make
 
 $(ELF): $(OBJS)
 	@echo "  LD      $@"
@@ -176,7 +176,7 @@ sym: $(SYM)
 clean:
 	@echo "  CLEAN"
 	$(V)$(RM) $(ROM) $(ELF) $(DUMP) $(SYM) $(MAP) $(BUILDDIR)
-	$(V)cd gbafix && make clean
+	$(V)cd tools/gbafix && make clean
 
 # Include dependency files if they exist
 # --------------------------------------
