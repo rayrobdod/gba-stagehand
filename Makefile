@@ -102,7 +102,8 @@ CXXFLAGS	+= -std=gnu++14 $(WARNFLAGS) $(DEFINES) $(ARCH) \
 LDFLAGS		:= -mthumb -mthumb-interwork $(LIBDIRSFLAGS) \
 		   -Wl,-Map,$(MAP) -Wl,--gc-sections \
 		   -specs=nano.specs -T source/sys/gba_cart.ld \
-		   -Wl,--start-group $(LIBS) -Wl,--end-group
+		   -Wl,--start-group $(LIBS) -Wl,--end-group \
+		   -Xlinker --print-memory-usage
 
 # Intermediate build files
 # ------------------------
@@ -113,6 +114,11 @@ OBJS		:= \
 	$(patsubst $(SOURCEDIR)/%.cpp,$(BUILDOBJDIR)/%.cpp.o,$(SOURCES_CPP))
 
 DEPS		:= $(OBJS:.o=.d)
+
+# Default target
+# -------
+
+all: $(ROM)
 
 # Rules
 # -----
@@ -147,12 +153,10 @@ $(BUILDOBJDIR)/%.cpp.o : $(SOURCEDIR)/%.cpp
 
 .PHONY: all clean dump
 
-all: $(ROM)
-
 $(GBAFIX): $(wildcard tools/gbafix/*.c)
 	$(V)cd tools/gbafix && make
 
-$(ELF): $(OBJS)
+$(ELF): $(OBJS) source/sys/gba_cart.ld
 	@echo "  LD      $@"
 	$(V)$(CC) -o $@ $(OBJS) $(LDFLAGS)
 
