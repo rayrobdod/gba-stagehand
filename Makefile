@@ -27,6 +27,7 @@ LIBDIRS		:= # A list of paths
 # Include paths
 # -------------
 
+INCLUDES	+= build/source
 INCLUDES	+= source
 
 # Tools
@@ -39,6 +40,7 @@ OBJDUMP		:= $(PREFIX)objdump
 OBJCOPY		:= $(PREFIX)objcopy
 MKDIR		:= mkdir
 RM		:= rm -rf
+FAMICONV	:= superfamiconv
 PERL	:= perl
 
 # Verbose flag
@@ -51,8 +53,11 @@ V		:= @
 # -----------
 
 SOURCEDIR	:= source
+GRAPHICSDIR	:= graphics
 BUILDDIR	:= build
 BUILDOBJDIR	:= $(BUILDDIR)/objs
+BUILDSRCDIR	:= $(BUILDDIR)/source
+BUILDGRAPHICSDIR	:= $(BUILDDIR)/graphics
 
 # Build artfacts
 # --------------
@@ -64,6 +69,7 @@ MAP		:= $(NAME).map
 SYM		:= $(NAME).sym
 
 GBAFIX		:= tools/gbafix/gbafix
+GFX2OBJ		:= tools/gfx2obj/gfx2obj
 
 # Source files
 # ------------
@@ -105,10 +111,15 @@ LDFLAGS		:= -mthumb -mthumb-interwork $(LIBDIRSFLAGS) \
 		   -Wl,--start-group $(LIBS) -Wl,--end-group \
 		   -Xlinker --print-memory-usage
 
+ICONPALFLAGS	:=
+ICONTILEFLAGS	:=
+ICONMAPFLAGS	:=
+
 # Intermediate build files
 # ------------------------
 
 OBJS		:= \
+	$(BUILDOBJDIR)/oldschool.png.o \
 	$(patsubst $(SOURCEDIR)/%.s,$(BUILDOBJDIR)/%.s.o,$(SOURCES_S)) \
 	$(patsubst $(SOURCEDIR)/%.c,$(BUILDOBJDIR)/%.c.o,$(SOURCES_C)) \
 	$(patsubst $(SOURCEDIR)/%.cpp,$(BUILDOBJDIR)/%.cpp.o,$(SOURCES_CPP))
@@ -138,6 +149,21 @@ $(BUILDOBJDIR)/%.cpp.o : $(SOURCEDIR)/%.cpp
 	@$(MKDIR) -p $(@D) # Build target's directory if it doesn't exist
 	$(V)$(CXX) $(CXXFLAGS) -MMD -MP -c -o $@ $<
 
+$(BUILDGRAPHICSDIR)/%.png.gbapal : $(GRAPHICSDIR)/%.png
+	@echo "  FAMICON PALETTE $<"
+	@$(MKDIR) -p $(@D) # Build target's directory if it doesn't exist
+	$(V)$(FAMICONV) palette --mode gba $(ICONPALFLAGS) -d $@ -i $<
+
+$(BUILDGRAPHICSDIR)/%.png.4bpp : $(GRAPHICSDIR)/%.png $(BUILDGRAPHICSDIR)/%.png.gbapal
+	@echo "  FAMICON TILES   $<"
+	@$(MKDIR) -p $(@D) # Build target's directory if it doesn't exist
+	$(V)$(FAMICONV) tiles --mode gba $(ICONTILEFLAGS) -d $@ -i $< -p $(BUILDGRAPHICSDIR)/$*.png.gbapal
+
+$(BUILDGRAPHICSDIR)/%.png.tilemap : $(GRAPHICSDIR)/%.png $(BUILDGRAPHICSDIR)/%.png.gbapal $(BUILDGRAPHICSDIR)/%.png.4bpp
+	@echo "  FAMICON MAP     $<"
+	@$(MKDIR) -p $(@D) # Build target's directory if it doesn't exist
+	$(V)$(FAMICONV) map --mode gba $(ICONMAPFLAGS) -d $@ -i $< -p $(BUILDGRAPHICSDIR)/$*.png.gbapal -t $(BUILDGRAPHICSDIR)/$*.png.4bpp
+
 
 # Targets
 # -------
@@ -155,6 +181,18 @@ $(BUILDOBJDIR)/%.cpp.o : $(SOURCEDIR)/%.cpp
 
 $(GBAFIX): $(wildcard tools/gbafix/*.c)
 	$(V)cd tools/gbafix && make
+
+$(GFX2OBJ): $(wildcard tools/gfx2obj/*.c) $(wildcard tools/gfx2obj/*.cpp) $(wildcard tools/gfx2obj/*.h)
+	$(V)cd tools/gfx2obj && make
+
+$(BUILDGRAPHICSDIR)/oldschool.png.gbapal: ICONPALFLAGS := -0 FFFFFF
+$(BUILDGRAPHICSDIR)/oldschool.png.4bpp: ICONTILEFLAGS := -D
+
+$(BUILDOBJDIR)/oldschool.png.o $(BUILDSRCDIR)/oldschool.png.h: $(GFX2OBJ) $(BUILDGRAPHICSDIR)/oldschool.png.4bpp
+	@echo "  GFX2OBJ oldschool.png"
+	@$(MKDIR) -p $(BUILDOBJDIR)
+	@$(MKDIR) -p $(BUILDSRCDIR)
+	$(V)$(GFX2OBJ) raw --out_object $(BUILDOBJDIR)/oldschool.png.o --out_header $(BUILDSRCDIR)/oldschool.png.h --in_data $(BUILDGRAPHICSDIR)/oldschool.png.4bpp --variable_name oldschool
 
 $(ELF): $(OBJS) source/sys/gba_cart.ld
 	@echo "  LD      $@"
@@ -182,6 +220,7 @@ clean:
 	@echo "  CLEAN"
 	$(V)$(RM) $(ROM) $(ELF) $(DUMP) $(SYM) $(MAP) $(BUILDDIR)
 	$(V)cd tools/gbafix && make clean
+	$(V)cd tools/gfx2obj && make clean
 
 # Include dependency files if they exist
 # --------------------------------------
