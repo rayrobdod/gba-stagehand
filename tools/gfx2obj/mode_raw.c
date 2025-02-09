@@ -26,7 +26,7 @@ static void set_variable_name(void* accumulator, const char* arg) {
 	((struct RawArguments*) accumulator)->variable_name = arg;
 }
 
-const struct ArgumentsAndFlags argsTemplate = {
+static const struct ArgumentsAndFlags argsTemplate = {
 	.flags_count = 0,
 	.flags = NULL,
 	.args_count = 4,
@@ -41,6 +41,15 @@ const struct ArgumentsAndFlags argsTemplate = {
 int mode_raw(int argc, char* argv[]) {
 	struct RawArguments args = {0};
 	parseArguments(argc, argv, &args, &argsTemplate);
+
+	if (! args.variable_name) {
+		fprintf(stderr, "`--variable_name` required\n");
+		exit(1);
+	}
+	if (! args.in_data_file) {
+		fprintf(stderr, "`--in_data` required\n");
+		exit(1);
+	}
 
 	struct stat st;
 	stat(args.in_data_file, &st);
