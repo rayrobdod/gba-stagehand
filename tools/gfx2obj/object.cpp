@@ -77,8 +77,13 @@ public:
 };
 
 
+struct Relocations {
+	uint32_t target;
+	std::vector<Elf32_Rel> data;
+};
 
-static Elf32_Shdr writeByteSection(
+
+static Elf32_Shdr writeBytesSection(
 		const Elf32_Shdr_Template header,
 		const void* data,
 		const Elf32_Word size,
@@ -191,6 +196,7 @@ private:
 	StringTableBuilder symbol_strings;
 	std::vector<Elf32_Sym> private_symbols;
 	std::vector<Elf32_Sym> public_symbols;
+	std::vector<Relocations> relocation_sections;
 	std::vector<Elf32_Shdr> sections;
 public:
 	ObjectImpl(const char* out_file_name) :
@@ -220,6 +226,7 @@ public:
 		symbol_strings(),
 		private_symbols(),
 		public_symbols(),
+		relocation_sections(),
 		sections()
 	{
 		this->f = fopen(out_file_name, "w");
@@ -234,9 +241,27 @@ public:
 	}
 
 	~ObjectImpl(void) {
+		Elf32_Word predicted_symbols_index = sections.size() + relocation_sections.size() + 1;
+		for (auto i = relocation_sections.begin(); i != relocation_sections.end(); i++) {
+			std::string section_name(".rel");
+			section_name.append(&section_strings.data()[sections[i->target].sh_name]);
+
+			sections.push_back(writeEntrySection(
+				((Elf32_Shdr_Template) {
+					.sh_name = section_strings.push(section_name),
+					.sh_type = SHT_REL,
+					.sh_link = predicted_symbols_index,
+					.sh_info = i->target,
+				}),
+				i->data.data(),
+				sizeof(Elf32_Rel),
+				i->data.size(),
+				this->f
+			));
+		}
 
 		Elf32_Word strtab_index = sections.size();
-		sections.push_back(writeByteSection(
+		sections.push_back(writeBytesSection(
 			{
 				.sh_name = section_strings.push(".strtab"),
 				.sh_type = SHT_STRTAB,
@@ -272,7 +297,7 @@ public:
 
 		header.e_shstrndx = sections.size();
 		section_strings.push(".shstrtab");
-		sections.push_back(writeByteSection(
+		sections.push_back(writeBytesSection(
 			{
 				// `find` to make sure there is no problem with mutation order
 				.sh_name = section_strings.find(".shstrtab"),
@@ -295,11 +320,11 @@ public:
 	}
 
 	void push_file_copy_section(
-		const char* variable_name,
-		const char* src_filename
+		const char* src_filename,
+		const variable_template variable
 	) {
 		std::string section_name(".rodata.");
-		section_name.append(variable_name);
+		section_name.append(variable.name);
 
 		Elf32_Section my_section_index = (Elf32_Section) sections.size();
 
@@ -320,13 +345,95 @@ public:
 			.st_info = ELF32_ST_INFO(STB_LOCAL, STT_SECTION),
 			.st_shndx = my_section_index,
 		});
-		public_symbols.push_back({
-			.st_name = symbol_strings.push(variable_name),
+		(variable.binding == STB_LOCAL ? private_symbols : public_symbols).push_back({
+			.st_name = symbol_strings.push(variable.name),
 			.st_value = 0x00,
 			.st_size = my_section_header.sh_size,
-			.st_info = ELF32_ST_INFO(STB_GLOBAL, STT_OBJECT),
+			.st_info = ELF32_ST_INFO(variable.binding, STT_OBJECT),
 			.st_shndx = my_section_index,
 		});
+	}
+
+	void push_bytes_section(
+		const void* data, Elf32_Word size,
+		const variable_template variable
+	) {
+		std::string section_name(".rodata.");
+		section_name.append(variable.name);
+
+		Elf32_Section my_section_index = (Elf32_Section) sections.size();
+
+		Elf32_Shdr my_section_header = writeBytesSection(
+			{
+				.sh_name = section_strings.push(section_name),
+				.sh_type = SHT_PROGBITS,
+				.sh_flags = SHF_ALLOC,
+				.sh_addralign = 4,
+			},
+			data, size,
+			this->f
+		);
+
+		sections.push_back(my_section_header);
+
+		private_symbols.push_back({
+			.st_info = ELF32_ST_INFO(STB_LOCAL, STT_SECTION),
+			.st_shndx = my_section_index,
+		});
+		(variable.binding == STB_LOCAL ? private_symbols : public_symbols).push_back({
+			.st_name = symbol_strings.push(variable.name),
+			.st_value = 0x00,
+			.st_size = my_section_header.sh_size,
+			.st_info = ELF32_ST_INFO(variable.binding, STT_OBJECT),
+			.st_shndx = my_section_index,
+		});
+	}
+
+	void push_relocation_section(
+		char* target_name,
+		struct relocation_template* rels, size_t rel_count
+	) {
+		Elf32_Section target = index_of_section(target_name);
+		std::vector<Elf32_Rel> data;
+
+		for (size_t i = 0; i < rel_count; i++) {
+			uint32_t symbol = id_of_symbol(rels[i].symbol_name);
+
+			data.push_back({
+				.r_offset = rels[i].offset,
+				.r_info = ELF32_R_INFO(symbol, rels[i].type),
+			});
+		}
+
+		relocation_sections.push_back({
+			.target = target,
+			.data = data,
+		});
+	}
+
+	Elf32_Section index_of_section(const char* name) const {
+		Elf32_Section i = 0;
+		for (auto s = sections.begin(); s != sections.end(); s++, i++) {
+			if (0 == strcmp(&section_strings.data()[s->sh_name], name)) {
+				return i;
+			}
+		}
+		return 0;
+	}
+
+	uint32_t id_of_symbol(const char* name) const {
+		uint32_t i = 0;
+		for (auto s = private_symbols.begin(); s != private_symbols.end(); s++, i++) {
+			if (0 == strcmp(&symbol_strings.data()[s->st_name], name)) {
+				return i;
+			}
+		}
+		for (auto s = public_symbols.begin(); s != public_symbols.end(); s++, i++) {
+			if (0 == strcmp(&symbol_strings.data()[s->st_name], name)) {
+				return i;
+			}
+		}
+		return 0;
 	}
 };
 
@@ -347,8 +454,24 @@ void object_finish(struct Object* self) {
 
 void object_push_file_copy_section(
 	struct Object* self,
-	const char* variable_name,
-	const char* src_filename
+	const char* src_filename,
+	const struct variable_template variable
 ) {
-	self->impl->push_file_copy_section(variable_name, src_filename);
+	self->impl->push_file_copy_section(src_filename, variable);
+}
+
+void object_push_bytes_section(
+	struct Object* self,
+	const void* data, Elf32_Word size,
+	const struct variable_template variable
+) {
+	self->impl->push_bytes_section(data, size, variable);
+}
+
+void push_relocation_section(
+	struct Object* self,
+	char* target_name,
+	struct relocation_template* rels, size_t rel_count
+) {
+	self->impl->push_relocation_section(target_name, rels, rel_count);
 }

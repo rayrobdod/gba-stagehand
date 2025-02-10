@@ -98,7 +98,7 @@ ASFLAGS		+= -x assembler-with-cpp $(DEFINES) $(ARCH) \
 
 CFLAGS		+= -std=gnu11 $(WARNFLAGS) $(DEFINES) $(ARCH) \
 		   -mthumb -mthumb-interwork $(INCLUDEFLAGS) -O3 \
-		   -ffunction-sections -fdata-sections
+		   -ffunction-sections -fdata-sections -fanalyzer
 
 CXXFLAGS	+= -std=gnu++14 $(WARNFLAGS) $(DEFINES) $(ARCH) \
 		   -mthumb -mthumb-interwork $(INCLUDEFLAGS) -O3 \
@@ -192,7 +192,13 @@ $(BUILDOBJDIR)/oldschool.png.o $(BUILDSRCDIR)/oldschool.png.h: $(GFX2OBJ) $(BUIL
 	@echo "  GFX2OBJ oldschool.png"
 	@$(MKDIR) -p $(BUILDOBJDIR)
 	@$(MKDIR) -p $(BUILDSRCDIR)
-	$(V)$(GFX2OBJ) raw --out_object $(BUILDOBJDIR)/oldschool.png.o --out_header $(BUILDSRCDIR)/oldschool.png.h --in_data $(BUILDGRAPHICSDIR)/oldschool.png.4bpp --variable_name oldschool
+	$(V)$(GFX2OBJ) tileset \
+		--out_object $(BUILDOBJDIR)/oldschool.png.o \
+		--out_header $(BUILDSRCDIR)/oldschool.png.h \
+		--in_palettes $(BUILDGRAPHICSDIR)/oldschool.png.gbapal \
+		--in_tileset $(BUILDGRAPHICSDIR)/oldschool.png.4bpp \
+		--variable_name oldschool
+
 
 $(ELF): $(OBJS) source/sys/gba_cart.ld
 	@echo "  LD      $@"

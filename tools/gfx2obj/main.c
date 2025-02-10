@@ -3,6 +3,7 @@
 #include <string.h>
 
 #include "mode_raw.h"
+#include "mode_tileset.h"
 
 #define arraycount(a) (sizeof(a) / sizeof(a[0]))
 
@@ -10,7 +11,8 @@ const struct {
 	const char* id;
 	int (*runner)(int argc, char** argv);
 } modes[] = {
-	[0] = {"raw", mode_raw},
+	{"raw", mode_raw},
+	{"tileset", mode_tileset},
 };
 
 

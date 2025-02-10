@@ -11,6 +11,7 @@
 #include "gba/shared.h"
 #include "gba/palette.h"
 #include "gba/vram.h"
+#include "scene_graphics.h"
 #include "oldschool.png.h"
 
 int main(int argc, char *argv[])
@@ -28,11 +29,13 @@ int main(int argc, char *argv[])
     };
     reg_lcd.BG1CNT = newbg1cnt;
 
-    struct CpuFastSet cpuset = {
-        .word_count = sizeof(oldschool) / 4,
-        .mode = CPU_SET_COPY,
-    };
-    CpuFastSet(oldschool, &vram.bg_charblock[0][' '], cpuset);
+    load_tileset_graphics(
+        &oldschool,
+        (struct load_tileset_graphics) {
+            .charblock = 0,
+            .palette_offset = 0,
+            .tile_offset = ' ',
+        });
 
     char message[] = "Hello World";
 
@@ -43,9 +46,6 @@ int main(int argc, char *argv[])
         };
         vram.screenblock[31][i] = new_tile;
     }
-
-    background_palette[0][0] = rgb(31, 31, 31);
-    background_palette[0][1] = rgb(0, 0, 0);
 
     while(1);
 

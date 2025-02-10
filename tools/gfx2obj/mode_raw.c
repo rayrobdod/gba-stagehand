@@ -5,6 +5,7 @@
 #include <stdlib.h>
 #include "parse_arguments.h"
 #include "object.h"
+#include "util.h"
 
 struct RawArguments {
 	const char* in_data_file;
@@ -51,9 +52,7 @@ int mode_raw(int argc, char* argv[]) {
 		exit(1);
 	}
 
-	struct stat st;
-	stat(args.in_data_file, &st);
-	unsigned in_data_file_size = st.st_size;
+	uint32_t in_data_file_size = file_size(args.in_data_file);
 
 	if (args.out_header_file) {
 		FILE* f = fopen(args.out_header_file, "w");
@@ -67,7 +66,10 @@ int mode_raw(int argc, char* argv[]) {
 	if (args.out_object_file) {
 		struct Object* object = object_start(args.out_object_file);
 
-		object_push_file_copy_section(object, args.variable_name, args.in_data_file);
+		object_push_file_copy_section(
+			object,
+			args.in_data_file,
+			(struct variable_template) { args.variable_name, STB_GLOBAL });
 
 		object_finish(object);
 	}
