@@ -50,6 +50,35 @@ typedef struct {
 } dispstat_t;
 
 typedef struct {
+	uint8_t right;
+	uint8_t left;
+} window_horizontal_t;
+
+typedef struct {
+	uint8_t down;
+	uint8_t up;
+} window_vertical_t;
+
+typedef struct {
+	bool bg0: 1;
+	bool bg1: 1;
+	bool bg2: 1;
+	bool bg3: 1;
+	bool obj: 1;
+	bool color_special: 1;
+	bool _unused6: 1;
+	bool _unused7: 1;
+} window_enable_t;
+
+typedef struct {
+	window_enable_t win0;
+	window_enable_t win1;
+} window_enable_pair_t;
+
+__attribute__((unused))
+static window_enable_t WIN_ENABLE_ALL = {true, true, true, true, true, true};
+
+typedef struct {
 	dispcnt_t DISPCNT;	/* 4000000 */
 	uint16_t _unused0;	/* 4000002 */
 	dispstat_t DISPSTAT;	/* 4000004 */
@@ -78,12 +107,12 @@ typedef struct {
 	uint16_t BG3PD;	/* 4000036 */
 	uint32_t BG3X;	/* 4000038 */
 	uint32_t BG3Y;	/* 400003C */
-	uint16_t WIN0H;	/* 4000040 */
-	uint16_t WIN1H;	/* 4000042 */
-	uint16_t WIN0V;	/* 4000044 */
-	uint16_t WIN1V;	/* 4000046 */
-	uint16_t WININ;	/* 4000048 */
-	uint16_t WINOUT;	/* 400004A */
+	window_horizontal_t WIN0H;	/* 4000040 */
+	window_horizontal_t WIN1H;	/* 4000042 */
+	window_vertical_t WIN0V;	/* 4000044 */
+	window_vertical_t WIN1V;	/* 4000046 */
+	window_enable_pair_t WININ;	/* 4000048 */
+	window_enable_pair_t WINOUT;	/* 400004A */
 	uint16_t MOSAIC;	/* 400004C */
 	uint16_t _unused2;	/* 400004E */
 	uint16_t BLDCNT;	/* 4000050 */
@@ -200,23 +229,6 @@ Serial Communication (2)
   uint32_t JOY_TRANS;	/* 4000154 */
   uint16_t JOYSTAT;	/* 4000158 */
 #endif
-
-typedef struct {
-	bool vblank: 1;
-	bool hblank: 1;
-	bool vcount: 1;
-	bool timer0: 1;
-	bool timer1: 1;
-	bool timer2: 1;
-	bool timer3: 1;
-	bool com: 1;
-	bool dma0: 1;
-	bool dma1: 1;
-	bool dma2: 1;
-	bool dma3: 1;
-	bool keypad: 1;
-	bool gamepak: 1;
-} interrupt_flag_t;
 
 typedef struct {
   interrupt_flag_t IE;	/* 4000200 */

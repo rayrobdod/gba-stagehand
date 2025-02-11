@@ -1,6 +1,7 @@
 #ifndef GUARD_GBA_SHARED_H
 #define GUARD_GBA_SHARED_H
 
+#include <stdbool.h>
 #include <stdint.h>
 
 typedef struct {
@@ -22,5 +23,27 @@ typedef enum {
 	PAL_MODE_4BPP = 0,
 	PAL_MODE_8BPP = 1,
 } palette_mode_t;
+
+
+typedef union {
+	struct {
+		bool vblank: 1;
+		bool hblank: 1;
+		bool vcount: 1;
+		bool timer0: 1;
+		bool timer1: 1;
+		bool timer2: 1;
+		bool timer3: 1;
+		bool com: 1;
+		bool dma0: 1;
+		bool dma1: 1;
+		bool dma2: 1;
+		bool dma3: 1;
+		bool keypad: 1;
+		bool gamepak: 1;
+	};
+	uint16_t all;
+} interrupt_flag_t;
+
 
 #endif

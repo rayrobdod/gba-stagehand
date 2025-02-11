@@ -185,7 +185,7 @@ $(GBAFIX): $(wildcard tools/gbafix/*.c)
 $(GFX2OBJ): $(wildcard tools/gfx2obj/*.c) $(wildcard tools/gfx2obj/*.cpp) $(wildcard tools/gfx2obj/*.h)
 	$(V)cd tools/gfx2obj && make
 
-$(BUILDGRAPHICSDIR)/oldschool.png.gbapal: ICONPALFLAGS := -0 FFFFFF
+$(BUILDGRAPHICSDIR)/oldschool.png.gbapal: ICONPALFLAGS := -0 FF00FF
 $(BUILDGRAPHICSDIR)/oldschool.png.4bpp: ICONTILEFLAGS := -D
 
 $(BUILDOBJDIR)/oldschool.png.o $(BUILDSRCDIR)/oldschool.png.h: $(GFX2OBJ) $(BUILDGRAPHICSDIR)/oldschool.png.4bpp

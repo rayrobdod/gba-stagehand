@@ -1,0 +1,2 @@
+#define DISPLAY_HEIGHT 160
+#define DISPLAY_WIDTH 240
