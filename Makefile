@@ -77,6 +77,7 @@ GFX2OBJ		:= tools/gfx2obj/gfx2obj
 SOURCES_S	:= $(wildcard $(SOURCEDIR)/*.s $(SOURCEDIR)/**/*.s)
 SOURCES_C	:= $(wildcard $(SOURCEDIR)/*.c $(SOURCEDIR)/**/*.c)
 SOURCES_CPP	:= $(wildcard $(SOURCEDIR)/*.cpp $(SOURCEDIR)/**/*.cpp)
+SOURCES_PNG	:= $(wildcard $(GRAPHICSDIR)/*.png $(GRAPHICSDIR)/**/*.png)
 
 # Compiler and linker flags
 # -------------------------
@@ -119,7 +120,7 @@ ICONMAPFLAGS	:=
 # ------------------------
 
 OBJS		:= \
-	$(BUILDOBJDIR)/oldschool.png.o \
+	$(patsubst $(GRAPHICSDIR)/%.png,$(BUILDOBJDIR)/%.png.o,$(SOURCES_PNG)) \
 	$(patsubst $(SOURCEDIR)/%.s,$(BUILDOBJDIR)/%.s.o,$(SOURCES_S)) \
 	$(patsubst $(SOURCEDIR)/%.c,$(BUILDOBJDIR)/%.c.o,$(SOURCES_C)) \
 	$(patsubst $(SOURCEDIR)/%.cpp,$(BUILDOBJDIR)/%.cpp.o,$(SOURCES_CPP))
@@ -187,6 +188,10 @@ $(GFX2OBJ): $(wildcard tools/gfx2obj/*.c) $(wildcard tools/gfx2obj/*.cpp) $(wild
 
 $(BUILDGRAPHICSDIR)/oldschool.png.gbapal: ICONPALFLAGS := -0 FF00FF
 $(BUILDGRAPHICSDIR)/oldschool.png.4bpp: ICONTILEFLAGS := -D
+$(BUILDGRAPHICSDIR)/arrow_left.png.gbapal: ICONPALFLAGS := -0 FF00FF
+$(BUILDGRAPHICSDIR)/arrow_left.png.4bpp: ICONTILEFLAGS := -D -W 16 -H 16
+$(BUILDGRAPHICSDIR)/arrow_right.png.4bpp: ICONTILEFLAGS := -D -W 16 -H 16
+$(BUILDGRAPHICSDIR)/arrow_down.png.4bpp: ICONTILEFLAGS := -D -W 16 -H 16
 
 $(BUILDOBJDIR)/oldschool.png.o $(BUILDSRCDIR)/oldschool.png.h: $(GFX2OBJ) $(BUILDGRAPHICSDIR)/oldschool.png.4bpp
 	@echo "  GFX2OBJ oldschool.png"
@@ -198,6 +203,48 @@ $(BUILDOBJDIR)/oldschool.png.o $(BUILDSRCDIR)/oldschool.png.h: $(GFX2OBJ) $(BUIL
 		--in_palettes $(BUILDGRAPHICSDIR)/oldschool.png.gbapal \
 		--in_tileset $(BUILDGRAPHICSDIR)/oldschool.png.4bpp \
 		--variable_name oldschool
+
+$(BUILDOBJDIR)/arrow_left.png.o $(BUILDSRCDIR)/arrow_left.png.h: $(GFX2OBJ) $(BUILDGRAPHICSDIR)/arrow_left.png.4bpp $(BUILDGRAPHICSDIR)/arrow_left.png.gbapal
+	@echo "  GFX2OBJ arrow_left.png"
+	@$(MKDIR) -p $(BUILDOBJDIR)
+	@$(MKDIR) -p $(BUILDSRCDIR)
+	$(V)$(GFX2OBJ) sprite \
+		--out_object $(BUILDOBJDIR)/arrow_left.png.o \
+		--out_header $(BUILDSRCDIR)/arrow_left.png.h \
+		--in_palettes $(BUILDGRAPHICSDIR)/arrow_left.png.gbapal \
+		--in_tiles $(BUILDGRAPHICSDIR)/arrow_left.png.4bpp \
+		--size 16x16 \
+		--paltag 10001 \
+		--tiletag 20001 \
+		--variable_name arrow_left
+
+$(BUILDOBJDIR)/arrow_right.png.o $(BUILDSRCDIR)/arrow_right.png.h: $(GFX2OBJ) $(BUILDGRAPHICSDIR)/arrow_right.png.4bpp $(BUILDGRAPHICSDIR)/arrow_right.png.gbapal
+	@echo "  GFX2OBJ arrow_right.png"
+	@$(MKDIR) -p $(BUILDOBJDIR)
+	@$(MKDIR) -p $(BUILDSRCDIR)
+	$(V)$(GFX2OBJ) sprite \
+		--out_object $(BUILDOBJDIR)/arrow_right.png.o \
+		--out_header $(BUILDSRCDIR)/arrow_right.png.h \
+		--in_palettes $(BUILDGRAPHICSDIR)/arrow_right.png.gbapal \
+		--in_tiles $(BUILDGRAPHICSDIR)/arrow_right.png.4bpp \
+		--size 16x16 \
+		--paltag 10002 \
+		--tiletag 20002 \
+		--variable_name arrow_right
+
+$(BUILDOBJDIR)/arrow_down.png.o $(BUILDSRCDIR)/arrow_down.png.h: $(GFX2OBJ) $(BUILDGRAPHICSDIR)/arrow_down.png.4bpp $(BUILDGRAPHICSDIR)/arrow_down.png.gbapal
+	@echo "  GFX2OBJ arrow_down.png"
+	@$(MKDIR) -p $(BUILDOBJDIR)
+	@$(MKDIR) -p $(BUILDSRCDIR)
+	$(V)$(GFX2OBJ) sprite \
+		--out_object $(BUILDOBJDIR)/arrow_down.png.o \
+		--out_header $(BUILDSRCDIR)/arrow_down.png.h \
+		--in_palettes $(BUILDGRAPHICSDIR)/arrow_down.png.gbapal \
+		--in_tiles $(BUILDGRAPHICSDIR)/arrow_down.png.4bpp \
+		--size 16x16 \
+		--paltag 10003 \
+		--tiletag 20003 \
+		--variable_name arrow_down
 
 
 $(ELF): $(OBJS) source/sys/gba_cart.ld

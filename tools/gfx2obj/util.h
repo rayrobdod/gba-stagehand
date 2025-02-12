@@ -1,8 +1,12 @@
 #ifndef UTIL_H
 #define UTIL_H
 
+#include <stdlib.h>
+#include <stdint.h>
 #include <string.h>
 #include <sys/stat.h>
+
+#define arraycount(a) (sizeof(a) / sizeof(a[0]))
 
 static inline uint32_t file_size(const char* filename) {
 	struct stat st;

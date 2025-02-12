@@ -12,7 +12,7 @@ struct scene_graphics {
     bg_tile_t* tileset;
 
     uint16_t tilemap_count;
-    bg_tile_t* tilemap;
+    tile_4bpp_t* tilemap;
 };
 
 struct tileset_graphics {
@@ -25,8 +25,8 @@ struct tileset_graphics {
 
 
 void load_tileset_graphics(
-        struct tileset_graphics* data,
-        struct load_tileset_graphics param) {
+        const struct tileset_graphics* data,
+        const struct load_tileset_graphics param) {
     CpuFastSet(
         data->palettes,
         &background_palette[param.palette_offset],

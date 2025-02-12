@@ -11,108 +11,136 @@
 #include "gba/hw_reg.h"
 #include "gba/shared.h"
 #include "gba/palette.h"
+#include "gba/screen.h"
 #include "gba/vram.h"
 #include "isr.h"
 #include "mgba.h"
 #include "scene_graphics.h"
-#include "gba/screen.h"
+#include "shadow_oam.h"
+#include "vram_op_queue.h"
 #include "oldschool.png.h"
+#include "arrow_left.png.h"
+#include "arrow_right.png.h"
 
 
 /* Adds current and change, without overflowing the bounds of min and max */
 static uint16_t saturating_add(uint16_t current, uint16_t min, uint16_t max, int16_t change) {
-    if (0 == change)
-        return current;
-    else if (0 < change) {
-        if (max - current < change) {
-            return max;
-        } else {
-            return current + change;
-        }
-    } else {
-        change = -change;
-        if (current - min < change) {
-            return min;
-        } else {
-            return current - change;
-        }
-    }
-}
-
-void triangle_window_isr(void) {
-	if (reg_lcd.VCOUNT < DISPLAY_HEIGHT) {
-		reg_lcd.WIN0H = (window_horizontal_t) {
-			.right = 240 - reg_lcd.VCOUNT,
-			.left = 0,
-		};
+	if (0 == change)
+		return current;
+	else if (0 < change) {
+		if (max - current < change) {
+			return max;
+		} else {
+			return current + change;
+		}
+	} else {
+		change = -change;
+		if (current - min < change) {
+			return min;
+		} else {
+			return current - change;
+		}
 	}
 }
 
-
 int main(int argc, char *argv[])
 {
-    reg_lcd.DISPCNT = (dispcnt_t) {
-        .mode = 0,
-        .enable_bg1 = true,
-        .enable_win0 = true,
-    };
+	reg_lcd.DISPCNT = (dispcnt_t) {
+		.mode = 0,
+		.obj_character_mapping = OBJ_CHAR_MAP_1D,
+		.enable_bg1 = true,
+		.enable_obj = true,
+	};
 
-    reg_lcd.BG1CNT = (bgcnt_t) {
-        .priority = 0,
-        .charblock = 0,
-        .screenblock = 31,
-    };
+	reg_lcd.BG1CNT = (bgcnt_t) {
+		.priority = 0,
+		.charblock = 0,
+		.screenblock = 31,
+	};
 
-    reg_lcd.WINOUT = (window_enable_pair_t) {0};
-    reg_lcd.WININ = (window_enable_pair_t) {WIN_ENABLE_ALL, WIN_ENABLE_ALL};
-    reg_lcd.WIN0H = (window_horizontal_t) {240, 0};
-    reg_lcd.WIN0V = (window_vertical_t) {160, 0};
+	load_tileset_graphics(
+		&oldschool,
+		(struct load_tileset_graphics) {
+			.charblock = 0,
+			.palette_offset = 0,
+			.tile_offset = ' ',
+		});
 
-    load_tileset_graphics(
-        &oldschool,
-        (struct load_tileset_graphics) {
-            .charblock = 0,
-            .palette_offset = 0,
-            .tile_offset = ' ',
-        });
+	char message[] = "Hello World";
 
-    char message[] = "Hello World";
+	unsigned i;
+	for (i = 0; i < sizeof(message); i++) {
+		bg_tile_t new_tile = {
+			.tile = message[i],
+			.palette = 0,
+		};
+		vram.screenblock[31][i] = new_tile;
+	}
+	for (; i < 32 * 32; i++) {
+		vram.screenblock[31][i] = (bg_tile_t) {' '};
+	}
 
-    unsigned i;
-    for (i = 0; i < sizeof(message); i++) {
-        bg_tile_t new_tile = {
-            .tile = message[i],
-            .palette = 0,
-        };
-        vram.screenblock[31][i] = new_tile;
-    }
-    for (; i < 32 * 32; i++) {
-        vram.screenblock[31][i] = (bg_tile_t) {' '};
-    }
+	isr_switchboard_init();
+	isr_enable(II_VBLANK);
 
-    isr_switchboard_init();
+	shadow_oam_init();
 
-    isr_enable(II_VBLANK);
-    isr_enable(II_HBLANK);
+	MgbaOpen();
 
-    isr_switchboard_set(II_HBLANK, triangle_window_isr);
+	int16_t arrow_right_index = shadow_oam_add_sprite(
+		&arrow_right,
+		(struct shadow_oam_position) {
+			.coord = (ucoords16_t) {.x = 20, .y = 20},
+			.hotspot = HOTSPOT_RIGHT,
+		});
 
-    rgb_t current_color = rgb(28, 28, 28);
+	int16_t arrow_left_index = shadow_oam_add_sprite(
+		&arrow_left,
+		(struct shadow_oam_position) {
+			.coord = (ucoords16_t) {.x = 20, .y = 20},
+			.hotspot = HOTSPOT_LEFT,
+		});
 
-    while(1) {
-        VBlankIntrWait();
+	uint32_t arrow_wiggle_timer = 0;
 
-        reg_lcd.WIN0H = (window_horizontal_t) {.left = 8, .right = 240};
+	while(1) {
+		VBlankIntrWait();
 
-        if (! reg_keypad.KEYINPUT.left) {
-            current_color.r = saturating_add(current_color.r, 0, 31, -1);
-        }
-        if (! reg_keypad.KEYINPUT.right) {
-            current_color.r = saturating_add(current_color.r, 0, 31, 1);
-        }
+		vram_op_queue_execute();
 
-        background_palette[0][0] = current_color;
-    }
+		arrow_wiggle_timer++;
+		if ((arrow_wiggle_timer & 0xF) == 0) {
+			unsigned newRightX;
+			unsigned newLeftX;
+			switch ((arrow_wiggle_timer & 0x30) >> 4) {
+			case 0:
+			case 2:
+				newRightX = newLeftX = 20;
+				break;
+			case 1:
+				newRightX = 21;
+				newLeftX = 19;
+				break;
+			case 3:
+				newRightX = 19;
+				newLeftX = 21;
+				break;
+			}
 
-    return 0;
+			shadow_oam_move_sprite(
+				arrow_left_index,
+				(struct shadow_oam_position) {
+					.coord = (ucoords16_t) {.x = newLeftX, .y = 20},
+					.hotspot = HOTSPOT_LEFT,
+			});
+			shadow_oam_move_sprite(
+				arrow_right_index,
+				(struct shadow_oam_position) {
+					.coord = (ucoords16_t) {.x = newRightX, .y = 20},
+					.hotspot = HOTSPOT_RIGHT,
+			});
+		}
+	}
+
+	return 0;
 }

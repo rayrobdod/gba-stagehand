@@ -11,30 +11,47 @@ void parseArguments(
 ) {
 	int i = 0;
 	while (i < argc) {
-		for (int j = 0; j < template->flags_count; j++) {
-			if (0 == strcmp(template->flags[j].key, argv[i])) {
-				template->flags[j].setter(accumulator);
-				goto next;
+		const struct Flag* flag = template->flags;
+		if (flag) {
+			while (flag->key) {
+				if (0 == strcmp(flag->key, argv[i])) {
+					flag->setter(accumulator);
+					goto next;
+				}
+				flag++;
 			}
 		}
-		for (int j = 0; j < template->args_count; j++) {
-			if (0 == strcmp(template->arguments[j].key, argv[i])) {
-				i++;
-				if (i >= argc) {
-					fprintf(stderr, "No value for final arg");
-					exit(1);
+
+		const struct Argument* argument = template->arguments;
+		if (argument) {
+			while (argument->key) {
+				if (0 == strcmp(argument->key, argv[i])) {
+					i++;
+					if (i >= argc) {
+						fprintf(stderr, "No value for final arg");
+						exit(1);
+					}
+					argument->setter(accumulator, argv[i]);
+					goto next;
 				}
-				template->arguments[j].setter(accumulator, argv[i]);
-				goto next;
+				argument++;
 			}
 		}
 
 		if (0 == strcmp("--help", argv[i])) {
-			for (int j = 0; j < template->flags_count; j++) {
-				printf("  %15s : \n", template->flags[j].key);
+			flag = template->flags;
+			if (flag) {
+				while (flag->key) {
+					printf("  %15s : \n", flag->key);
+					flag++;
+				}
 			}
-			for (int j = 0; j < template->args_count; j++) {
-				printf("  %15s : \n", template->arguments[j].key);
+			argument = template->arguments;
+			if (argument) {
+				while (argument->key) {
+					printf("  %15s : \n", argument->key);
+					argument++;
+				}
 			}
 
 			exit(0);

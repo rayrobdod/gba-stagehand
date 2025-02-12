@@ -1,4 +1,4 @@
-#include "mode_tileset.h"
+#include "mode_sprite.h"
 
 #include <elf.h>
 #include <stdio.h>
@@ -11,17 +11,34 @@
 
 struct TilesetArguments {
 	const char* in_palettes_file;
-	const char* in_tileset_file;
+	const char* in_tiles_file;
 	const char* out_object_file;
 	const char* out_header_file;
 	const char* variable_name;
+	unsigned paltag;
+	unsigned tiletag;
+	unsigned size;
 };
 
 static void set_in_palettes_file(void* accumulator, const char* arg) {
 	((struct TilesetArguments*) accumulator)->in_palettes_file = arg;
 }
-static void set_in_tileset_file(void* accumulator, const char* arg) {
-	((struct TilesetArguments*) accumulator)->in_tileset_file = arg;
+static void set_in_tiles_file(void* accumulator, const char* arg) {
+	((struct TilesetArguments*) accumulator)->in_tiles_file = arg;
+}
+static void set_paltag(void* accumulator, const char* arg) {
+	long argl = strtol(arg, NULL, 0);
+	((struct TilesetArguments*) accumulator)->paltag = argl;
+}
+static void set_size(void* accumulator, const char* arg) {
+	if (0 == strcmp(arg, "8x8")) {
+		((struct TilesetArguments*) accumulator)->size = 0;
+	} else if (0 == strcmp(arg, "16x16")) {
+		((struct TilesetArguments*) accumulator)->size = (1 << 2);
+	} else {
+		fprintf(stderr, "Illegal `--size` parameter %s\n", arg);
+		exit(1);
+	}
 }
 static void set_out_object_file(void* accumulator, const char* arg) {
 	((struct TilesetArguments*) accumulator)->out_object_file = arg;
@@ -37,7 +54,9 @@ static const struct ArgumentsAndFlags argsTemplate = {
 	.flags = NULL,
 	.arguments = (struct Argument[]) {
 		{"--in_palettes", set_in_palettes_file},
-		{"--in_tileset", set_in_tileset_file},
+		{"--paltag", set_paltag},
+		{"--in_tiles", set_in_tiles_file},
+		{"--size", set_size},
 		{"--out_object", set_out_object_file},
 		{"--out_header", set_out_header_file},
 		{"--variable_name", set_variable_name},
@@ -45,8 +64,8 @@ static const struct ArgumentsAndFlags argsTemplate = {
 	}
 };
 
-int mode_tileset(int argc, char* argv[]) {
-	struct TilesetArguments args = {0};
+int mode_sprite(int argc, char* argv[]) {
+	struct TilesetArguments args = {.size = 0xFF};
 	parseArguments(argc, argv, &args, &argsTemplate);
 
 	if (! args.variable_name) {
@@ -57,8 +76,12 @@ int mode_tileset(int argc, char* argv[]) {
 		fprintf(stderr, "`--in_palettes` required\n");
 		exit(1);
 	}
-	if (! args.in_tileset_file) {
-		fprintf(stderr, "`--in_tileset` required\n");
+	if (! args.in_tiles_file) {
+		fprintf(stderr, "`--in_tiles` required\n");
+		exit(1);
+	}
+	if (args.size == 0xFF) {
+		fprintf(stderr, "`--size` required\n");
 		exit(1);
 	}
 
@@ -68,7 +91,7 @@ int mode_tileset(int argc, char* argv[]) {
 			fprintf(stderr, "Could not open file %s\n", args.out_header_file);
 			exit(1);
 		}
-		fprintf(f, "extern const struct tileset_graphics %s;\n", args.variable_name);
+		fprintf(f, "extern const struct shadow_oam_template %s;\n", args.variable_name);
 		fclose(f);
 	}
 	if (args.out_object_file) {
@@ -83,14 +106,14 @@ int mode_tileset(int argc, char* argv[]) {
 		char* tiles_name = strdupcat(args.variable_name, ".tiles");
 		object_push_file_copy_section(
 			object,
-			args.in_tileset_file,
+			args.in_tiles_file,
 			(struct variable_template) { tiles_name, STB_LOCAL });
 
 		uint32_t root_data[4] = {
-			file_size(args.in_palettes_file) / (16 * 2),
 			0,
-			file_size(args.in_tileset_file) / (8 * 4),
 			0,
+			args.paltag | (args.tiletag << 16),
+			args.size,
 		};
 		object_push_bytes_section(
 			object,
@@ -99,12 +122,12 @@ int mode_tileset(int argc, char* argv[]) {
 
 		struct relocation_template relocations[2] = {
 			[0] = {
-				.offset = 4,
+				.offset = 0,
 				.type = R_ARM_ABS32,
 				.symbol_name = pal_name,
 			},
 			[1] = {
-				.offset = 12,
+				.offset = 4,
 				.type = R_ARM_ABS32,
 				.symbol_name = tiles_name,
 			},

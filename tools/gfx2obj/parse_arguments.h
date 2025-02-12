@@ -14,9 +14,9 @@ struct Argument {
 };
 
 struct ArgumentsAndFlags {
-	size_t flags_count;
+	/** null-terminated */
 	struct Flag* flags;
-	size_t args_count;
+	/** null-terminated */
 	struct Argument* arguments;
 };
 

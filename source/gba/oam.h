@@ -5,17 +5,23 @@
 #include <stdbool.h>
 #include "gba/shared.h"
 
+enum oam_shape {
+	OAM_SHAPE_SQUARE = 0,
+	OAM_SHAPE_HORIZONTAL = 1,
+	OAM_SHAPE_VERTICAL = 2,
+};
+
 typedef struct {
 	unsigned int y : 8;
 	bool rotation : 1;
 	//union {
 		bool disabled : 1;
 	//	bool double_sized : 1;
-	//}
+	//};
 	unsigned int mode : 2;
 	bool mosaic: 1;
 	palette_mode_t palette_mode : 1;
-	unsigned int shape : 2;
+	enum oam_shape shape : 2;
 
 	unsigned int x: 9;
 	//union {

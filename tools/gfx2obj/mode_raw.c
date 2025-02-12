@@ -28,14 +28,13 @@ static void set_variable_name(void* accumulator, const char* arg) {
 }
 
 static const struct ArgumentsAndFlags argsTemplate = {
-	.flags_count = 0,
 	.flags = NULL,
-	.args_count = 4,
 	.arguments = (struct Argument[]) {
 		{"--in_data", set_in_data_file},
 		{"--out_object", set_out_object_file},
 		{"--out_header", set_out_header_file},
 		{"--variable_name", set_variable_name},
+		{0},
 	}
 };
 
@@ -60,7 +59,7 @@ int mode_raw(int argc, char* argv[]) {
 			fprintf(stderr, "Could not open file %s\n", args.out_header_file);
 			exit(1);
 		}
-		fprintf(f, "extern uint8_t %s[%d];\n", args.variable_name, in_data_file_size);
+		fprintf(f, "extern const uint8_t %s[%d];\n", args.variable_name, in_data_file_size);
 		fclose(f);
 	}
 	if (args.out_object_file) {
