@@ -327,8 +327,8 @@ void shadow_oam_move_sprite(
 		.oam = {
 			.to_index = index,
 			.value = (oam_t) {
-				.y = position.coord.y + dy,
-				.x = position.coord.x + dx,
+				.y = position.coord.y - dy,
+				.x = position.coord.x - dx,
 				.hflip = position.hflip,
 				.vflip = position.vflip,
 

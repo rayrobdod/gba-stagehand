@@ -17,3 +17,8 @@ keypad_t keyinput_get_new(void);
  * @note like the hw_regs, `true` means not pressed
  */
 keypad_t keyinput_get_pressed(void);
+
+int keyinput_horizontal_new(void);
+int keyinput_horizontal_pressed(void);
+int keyinput_vertical_new(void);
+int keyinput_vertical_pressed(void);
