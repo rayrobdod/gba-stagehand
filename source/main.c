@@ -14,34 +14,15 @@
 #include "gba/shared.h"
 #include "gba/vram.h"
 #include "management/isr.h"
+#include "management/keyinput.h"
 #include "management/scene_graphics.h"
 #include "management/shadow_oam.h"
 #include "management/vram_op_queue.h"
 #include "mgba.h"
+#include "saturating_add.h"
 #include "arrow_left.png.h"
 #include "arrow_right.png.h"
 #include "oldschool.png.h"
-
-
-/* Adds current and change, without overflowing the bounds of min and max */
-static uint16_t saturating_add(uint16_t current, uint16_t min, uint16_t max, int16_t change) {
-	if (0 == change)
-		return current;
-	else if (0 < change) {
-		if (max - current < change) {
-			return max;
-		} else {
-			return current + change;
-		}
-	} else {
-		change = -change;
-		if (current - min < change) {
-			return min;
-		} else {
-			return current - change;
-		}
-	}
-}
 
 int main(int argc, char *argv[])
 {
@@ -102,44 +83,51 @@ int main(int argc, char *argv[])
 		});
 
 	uint32_t arrow_wiggle_timer = 0;
+	unsigned y = 20;
+	unsigned rightX = 20;
+	unsigned leftX = 20;
 
 	while(1) {
 		VBlankIntrWait();
 
 		vram_op_queue_execute();
+		keyinput_read();
+
+		if (! keyinput_get_new().down) {
+			y = saturating_add(y, 4, 84, 8);
+		}
+		if (! keyinput_get_new().up) {
+			y = saturating_add(y, 4, 84, -8);
+		}
 
 		arrow_wiggle_timer++;
 		if ((arrow_wiggle_timer & 0xF) == 0) {
-			unsigned newRightX;
-			unsigned newLeftX;
 			switch ((arrow_wiggle_timer & 0x30) >> 4) {
 			case 0:
-			case 2:
-				newRightX = newLeftX = 20;
-				break;
 			case 1:
-				newRightX = 21;
-				newLeftX = 19;
+				rightX++;
+				leftX--;
 				break;
+			case 2:
 			case 3:
-				newRightX = 19;
-				newLeftX = 21;
+				rightX--;
+				leftX++;
 				break;
 			}
-
-			shadow_oam_move_sprite(
-				arrow_left_index,
-				(struct shadow_oam_position) {
-					.coord = (ucoords16_t) {.x = newLeftX, .y = 20},
-					.hotspot = HOTSPOT_LEFT,
-			});
-			shadow_oam_move_sprite(
-				arrow_right_index,
-				(struct shadow_oam_position) {
-					.coord = (ucoords16_t) {.x = newRightX, .y = 20},
-					.hotspot = HOTSPOT_RIGHT,
-			});
 		}
+
+		shadow_oam_move_sprite(
+			arrow_left_index,
+			(struct shadow_oam_position) {
+				.coord = (ucoords16_t) {.x = leftX, .y = y},
+				.hotspot = HOTSPOT_LEFT,
+		});
+		shadow_oam_move_sprite(
+			arrow_right_index,
+			(struct shadow_oam_position) {
+				.coord = (ucoords16_t) {.x = rightX, .y = y},
+				.hotspot = HOTSPOT_RIGHT,
+		});
 	}
 
 	return 0;
