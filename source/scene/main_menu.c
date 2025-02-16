@@ -21,13 +21,20 @@ static uint8_t selection = 0;
 static uint8_t arrow_wiggle_timer = 0xFF;
 static shadow_oam_id_t spriteid_arrow = 0;
 
-static void print_to_tilemap(unsigned x, unsigned y, char* message)
-{
+//
+static const unsigned TILEMAP_BUFFER_COUNT = 32 * 20;
+static bg_tile_t* tilemap_buffer = NULL;
+
+//
+static void MainCB_mainMenu_init1(void);
+static void MainCB_mainMenu_main(void);
+
+static void print_to_tilemap(bg_tile_t* buffer, unsigned x, unsigned y, char* message) {
 	unsigned start_index = y * 32 + x;
 	unsigned length = strlen(message);
 
 	for (unsigned i = 0; i < length; i++) {
-		vram.screenblock[31][start_index + i] = (bg_tile_t) {message[i]};
+		buffer[start_index + i] = (bg_tile_t){message[i]};
 	}
 }
 
@@ -47,7 +54,7 @@ void MainCB_mainMenu_init(void) {
 		.screenblock = 31,
 	};
 
-	load_tileset_graphics(
+	queue_load_tileset_graphics(
 		&oldschool,
 		(struct load_tileset_graphics) {
 			.charblock = 0,
@@ -62,22 +69,40 @@ void MainCB_mainMenu_init(void) {
 			.hotspot = HOTSPOT_RIGHT,
 		});
 
+	tilemap_buffer = malloc(TILEMAP_BUFFER_COUNT * sizeof(bg_tile_t));
+
 	unsigned i;
-	for (i = 0; i < 32 * 32; i++) {
-		vram.screenblock[31][i] = (bg_tile_t) {' '};
+	for (i = 0; i < TILEMAP_BUFFER_COUNT; i++) {
+		tilemap_buffer[i] = (bg_tile_t) {' '};
 	}
 
-	print_to_tilemap(3, 2, "Option 1");
-	print_to_tilemap(3, 3, "Option 2");
-	print_to_tilemap(3, 4, "Option 3");
-	print_to_tilemap(3, 5, "Option 4");
+	print_to_tilemap(tilemap_buffer, 3, 2, "Option 1");
+	print_to_tilemap(tilemap_buffer, 3, 3, "Option 2");
+	print_to_tilemap(tilemap_buffer, 3, 4, "Option 3");
+	print_to_tilemap(tilemap_buffer, 3, 5, "Option 4");
 
 	MgbaPrintf(MGBA_LOG_DEBUG, "sizeof(struct vram_op) = %d", sizeof(struct vram_op));
 
-	scene_onframe_callback = &MainCB_mainMenu_main;
+	vram_op_queue_enqueue((struct vram_op){
+		.type = VRAM_QUEUE_OP_BG_MAP,
+		.map = {
+			.from = tilemap_buffer,
+			.to_block = 31,
+			.to_tile = 0,
+			.count = TILEMAP_BUFFER_COUNT,
+		}});
+
+	scene_onframe_callback = &MainCB_mainMenu_init1;
 }
 
-void MainCB_mainMenu_main(void) {
+static void MainCB_mainMenu_init1(void) {
+	free(tilemap_buffer);
+	tilemap_buffer = NULL;
+	scene_onframe_callback = &MainCB_mainMenu_main;
+	MainCB_mainMenu_main();
+}
+
+static void MainCB_mainMenu_main(void) {
 	arrow_wiggle_timer++;
 
 	bool redraw_arrow = false;

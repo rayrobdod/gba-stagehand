@@ -201,10 +201,11 @@ shadow_oam_id_t shadow_oam_add_sprite(
 			shadow_palette[pal_index].refcount = 1;
 			shadow_palette[pal_index].tag = template->paltag;
 			vram_op_queue_enqueue((struct vram_op) {
-				.type = VRAM_QUEUE_OP_OAM_PALETTE,
-				.palette = {
+				.type = VRAM_QUEUE_OP_OAM_PALETTES,
+				.palettes = {
 					.from = template->palette,
-					.to_index = pal_index,
+					.to_palette = pal_index,
+					.count = 1,
 				}
 			});
 
@@ -244,7 +245,8 @@ shadow_oam_id_t shadow_oam_add_sprite(
 				.type = VRAM_QUEUE_OP_OAM_TILES,
 				.tiles = {
 					.from = template->tiles,
-					.to_index = tile_index,
+					.to_block = 0,
+					.to_tile = tile_index,
 					.count = tilecount,
 				}
 			});

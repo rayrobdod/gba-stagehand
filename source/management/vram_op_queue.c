@@ -14,7 +14,7 @@ static struct vram_op vram_op_queue[VRAM_OP_QUEUE_CAPACITY];
 
 void vram_op_queue_execute(void) {
 	for (unsigned i = 0; i < vram_op_queue_count; i++) {
-		struct vram_op *entry = vram_op_queue + i;
+		struct vram_op* entry = vram_op_queue + i;
 		switch (entry->type) {
 		case VRAM_QUEUE_OP_NOOP:
 			break;
@@ -26,24 +26,50 @@ void vram_op_queue_execute(void) {
 				}
 			}
 			break;
-		case VRAM_QUEUE_OP_OAM_PALETTE:
-			MgbaPrintf(MGBA_LOG_INFO, "shadow oam push palette {%p, %d}", entry->palette.from, entry->palette.to_index);
+		case VRAM_QUEUE_OP_BG_PALETTES:
 			CpuFastSet(
-				entry->palette.from,
-				&object_palette[entry->palette.to_index],
-				(struct CpuFastSet) {
-					.word_count = (sizeof(palette16_t) / sizeof(uint32_t)),
+				entry->palettes.from,
+				&background_palette[entry->palettes.to_palette],
+				(struct CpuFastSet){
+					.word_count = entry->palettes.count * (sizeof(palette16_t) / sizeof(uint32_t)),
+					.mode = CPU_SET_COPY,
+				});
+			break;
+		case VRAM_QUEUE_OP_OAM_PALETTES:
+			CpuFastSet(
+				entry->palettes.from,
+				&object_palette[entry->palettes.to_palette],
+				(struct CpuFastSet){
+					.word_count = entry->palettes.count * (sizeof(palette16_t) / sizeof(uint32_t)),
 					.mode = CPU_SET_COPY,
 				});
 			break;
 		case VRAM_QUEUE_OP_OAM_TILES:
-			MgbaPrintf(MGBA_LOG_INFO, "shadow oam push tiles {%p, %d, %d}", entry->tiles.from, entry->tiles.to_index, entry->tiles.count);
 			CpuFastSet(
 				entry->tiles.from,
-				&vram.obj_charblock[0][entry->tiles.to_index],
-				(struct CpuFastSet) {
+				&vram.obj_charblock[entry->tiles.to_block][entry->tiles.to_tile],
+				(struct CpuFastSet){
 					.word_count = entry->tiles.count * (sizeof(tile_4bpp_t) / sizeof(uint32_t)),
 					.mode = CPU_SET_COPY,
+				});
+			break;
+		case VRAM_QUEUE_OP_BG_TILES:
+			CpuFastSet(
+				entry->tiles.from,
+				&vram.bg_charblock[entry->tiles.to_block][entry->tiles.to_tile],
+				(struct CpuFastSet){
+					.word_count = entry->tiles.count * (sizeof(tile_4bpp_t) / sizeof(uint32_t)),
+					.mode = CPU_SET_COPY,
+				});
+			break;
+		case VRAM_QUEUE_OP_BG_MAP:
+			CpuSet(
+				entry->map.from,
+				&vram.screenblock[entry->map.to_block][entry->map.to_tile],
+				(struct CpuSet){
+					.word_count = entry->map.count,
+					.mode = CPU_SET_COPY,
+					.datasize = CPU_SET_16BIT,
 				});
 			break;
 		case VRAM_QUEUE_OP_OAM_ENTRY:
@@ -58,8 +84,7 @@ void vram_op_queue_enqueue(const struct vram_op new_op) {
 	if (vram_op_queue_count < VRAM_OP_QUEUE_CAPACITY) {
 		vram_op_queue[vram_op_queue_count] = new_op;
 		vram_op_queue_count++;
-	}
-	else {
+	} else {
 		MgbaPrintf(MGBA_LOG_ERROR, "VRAM Queue exhausted");
 	}
 }
