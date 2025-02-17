@@ -183,7 +183,7 @@ $(BUILDGRAPHICSDIR)/%.png.tilemap : $(GRAPHICSDIR)/%.png $(BUILDGRAPHICSDIR)/%.p
 $(GBAFIX): $(wildcard tools/gbafix/*.c)
 	$(V)cd tools/gbafix && make
 
-$(GFX2OBJ): $(wildcard tools/gfx2obj/*.c) $(wildcard tools/gfx2obj/*.cpp) $(wildcard tools/gfx2obj/*.h)
+$(GFX2OBJ): $(wildcard tools/gfx2obj/*.c) $(wildcard tools/gfx2obj/*.cpp) $(wildcard tools/gfx2obj/*.h) source/gba/hw_reg_cast.c
 	$(V)cd tools/gfx2obj && make
 
 $(BUILDGRAPHICSDIR)/oldschool.png.gbapal: ICONPALFLAGS := -0 FF00FF
@@ -246,6 +246,17 @@ $(BUILDOBJDIR)/arrow_down.png.o $(BUILDSRCDIR)/arrow_down.png.h: $(GFX2OBJ) $(BU
 		--tiletag 20003 \
 		--variable_name arrow_down
 
+$(BUILDOBJDIR)/brickbreak_background.png.o $(BUILDSRCDIR)/brickbreak_background.png.h: $(GFX2OBJ) $(BUILDGRAPHICSDIR)/brickbreak_background.png.tilemap $(BUILDGRAPHICSDIR)/brickbreak_background.png.4bpp $(BUILDGRAPHICSDIR)/brickbreak_background.png.gbapal
+	@echo "  GFX2OBJ brickbreak_background.png"
+	@$(MKDIR) -p $(BUILDOBJDIR)
+	@$(MKDIR) -p $(BUILDSRCDIR)
+	$(V)$(GFX2OBJ) scene \
+		--out_object $(BUILDOBJDIR)/brickbreak_background.png.o \
+		--out_header $(BUILDSRCDIR)/brickbreak_background.png.h \
+		--in_palettes $(BUILDGRAPHICSDIR)/brickbreak_background.png.gbapal \
+		--in_tiles $(BUILDGRAPHICSDIR)/brickbreak_background.png.4bpp \
+		--in_map0 $(BUILDGRAPHICSDIR)/brickbreak_background.png.tilemap \
+		--variable_name brickbreak_background
 
 $(ELF): $(OBJS) source/sys/gba_cart.ld
 	@echo "  LD      $@"

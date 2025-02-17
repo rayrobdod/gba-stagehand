@@ -17,6 +17,10 @@ struct load_tileset_graphics {
 	uint8_t tile_offset;
 };
 
+void queue_load_scene_graphics(
+	const struct scene_graphics*,
+	const struct load_scene_graphics);
+
 void queue_load_tileset_graphics(
 	const struct tileset_graphics*,
 	const struct load_tileset_graphics);

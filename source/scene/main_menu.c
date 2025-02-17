@@ -13,6 +13,7 @@
 #include "saturating_add.h"
 #include "arrow_right.png.h"
 #include "oldschool.png.h"
+#include "scene/brick_break.h"
 
 // model
 static uint8_t selection = 0;
@@ -77,7 +78,7 @@ void MainCB_mainMenu_init(void) {
 	}
 
 	print_to_tilemap(tilemap_buffer, 3, 2, "Option 1");
-	print_to_tilemap(tilemap_buffer, 3, 3, "Option 2");
+	print_to_tilemap(tilemap_buffer, 3, 3, "Brick Break");
 	print_to_tilemap(tilemap_buffer, 3, 4, "Option 3");
 	print_to_tilemap(tilemap_buffer, 3, 5, "Option 4");
 
@@ -104,6 +105,10 @@ static void MainCB_mainMenu_init1(void) {
 
 static void MainCB_mainMenu_main(void) {
 	arrow_wiggle_timer++;
+
+	if (! keyinput_get_new().a) {
+		scene_onframe_callback = &MainCB_brickBreak_init;
+	}
 
 	bool redraw_arrow = false;
 

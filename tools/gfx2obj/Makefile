@@ -34,8 +34,10 @@ SRCS_CPP	:= $(wildcard *.cpp)
 
 # Flags
 
+CFLAGS += -I../../source
 CFLAGS += -Wall
 CFLAGS += -ggdb -DDEBUG
+CXXFLAGS += -I../../source
 CXXFLAGS += -Wall
 CXXFLAGS += -ggdb -DDEBUG
 LDFLAGS += $(LIBS)
@@ -43,6 +45,7 @@ LDFLAGS += $(LIBS)
 # Intermediates
 
 OBJS	:= \
+	build/hw_reg_cast.c.o \
 	$(patsubst %.c,$(BUILDDIR)/%.c.o,$(SRCS_C)) \
 	$(patsubst %.cpp,$(BUILDDIR)/%.cpp.o,$(SRCS_CPP)) \
 
@@ -65,6 +68,11 @@ $(BUILDDIR)/%.cpp.o : %.cpp
 .PHONY: all clean
 
 all: $(NAME)
+
+$(BUILDDIR)/hw_reg_cast.c.o : ../../source/gba/hw_reg_cast.c
+	@echo "  HOSTCC  $<"
+	@$(MKDIR) -p $(@D)
+	$(V)$(CC) $(CFLAGS) -MMD -MP -c -o $@ $<
 
 $(NAME): $(OBJS)
 	@echo "  HOSTLD  $@"

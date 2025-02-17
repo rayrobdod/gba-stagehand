@@ -3,6 +3,7 @@
 #include <string.h>
 
 #include "mode_raw.h"
+#include "mode_scene.h"
 #include "mode_sprite.h"
 #include "mode_tileset.h"
 #include "util.h"
@@ -14,6 +15,7 @@ const struct {
 	{"raw", mode_raw},
 	{"sprite", mode_sprite},
 	{"tileset", mode_tileset},
+	{"scene", mode_scene},
 };
 
 
