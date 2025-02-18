@@ -30,6 +30,10 @@ static void set_paltag(void* accumulator, const char* arg) {
 	long argl = strtol(arg, NULL, 0);
 	((struct TilesetArguments*) accumulator)->paltag = argl;
 }
+static void set_tiletag(void* accumulator, const char* arg) {
+	long argl = strtol(arg, NULL, 0);
+	((struct TilesetArguments*) accumulator)->tiletag = argl;
+}
 static void set_size(void* accumulator, const char* arg) {
 	if (0 == strcmp(arg, "8x8")) {
 		((struct TilesetArguments*) accumulator)->size = 0;
@@ -55,6 +59,7 @@ static const struct ArgumentsAndFlags argsTemplate = {
 	.arguments = (struct Argument[]) {
 		{"--in_palettes", set_in_palettes_file},
 		{"--paltag", set_paltag},
+		{"--tiletag", set_tiletag},
 		{"--in_tiles", set_in_tiles_file},
 		{"--size", set_size},
 		{"--out_object", set_out_object_file},

@@ -57,6 +57,9 @@ void parseArguments(
 			exit(0);
 		}
 
+		fprintf(stderr, "Unknown flag/arg: %s\n", argv[i]);
+		exit(1);
+
 		next:
 		i++;
 	}
