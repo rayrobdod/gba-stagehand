@@ -70,6 +70,7 @@ SYM		:= $(NAME).sym
 
 GBAFIX		:= tools/gbafix/gbafix
 GFX2OBJ		:= tools/gfx2obj/gfx2obj
+GFXC	:= tools/gfxc/gfxc
 
 # Source files
 # ------------
@@ -120,7 +121,6 @@ ICONMAPFLAGS	:=
 # ------------------------
 
 OBJS		:= \
-	$(patsubst $(GRAPHICSDIR)/%.png,$(BUILDOBJDIR)/%.png.o,$(SOURCES_PNG)) \
 	$(patsubst $(SOURCEDIR)/%.s,$(BUILDOBJDIR)/%.s.o,$(SOURCES_S)) \
 	$(patsubst $(SOURCEDIR)/%.c,$(BUILDOBJDIR)/%.c.o,$(SOURCES_C)) \
 	$(patsubst $(SOURCEDIR)/%.cpp,$(BUILDOBJDIR)/%.cpp.o,$(SOURCES_CPP))
@@ -140,12 +140,12 @@ $(BUILDOBJDIR)/%.s.o : $(SOURCEDIR)/%.s
 	@$(MKDIR) -p $(@D) # Build target's directory if it doesn't exist
 	$(V)$(CC) $(ASFLAGS) -MMD -MP -c -o $@ $<
 
-$(BUILDOBJDIR)/%.c.o : $(SOURCEDIR)/%.c
+$(BUILDOBJDIR)/%.c.o : $(SOURCEDIR)/%.c | generated_headers
 	@echo "  CC      $<"
 	@$(MKDIR) -p $(@D) # Build target's directory if it doesn't exist
 	$(V)$(CC) $(CFLAGS) -MMD -MP -c -o $@ $<
 
-$(BUILDOBJDIR)/%.cpp.o : $(SOURCEDIR)/%.cpp
+$(BUILDOBJDIR)/%.cpp.o : $(SOURCEDIR)/%.cpp | generated_headers
 	@echo "  CXX     $<"
 	@$(MKDIR) -p $(@D) # Build target's directory if it doesn't exist
 	$(V)$(CXX) $(CXXFLAGS) -MMD -MP -c -o $@ $<
@@ -178,7 +178,7 @@ $(BUILDGRAPHICSDIR)/%.png.tilemap : $(GRAPHICSDIR)/%.png $(BUILDGRAPHICSDIR)/%.p
 # Secondary expansion is required for dependency variables in object rules.
 .SECONDEXPANSION:
 
-.PHONY: all clean dump
+.PHONY: all clean dump sym generated_headers
 
 $(GBAFIX): $(wildcard tools/gbafix/*.c)
 	$(V)cd tools/gbafix && make
@@ -186,13 +186,14 @@ $(GBAFIX): $(wildcard tools/gbafix/*.c)
 $(GFX2OBJ): $(wildcard tools/gfx2obj/*.c) $(wildcard tools/gfx2obj/*.cpp) $(wildcard tools/gfx2obj/*.h) source/gba/hw_reg_cast.c
 	$(V)cd tools/gfx2obj && make
 
+$(GFXC): $(wildcard tools/gfxc/*.c) $(wildcard tools/gfxc/*.cpp)
+	$(V)cd tools/gfxc && make
+
 $(BUILDGRAPHICSDIR)/oldschool.png.gbapal: ICONPALFLAGS := -0 FF00FF
 $(BUILDGRAPHICSDIR)/oldschool.png.4bpp: ICONTILEFLAGS := -D
-$(BUILDGRAPHICSDIR)/arrow_left.png.gbapal: ICONPALFLAGS := -0 FF00FF
-$(BUILDGRAPHICSDIR)/arrow_left.png.4bpp: ICONTILEFLAGS := -D -W 16 -H 16
-$(BUILDGRAPHICSDIR)/arrow_right.png.4bpp: ICONTILEFLAGS := -D -W 16 -H 16
-$(BUILDGRAPHICSDIR)/arrow_down.png.4bpp: ICONTILEFLAGS := -D -W 16 -H 16
 
+generated_headers: $(BUILDSRCDIR)/oldschool.png.h
+OBJS += $(BUILDOBJDIR)/oldschool.png.o
 $(BUILDOBJDIR)/oldschool.png.o $(BUILDSRCDIR)/oldschool.png.h: $(GFX2OBJ) $(BUILDGRAPHICSDIR)/oldschool.png.4bpp
 	@echo "  GFX2OBJ oldschool.png"
 	@$(MKDIR) -p $(BUILDOBJDIR)
@@ -204,48 +205,8 @@ $(BUILDOBJDIR)/oldschool.png.o $(BUILDSRCDIR)/oldschool.png.h: $(GFX2OBJ) $(BUIL
 		--in_tileset $(BUILDGRAPHICSDIR)/oldschool.png.4bpp \
 		--variable_name oldschool
 
-$(BUILDOBJDIR)/arrow_left.png.o $(BUILDSRCDIR)/arrow_left.png.h: $(GFX2OBJ) $(BUILDGRAPHICSDIR)/arrow_left.png.4bpp $(BUILDGRAPHICSDIR)/arrow_left.png.gbapal
-	@echo "  GFX2OBJ arrow_left.png"
-	@$(MKDIR) -p $(BUILDOBJDIR)
-	@$(MKDIR) -p $(BUILDSRCDIR)
-	$(V)$(GFX2OBJ) sprite \
-		--out_object $(BUILDOBJDIR)/arrow_left.png.o \
-		--out_header $(BUILDSRCDIR)/arrow_left.png.h \
-		--in_palettes $(BUILDGRAPHICSDIR)/arrow_left.png.gbapal \
-		--in_tiles $(BUILDGRAPHICSDIR)/arrow_left.png.4bpp \
-		--size 16x16 \
-		--paltag 10001 \
-		--tiletag 20001 \
-		--variable_name arrow_left
-
-$(BUILDOBJDIR)/arrow_right.png.o $(BUILDSRCDIR)/arrow_right.png.h: $(GFX2OBJ) $(BUILDGRAPHICSDIR)/arrow_right.png.4bpp $(BUILDGRAPHICSDIR)/arrow_right.png.gbapal
-	@echo "  GFX2OBJ arrow_right.png"
-	@$(MKDIR) -p $(BUILDOBJDIR)
-	@$(MKDIR) -p $(BUILDSRCDIR)
-	$(V)$(GFX2OBJ) sprite \
-		--out_object $(BUILDOBJDIR)/arrow_right.png.o \
-		--out_header $(BUILDSRCDIR)/arrow_right.png.h \
-		--in_palettes $(BUILDGRAPHICSDIR)/arrow_right.png.gbapal \
-		--in_tiles $(BUILDGRAPHICSDIR)/arrow_right.png.4bpp \
-		--size 16x16 \
-		--paltag 10002 \
-		--tiletag 20002 \
-		--variable_name arrow_right
-
-$(BUILDOBJDIR)/arrow_down.png.o $(BUILDSRCDIR)/arrow_down.png.h: $(GFX2OBJ) $(BUILDGRAPHICSDIR)/arrow_down.png.4bpp $(BUILDGRAPHICSDIR)/arrow_down.png.gbapal
-	@echo "  GFX2OBJ arrow_down.png"
-	@$(MKDIR) -p $(BUILDOBJDIR)
-	@$(MKDIR) -p $(BUILDSRCDIR)
-	$(V)$(GFX2OBJ) sprite \
-		--out_object $(BUILDOBJDIR)/arrow_down.png.o \
-		--out_header $(BUILDSRCDIR)/arrow_down.png.h \
-		--in_palettes $(BUILDGRAPHICSDIR)/arrow_down.png.gbapal \
-		--in_tiles $(BUILDGRAPHICSDIR)/arrow_down.png.4bpp \
-		--size 16x16 \
-		--paltag 10003 \
-		--tiletag 20003 \
-		--variable_name arrow_down
-
+generated_headers: $(BUILDSRCDIR)/brickbreak_background.png.h
+OBJS += $(BUILDOBJDIR)/brickbreak_background.png.o
 $(BUILDOBJDIR)/brickbreak_background.png.o $(BUILDSRCDIR)/brickbreak_background.png.h: $(GFX2OBJ) $(BUILDGRAPHICSDIR)/brickbreak_background.png.tilemap $(BUILDGRAPHICSDIR)/brickbreak_background.png.4bpp $(BUILDGRAPHICSDIR)/brickbreak_background.png.gbapal
 	@echo "  GFX2OBJ brickbreak_background.png"
 	@$(MKDIR) -p $(BUILDOBJDIR)
@@ -257,6 +218,14 @@ $(BUILDOBJDIR)/brickbreak_background.png.o $(BUILDSRCDIR)/brickbreak_background.
 		--in_tiles $(BUILDGRAPHICSDIR)/brickbreak_background.png.4bpp \
 		--in_map0 $(BUILDGRAPHICSDIR)/brickbreak_background.png.tilemap \
 		--variable_name brickbreak_background
+
+generated_headers: $(BUILDSRCDIR)/graphics.h
+OBJS += $(BUILDOBJDIR)/graphics.o
+$(BUILDOBJDIR)/graphics.o $(BUILDSRCDIR)/graphics.h: $(GFXC) $(SOURCES_PNG)
+	@echo "  GFXC"
+	@$(MKDIR) -p $(BUILDOBJDIR)
+	@$(MKDIR) -p $(BUILDSRCDIR)
+	$(V)$(GFXC) $(GRAPHICSDIR) $(BUILDOBJDIR)/graphics.o $(BUILDSRCDIR)/graphics.h
 
 $(ELF): $(OBJS) source/sys/gba_cart.ld
 	@echo "  LD      $@"
@@ -285,6 +254,10 @@ clean:
 	$(V)$(RM) $(ROM) $(ELF) $(DUMP) $(SYM) $(MAP) $(BUILDDIR)
 	$(V)cd tools/gbafix && make clean
 	$(V)cd tools/gfx2obj && make clean
+	$(V)cd tools/gfxc && make clean
+
+generated_headers:
+	@:
 
 # Include dependency files if they exist
 # --------------------------------------

@@ -390,10 +390,12 @@ public:
 	}
 
 	void push_relocation_section(
-		char* target_name,
-		struct relocation_template* rels, size_t rel_count
+		const char* variable_name,
+		const struct relocation_template* rels, size_t rel_count
 	) {
-		Elf32_Section target = index_of_section(target_name);
+		std::string target_name(".rodata.");
+		target_name += variable_name;
+		Elf32_Section target = index_of_section(target_name.c_str());
 		std::vector<Elf32_Rel> data;
 
 		for (size_t i = 0; i < rel_count; i++) {
@@ -470,8 +472,8 @@ void object_push_bytes_section(
 
 void push_relocation_section(
 	struct Object* self,
-	char* target_name,
-	struct relocation_template* rels, size_t rel_count
+	const char* target_name,
+	const struct relocation_template* rels, size_t rel_count
 ) {
 	self->impl->push_relocation_section(target_name, rels, rel_count);
 }

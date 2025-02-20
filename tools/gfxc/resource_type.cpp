@@ -1,0 +1,37 @@
+#include "resource_type.hpp"
+
+std::ostream& operator<<(std::ostream& os, enum type typ) {
+	switch (typ) {
+	case TYPE_SPRITE:
+		os << "SPRITE";
+		break;
+	case TYPE_TILESET:
+		os << "TILESET";
+		break;
+	case TYPE_SCENE:
+		os << "SCENE";
+		break;
+	}
+	return os;
+}
+
+enum type resource_type(const bufferedimage& image) {
+	auto explicit_typ = image.text().find("Type");
+	if (explicit_typ != image.text().end()) {
+		if (explicit_typ->second == "Sprite")
+			return TYPE_SPRITE;
+		if (explicit_typ->second == "Tileset")
+			return TYPE_TILESET;
+		if (explicit_typ->second == "Scene")
+			return TYPE_SCENE;
+		throw std::runtime_error("Unknown explicit type");
+	}
+
+	if (image.width() <= 64 && image.height() <= 64) {
+		return TYPE_SPRITE;
+	}
+	if (image.width() == 32 * 8 && image.height() > 20 * 8) {
+		return TYPE_SCENE;
+	}
+	return TYPE_TILESET;
+}

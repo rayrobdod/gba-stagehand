@@ -37,8 +37,8 @@ void object_push_bytes_section(
 
 void push_relocation_section(
 	struct Object* self,
-	char* target_name,
-	struct relocation_template* rels, size_t rel_count);
+	const char* target_name,
+	const struct relocation_template* rels, size_t rel_count);
 
 #ifdef __cplusplus
 }

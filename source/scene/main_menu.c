@@ -11,7 +11,7 @@
 #include "main.h"
 #include "mgba.h"
 #include "saturating_add.h"
-#include "arrow_right.png.h"
+#include "graphics.h"
 #include "oldschool.png.h"
 #include "scene/brick_break.h"
 

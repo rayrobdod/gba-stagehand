@@ -139,16 +139,14 @@ int mode_scene(int argc, char* argv[]) {
 			},
 		};
 
-		char* root_section_name = strdupcat(".rodata.", args.variable_name);
 		push_relocation_section(
 			object,
-			root_section_name,
+			args.variable_name,
 			relocations,
 			arraycount(relocations));
 
 		free(pal_name);
 		free(tiles_name);
-		free(root_section_name);
 		object_finish(object);
 	}
 
