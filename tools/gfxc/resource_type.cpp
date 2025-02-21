@@ -24,7 +24,10 @@ enum type resource_type(const bufferedimage& image) {
 			return TYPE_TILESET;
 		if (explicit_typ->second == "Scene")
 			return TYPE_SCENE;
-		throw std::runtime_error("Unknown explicit type");
+
+		std::string msg("Unknown explicit type: ");
+		msg += explicit_typ->second;
+		throw std::runtime_error(msg);
 	}
 
 	if (image.width() <= 64 && image.height() <= 64) {

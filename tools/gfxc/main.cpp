@@ -129,7 +129,20 @@ int main(int argc, char* argv[]) {
 		enum sprite_size size = sprite_size(image.second.width(), image.second.height());
 		uint16_t tiletag = FIRST_TAG + tiledatas.find_or_push_back(tiledata);
 
-		std::string name = image.first.stem().string();
+		std::string name;
+		{
+			auto manual = image.second.text().find(std::string("Variable"));
+			if (manual != image.second.text().end()) {
+				name = manual->second;
+			} else {
+				std::filesystem::path p = image.first.parent_path();
+				for (auto segment : p) {
+					name += segment;
+					name += "_";
+				}
+				name += image.first.stem().string();
+			}
+		}
 
 		sprites.push_back({name, paltag, tiletag, size});
 	}
@@ -187,7 +200,15 @@ int main(int argc, char* argv[]) {
 	}
 
 	for (auto const& image : tileset_imgs) {
-		std::string name = image.first.stem().string();
+		std::string name;
+		{
+			auto manual = image.second.text().find(std::string("Variable"));
+			if (manual != image.second.text().end()) {
+				name = manual->second;
+			} else {
+				name = image.first.stem().string();
+			}
+		}
 
 		const std::set<rgba16_t> innate_pal = image.second.palette();
 		uint16_t paltag;
@@ -206,7 +227,6 @@ int main(int argc, char* argv[]) {
 		paltag += FIRST_TAG;
 		char pal_name[16];
 		snprintf(pal_name, 16, "plte.%x", paltag);
-
 
 		uint16_t tile_count = 0;
 		bpp4_output_iterator tiledata_builder;

@@ -112,6 +112,25 @@ bufferedimage png_deserialize(
 		}
 		break;
 
+	case PNG_COLOR_TYPE_RGB_ALPHA:
+		{
+			for (unsigned y = 0; y < height; y += 4)
+				for (unsigned x = 0; x < width; x++) {
+					png_byte r = row_pointers[y][x];
+					png_byte g = row_pointers[y][x + 1];
+					png_byte b = row_pointers[y][x + 2];
+					png_byte a = row_pointers[y][x + 3];
+
+					pixels[x + y * width] = (rgba16_t){
+						.r = static_cast<uint8_t>(r / 8),
+						.g = static_cast<uint8_t>(g / 8),
+						.b = static_cast<uint8_t>(b / 8),
+						.a = a != 255,
+					};
+				}
+		}
+		break;
+
 	default:
 		png_destroy_read_struct(&png_ptr, &info_ptr, NULL);
 		fclose(fp);
