@@ -189,22 +189,6 @@ $(GFX2OBJ): $(wildcard tools/gfx2obj/*.c) $(wildcard tools/gfx2obj/*.cpp) $(wild
 $(GFXC): $(wildcard tools/gfxc/*.c) $(wildcard tools/gfxc/*.cpp)
 	$(V)cd tools/gfxc && make
 
-$(BUILDGRAPHICSDIR)/oldschool.png.gbapal: ICONPALFLAGS := -0 FF00FF
-$(BUILDGRAPHICSDIR)/oldschool.png.4bpp: ICONTILEFLAGS := -D
-
-generated_headers: $(BUILDSRCDIR)/oldschool.png.h
-OBJS += $(BUILDOBJDIR)/oldschool.png.o
-$(BUILDOBJDIR)/oldschool.png.o $(BUILDSRCDIR)/oldschool.png.h: $(GFX2OBJ) $(BUILDGRAPHICSDIR)/oldschool.png.4bpp
-	@echo "  GFX2OBJ oldschool.png"
-	@$(MKDIR) -p $(BUILDOBJDIR)
-	@$(MKDIR) -p $(BUILDSRCDIR)
-	$(V)$(GFX2OBJ) tileset \
-		--out_object $(BUILDOBJDIR)/oldschool.png.o \
-		--out_header $(BUILDSRCDIR)/oldschool.png.h \
-		--in_palettes $(BUILDGRAPHICSDIR)/oldschool.png.gbapal \
-		--in_tileset $(BUILDGRAPHICSDIR)/oldschool.png.4bpp \
-		--variable_name oldschool
-
 generated_headers: $(BUILDSRCDIR)/brickbreak_background.png.h
 OBJS += $(BUILDOBJDIR)/brickbreak_background.png.o
 $(BUILDOBJDIR)/brickbreak_background.png.o $(BUILDSRCDIR)/brickbreak_background.png.h: $(GFX2OBJ) $(BUILDGRAPHICSDIR)/brickbreak_background.png.tilemap $(BUILDGRAPHICSDIR)/brickbreak_background.png.4bpp $(BUILDGRAPHICSDIR)/brickbreak_background.png.gbapal

@@ -12,7 +12,6 @@
 #include "mgba.h"
 #include "saturating_add.h"
 #include "graphics.h"
-#include "oldschool.png.h"
 #include "scene/brick_break.h"
 
 // model
