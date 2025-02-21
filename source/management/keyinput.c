@@ -20,7 +20,7 @@ static int keyinput_horizontal(keypad_t k) {
 	return retval;
 }
 int keyinput_horizontal_new(void) {return keyinput_horizontal(keyinputs.new);}
-int keyinput_horizontal_down(void) {return keyinput_horizontal(keyinputs.down);}
+int keyinput_horizontal_pressed(void) {return keyinput_horizontal(keyinputs.down);}
 
 static int keyinput_vertical(keypad_t k) {
 	int retval = 0;
@@ -29,4 +29,4 @@ static int keyinput_vertical(keypad_t k) {
 	return retval;
 }
 int keyinput_vertical_new(void) {return keyinput_vertical(keyinputs.new);}
-int keyinput_vertical_down(void) {return keyinput_vertical(keyinputs.down);}
+int keyinput_vertical_pressed(void) {return keyinput_vertical(keyinputs.down);}

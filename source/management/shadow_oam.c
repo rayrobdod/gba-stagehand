@@ -223,9 +223,9 @@ shadow_oam_id_t shadow_oam_add_sprite(
 	unsigned shadow_tile_index;
 	unsigned tile_index;
 	for (shadow_tile_index = 0; shadow_tile_index < arraycount(shadow_tiles); shadow_tile_index++) {
-		if (template->paltag == shadow_tiles[pal_index].tag) {
+		if (template->tiletag == shadow_tiles[shadow_tile_index].tag) {
 			shadow_tiles[shadow_tile_index].refcount += 1;
-			tile_index = shadow_tiles[pal_index].tile_start;
+			tile_index = shadow_tiles[shadow_tile_index].tile_start;
 			goto tile_decided;
 		}
 	}

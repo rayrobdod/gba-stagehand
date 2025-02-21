@@ -1,0 +1,5 @@
+Derived from (by halving the size of most elements in both dimensions)
+
+"Breakout Set" <https://opengameart.org/content/breakout-set>
+By Michele Bucelli <https://opengameart.org/users/buch>
+Licensed under CC-0
