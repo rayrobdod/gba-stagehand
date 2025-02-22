@@ -64,7 +64,7 @@ int main(int argc, char* argv[]) {
 		std::set<std::set<rgba16_t>> single_palettes_0;
 		for (auto const& image : sprite_imgs) {
 			std::set<rgba16_t> new_pal;
-			new_pal.insert(TRANSPARENT_MAGENTA);
+			new_pal.insert(image.second.background().with_alpha(0));
 			new_pal.merge(image.second.palette());
 			if (new_pal.size() > 16) {
 				std::string msg(image.first.string());
@@ -76,7 +76,7 @@ int main(int argc, char* argv[]) {
 
 		for (auto const& image : tileset_imgs) {
 			std::set<rgba16_t> new_pal;
-			new_pal.insert(TRANSPARENT_MAGENTA);
+			new_pal.insert(image.second.background().with_alpha(0));
 			new_pal.merge(image.second.palette());
 			if (new_pal.size() > 16) {
 				std::string msg(image.first.string());

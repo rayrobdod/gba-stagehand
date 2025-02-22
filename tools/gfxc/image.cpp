@@ -5,6 +5,9 @@
 rgb15_t rgba16_t::strip_alpha() const {
 	return {this->r, this->g, this->b};
 }
+rgba16_t rgb15_t::with_alpha(uint16_t a) const {
+	return {this->r, this->g, this->b, a != 0};
+}
 
 bool operator==(const rgba16_t& lhs, const rgba16_t& rhs) {
 	return (lhs.a == 0 && rhs.a == 0) || ((lhs.a == rhs.a) && (lhs.r == rhs.r) && (lhs.g == rhs.g) && (lhs.b == rhs.b));
@@ -47,8 +50,8 @@ std::set<rgba16_t> image::palette() const {
 
 ////
 
-bufferedimage::bufferedimage(unsigned width, unsigned height, std::vector<rgba16_t> pixels, std::map<std::string, std::string> text)
-		: _width(width), _height(height), _pixels(pixels), _text(text) {
+bufferedimage::bufferedimage(unsigned width, unsigned height, std::vector<rgba16_t> pixels, std::map<std::string, std::string> text, rgb15_t background)
+		: _width(width), _height(height), _pixels(pixels), _text(text), _background(background) {
 }
 
 unsigned bufferedimage::width() const {
@@ -65,6 +68,10 @@ const std::map<std::string, std::string>& bufferedimage::text() const {
 
 rgba16_t bufferedimage::pixel(unsigned x, unsigned y) const {
 	return this->_pixels[y * this->_width + x];
+}
+
+rgb15_t bufferedimage::background() const {
+	return this->_background;
 }
 
 ////

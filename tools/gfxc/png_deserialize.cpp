@@ -174,6 +174,8 @@ bufferedimage png_deserialize(
 		}
 	}
 
+	rgb15_t background = {MASK_5_BIT, 0, MASK_5_BIT};
+
 	switch (color_type) {
 	case PNG_COLOR_TYPE_PALETTE:
 		{
@@ -184,6 +186,21 @@ bufferedimage png_deserialize(
 			png_get_PLTE(png_ptr, info_ptr, &palette, &palette_length);
 			if (! png_get_tRNS(png_ptr, info_ptr, &transparency, &transparency_length, NULL)) {
 				transparency_length = 0;
+			}
+
+			png_color_16* backgroundp;
+			if (png_get_bKGD(png_ptr, info_ptr, &backgroundp)) {
+				png_byte palindex = backgroundp->index;
+
+				if (palindex < palette_length) {
+					background = (rgb15_t){
+						.r = scale_8bit_to_5bit(palette[palindex].red),
+						.g = scale_8bit_to_5bit(palette[palindex].green),
+						.b = scale_8bit_to_5bit(palette[palindex].blue),
+					};
+				} else {
+					std::cerr << name << ": Invalid bKGD palette index" << std::endl;
+				}
 			}
 
 			for (unsigned y = 0; y < height; y++) {
@@ -218,6 +235,13 @@ bufferedimage png_deserialize(
 				transparency->gray &= bit_depth_funcs->mask;
 			}
 
+			png_color_16* backgroundp;
+			if (png_get_bKGD(png_ptr, info_ptr, &backgroundp)) {
+				unsigned g8 = backgroundp->gray & bit_depth_funcs->mask;
+				uint8_t g = bit_depth_funcs->scale_to_5bit(g8);
+				background = (rgb15_t){g, g, g};
+			}
+
 			for (unsigned y = 0; y < height; y++) {
 				for (unsigned x = 0; x < width; x++) {
 					unsigned g1 = bit_depth_funcs->read_sample(row_pointers[y], x);
@@ -231,6 +255,13 @@ bufferedimage png_deserialize(
 
 	case PNG_COLOR_TYPE_GRAY_ALPHA:
 		{
+			png_color_16* backgroundp;
+			if (png_get_bKGD(png_ptr, info_ptr, &backgroundp)) {
+				unsigned g8 = backgroundp->gray & bit_depth_funcs->mask;
+				uint8_t g = bit_depth_funcs->scale_to_5bit(g8);
+				background = (rgb15_t){g, g, g};
+			}
+
 			for (unsigned y = 0; y < height; y++) {
 				for (unsigned x = 0; x < width; x++) {
 					unsigned g1 = bit_depth_funcs->read_sample(row_pointers[y], x * 2);
@@ -254,6 +285,14 @@ bufferedimage png_deserialize(
 				transparency->blue &= bit_depth_funcs->mask;
 			}
 
+			png_color_16* backgroundp;
+			if (png_get_bKGD(png_ptr, info_ptr, &backgroundp)) {
+				uint8_t r = bit_depth_funcs->scale_to_5bit(backgroundp->red & bit_depth_funcs->mask);
+				uint8_t g = bit_depth_funcs->scale_to_5bit(backgroundp->green & bit_depth_funcs->mask);
+				uint8_t b = bit_depth_funcs->scale_to_5bit(backgroundp->blue & bit_depth_funcs->mask);
+				background = (rgb15_t){r, g, b};
+			}
+
 			for (unsigned y = 0; y < height; y++) {
 				for (unsigned x = 0; x < width; x++) {
 					unsigned r8 = bit_depth_funcs->read_sample(row_pointers[y], x * 3);
@@ -271,6 +310,14 @@ bufferedimage png_deserialize(
 
 	case PNG_COLOR_TYPE_RGB_ALPHA:
 		{
+			png_color_16* backgroundp;
+			if (png_get_bKGD(png_ptr, info_ptr, &backgroundp)) {
+				uint8_t r = bit_depth_funcs->scale_to_5bit(backgroundp->red & bit_depth_funcs->mask);
+				uint8_t g = bit_depth_funcs->scale_to_5bit(backgroundp->green & bit_depth_funcs->mask);
+				uint8_t b = bit_depth_funcs->scale_to_5bit(backgroundp->blue & bit_depth_funcs->mask);
+				background = (rgb15_t){r, g, b};
+			}
+
 			for (unsigned y = 0; y < height; y++) {
 				for (unsigned x = 0; x < width; x++) {
 					unsigned r8 = bit_depth_funcs->read_sample(row_pointers[y], x * 4);
@@ -298,5 +345,5 @@ bufferedimage png_deserialize(
 
 	png_destroy_read_struct(&png_ptr, &info_ptr, NULL);
 	fclose(fp);
-	return bufferedimage(width, height, pixels, text);
+	return bufferedimage(width, height, pixels, text, background);
 }

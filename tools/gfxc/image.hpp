@@ -9,13 +9,17 @@
 #include <string>
 #include <vector>
 
+struct rgba16;
+
 typedef struct {
 	uint16_t r : 5;
 	uint16_t g : 5;
 	uint16_t b : 5;
+
+	struct rgba16 with_alpha(uint16_t a) const;
 } rgb15_t;
 
-typedef struct {
+typedef struct rgba16 {
 	uint16_t r : 5;
 	uint16_t g : 5;
 	uint16_t b : 5;
@@ -127,16 +131,18 @@ private:
 	const unsigned _height;
 	const std::vector<rgba16_t> _pixels;
 	const std::map<std::string, std::string> _text;
+	const rgb15_t _background;
 	// ??? alternate palettes ???
 
 public:
-	bufferedimage(unsigned width, unsigned height, std::vector<rgba16_t> pixels, std::map<std::string, std::string> text);
+	bufferedimage(unsigned width, unsigned height, std::vector<rgba16_t> pixels, std::map<std::string, std::string> text, rgb15_t background);
 
 	unsigned width() const;
 	unsigned height() const;
 	rgba16_t pixel(unsigned x, unsigned y) const;
 
 	const std::map<std::string, std::string>& text() const;
+	rgb15_t background() const;
 };
 
 #endif //  #ifndef IMAGE_H
