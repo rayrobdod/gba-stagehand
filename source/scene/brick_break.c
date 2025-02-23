@@ -3,6 +3,7 @@
 #include <stdint.h>
 #include <stdlib.h>
 #include <string.h>
+#include "gba/bios.h"
 #include "gba/screen.h"
 #include "management/keyinput.h"
 #include "management/scene_graphics.h"
@@ -13,6 +14,26 @@
 #include "main.h"
 #include "mgba.h"
 #include "saturating_add.h"
+
+enum {
+	BALLPOS_SCALE_SQRT = 1 << 3,
+	BALLPOS_SCALE = 1 << 6,
+};
+
+static const char ballpos_scale_frac[BALLPOS_SCALE][4] = {
+	"000", "016", "031", "047", "063", "078", "094", "109",
+	"125", "141", "156", "172", "188", "203", "219", "234",
+	"250", "266", "281", "297", "313", "328", "344", "359",
+	"375", "391", "406", "422", "438", "453", "469", "484",
+	"500", "516", "531", "547", "563", "578", "594", "609",
+	"625", "641", "656", "672", "688", "703", "719", "734",
+	"750", "766", "781", "797", "813", "828", "844", "859",
+	"875", "891", "906", "922", "938", "953", "969", "984",
+};
+
+inline static void MgbaPrintBallposFixpoint(char* var_name, int value) {
+	MgbaPrintf(MGBA_LOG_INFO, "%s: %d (%d.%s)", var_name, value, value / BALLPOS_SCALE, ballpos_scale_frac[abs(value % BALLPOS_SCALE)]);
+}
 
 typedef struct {
 	int8_t x;
@@ -26,8 +47,10 @@ static coords8_t ballvelocity;
 static bool ball_stuck_to_paddle;
 static uint16_t paddle_x;
 static const uint16_t paddle_y = 140;
-static const unsigned paddle_x_min = 8 + 16;
-static const unsigned paddle_x_max = 160 - 8 - 16;
+static const unsigned paddle_height = 16;
+static const unsigned paddle_width = 32;
+static const unsigned paddle_x_min = 8 + paddle_width / 2;
+static const unsigned paddle_x_max = 160 - 8 - paddle_width / 2;
 
 // viewmodel
 static shadow_oam_id_t spriteid_ball;
@@ -43,8 +66,8 @@ void MainCB_brickBreak_init(void) {
 
 	ball_stuck_to_paddle = true;
 	paddle_x = 80;
-	ballpos = (ucoords16_t){.x = paddle_x, .y = paddle_y};
-	ballvelocity = (coords8_t){.x = 1, .y = -1};
+	ballpos = (ucoords16_t){.x = paddle_x * BALLPOS_SCALE, .y = paddle_y * BALLPOS_SCALE};
+	ballvelocity = (coords8_t){.x = BALLPOS_SCALE, .y = -BALLPOS_SCALE};
 
 	queue_load_scene_graphics(
 		&brickbreak_background,
@@ -55,7 +78,7 @@ void MainCB_brickBreak_init(void) {
 	spriteid_ball = shadow_oam_add_sprite(
 		&breakout_set_ball,
 		(struct shadow_oam_position){
-			.coord = ballpos,
+			.coord = (ucoords16_t){.x = ballpos.x / BALLPOS_SCALE, .y = ballpos.y / BALLPOS_SCALE},
 			.hotspot = HOTSPOT_CENTER,
 		});
 
@@ -79,7 +102,7 @@ static void MainCB_brickBreak_main(void) {
 	}
 
 	if (ball_stuck_to_paddle) {
-		ballpos = (ucoords16_t){.x = paddle_x, .y = paddle_y};
+		ballpos = (ucoords16_t){.x = paddle_x * BALLPOS_SCALE, .y = paddle_y * BALLPOS_SCALE};
 
 		if (! keyinput_get_new().a) {
 			ball_stuck_to_paddle = false;
@@ -88,17 +111,47 @@ static void MainCB_brickBreak_main(void) {
 		ballpos.x += ballvelocity.x;
 		ballpos.y += ballvelocity.y;
 
-		if (ballvelocity.x > 0 && ballpos.x >= 160 - 8 - 4) {
+		if (ballvelocity.x > 0 && ballpos.x >= (160 - 8 - 4) * BALLPOS_SCALE) {
 			ballvelocity.x = -ballvelocity.x;
 		}
-		if (ballvelocity.x < 0 && ballpos.x <= 8 + 4) {
+		if (ballvelocity.x < 0 && ballpos.x <= (8 + 4) * BALLPOS_SCALE) {
 			ballvelocity.x = -ballvelocity.x;
 		}
-		if (ballvelocity.y < 0 && ballpos.y <= 8 + 4) {
+		if (ballvelocity.y < 0 && ballpos.y <= (8 + 4) * BALLPOS_SCALE) {
 			ballvelocity.y = -ballvelocity.y;
 		}
-		if (ballvelocity.y > 0 && ballpos.y >= 160 + 4) {
+		if (ballvelocity.y > 0 && ballpos.y >= (160 + 4) * BALLPOS_SCALE) {
 			ballvelocity.y = -ballvelocity.y;
+		}
+		if (
+			ballpos.y > (paddle_y * BALLPOS_SCALE) &&
+			ballpos.y < (paddle_y + paddle_height) * BALLPOS_SCALE &&
+			ballpos.x + (paddle_width / 2 - paddle_x) * BALLPOS_SCALE < paddle_width * BALLPOS_SCALE
+		) {
+			const int dx = (ballpos.x - (paddle_x * BALLPOS_SCALE));
+			const int dy = (ballpos.y - ((paddle_y + paddle_height / 2) * BALLPOS_SCALE));
+			if (false) {
+				MgbaPrintBallposFixpoint("dx", dx);
+				MgbaPrintBallposFixpoint("dy", dy);
+			}
+
+			const int hypotSq = (dx * dx / BALLPOS_SCALE) + (dy * dy / BALLPOS_SCALE);
+			const int hypot = Sqrt(hypotSq) * BALLPOS_SCALE_SQRT;
+			if (false) {
+				MgbaPrintBallposFixpoint("hypot", hypot);
+			}
+
+			if (hypot) {
+				ballvelocity.x = (dx * BALLPOS_SCALE * 3 / 2) / hypot;
+				ballvelocity.y = (dy * BALLPOS_SCALE * 3 / 2) / hypot;
+			}
+			if (0 == ballvelocity.y)
+				ballvelocity.y = -1;
+
+			if (false) {
+				MgbaPrintBallposFixpoint("ball dx", ballvelocity.x);
+				MgbaPrintBallposFixpoint("ball dy", ballvelocity.y);
+			}
 		}
 	}
 
@@ -114,7 +167,7 @@ static void MainCB_brickBreak_main(void) {
 	shadow_oam_move_sprite(
 		spriteid_ball,
 		(struct shadow_oam_position){
-			.coord = ballpos,
+			.coord = (ucoords16_t){.x = ballpos.x / BALLPOS_SCALE, .y = ballpos.y / BALLPOS_SCALE},
 			.hotspot = HOTSPOT_CENTER,
 		});
 }

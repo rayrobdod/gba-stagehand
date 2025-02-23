@@ -5,29 +5,17 @@
 
 #include "main.h"
 
-#include <stdint.h>
-#include <stdlib.h>
-#include <string.h>
 #include "gba/bios.h"
-#include "gba/bios_reg.h"
-#include "gba/hw_reg.h"
-#include "gba/palette.h"
-#include "gba/screen.h"
-#include "gba/shared.h"
-#include "gba/vram.h"
 #include "management/isr.h"
 #include "management/keyinput.h"
-#include "management/scene_graphics.h"
 #include "management/shadow_oam.h"
 #include "management/vram_op_queue.h"
 #include "scene/main_menu.h"
 #include "mgba.h"
-#include "saturating_add.h"
 
 MainCallback scene_onframe_callback;
 
-int main(int argc, char *argv[])
-{
+int main(int argc, char* argv[]) {
 	isr_switchboard_init();
 	isr_enable(II_VBLANK);
 
@@ -37,7 +25,10 @@ int main(int argc, char *argv[])
 
 	scene_onframe_callback = &MainCB_mainMenu_init;
 
-	while(1) {
+	while (1) {
+		if (false) {
+			MgbaPrintf(MGBA_LOG_INFO, "VCOUNT: %d", reg_lcd.VCOUNT);
+		}
 		VBlankIntrWait();
 
 		vram_op_queue_execute();
