@@ -1,6 +1,7 @@
 #ifndef VRAM_OP_QUEUE_H
 #define VRAM_OP_QUEUE_H
 
+#include "gba/bios.h"
 #include "gba/oam.h"
 #include "gba/palette.h"
 #include "gba/vram.h"
@@ -14,6 +15,8 @@ enum vram_queue_op_type {
 	VRAM_QUEUE_OP_BG_PALETTES,
 	/** .tiles */
 	VRAM_QUEUE_OP_BG_TILES,
+	/** .tiles_bitunpack */
+	VRAM_QUEUE_OP_BG_TILES_BITUNPACK,
 	/** .map */
 	VRAM_QUEUE_OP_BG_MAP,
 	/** .palettes */
@@ -38,6 +41,12 @@ struct vram_op {
 			uint16_t to_tile;
 			uint16_t count;
 		} tiles;
+		struct {
+			const char* from;
+			uint16_t to_block;
+			uint16_t to_tile;
+			struct BitUnPack param;
+		} tiles_bitunpack;
 		struct {
 			const bg_tile_t* from;
 			uint16_t to_block;

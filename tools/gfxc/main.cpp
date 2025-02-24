@@ -10,15 +10,31 @@
 #include <set>
 #include <string>
 #include <vector>
-#include "bpp4_output_iterator.hpp"
 #include "image.hpp"
 #include "indexed_insert_only_set.hpp"
 #include "object.h"
 #include "png_deserialize.hpp"
 #include "resource_type.hpp"
 #include "sprite.hpp"
+#include "subword_output_iterator.hpp"
 
 static const unsigned FIRST_TAG = 0x1000;
+
+static std::string variable_name_for_image(std::pair<std::filesystem::path, bufferedimage> image) {
+	std::string retval;
+	auto manual = image.second.text().find(std::string("Variable"));
+	if (manual != image.second.text().end()) {
+		retval = manual->second;
+	} else {
+		std::filesystem::path p = image.first.parent_path();
+		for (auto segment : p) {
+			retval += segment;
+			retval += "_";
+		}
+		retval += image.first.stem().string();
+	}
+	return retval;
+}
 
 int main(int argc, char* argv[]) {
 	if (argc < 4) {
@@ -32,6 +48,7 @@ int main(int argc, char* argv[]) {
 
 	std::map<std::filesystem::path, struct bufferedimage> sprite_imgs;
 	std::map<std::filesystem::path, struct bufferedimage> tileset_imgs;
+	std::map<std::filesystem::path, struct bufferedimage> mono_tileset_imgs;
 	std::map<std::filesystem::path, struct bufferedimage> scene_imgs;
 
 	for (auto const& dir_entry : std::filesystem::recursive_directory_iterator{srcdir}) {
@@ -47,7 +64,11 @@ int main(int argc, char* argv[]) {
 					sprite_imgs.insert(nameImage);
 					break;
 				case TYPE_TILESET:
-					tileset_imgs.insert(nameImage);
+					if (result.palette().size() == 2) {
+						mono_tileset_imgs.insert(nameImage);
+					} else {
+						tileset_imgs.insert(nameImage);
+					}
 					break;
 				case TYPE_SCENE:
 					scene_imgs.insert(nameImage);
@@ -86,7 +107,7 @@ int main(int argc, char* argv[]) {
 			single_palettes_0.insert(new_pal);
 		}
 
-		// TODO: more deduplication
+		// TODO: more palette deduplication
 
 		for (auto pal0 : single_palettes_0) {
 			std::vector pal(pal0.begin(), pal0.end());
@@ -114,7 +135,7 @@ int main(int argc, char* argv[]) {
 		const std::vector<rgba16_t> used_pal = single_palettes[paltag];
 		paltag += FIRST_TAG;
 
-		bpp4_output_iterator tiledata_builder;
+		subword_output_iterator tiledata_builder(4);
 		for (auto subimg : image.second.subs(8, 8)) {
 			for (auto pixel : subimg.pixels()) {
 				auto palptr = std::find(used_pal.begin(), used_pal.end(), pixel);
@@ -129,20 +150,7 @@ int main(int argc, char* argv[]) {
 		enum sprite_size size = sprite_size(image.second.width(), image.second.height());
 		uint16_t tiletag = FIRST_TAG + tiledatas.find_or_push_back(tiledata);
 
-		std::string name;
-		{
-			auto manual = image.second.text().find(std::string("Variable"));
-			if (manual != image.second.text().end()) {
-				name = manual->second;
-			} else {
-				std::filesystem::path p = image.first.parent_path();
-				for (auto segment : p) {
-					name += segment;
-					name += "_";
-				}
-				name += image.first.stem().string();
-			}
-		}
+		std::string name = variable_name_for_image(image);
 
 		sprites.push_back({name, paltag, tiletag, size});
 	}
@@ -200,15 +208,7 @@ int main(int argc, char* argv[]) {
 	}
 
 	for (auto const& image : tileset_imgs) {
-		std::string name;
-		{
-			auto manual = image.second.text().find(std::string("Variable"));
-			if (manual != image.second.text().end()) {
-				name = manual->second;
-			} else {
-				name = image.first.stem().string();
-			}
-		}
+		std::string name = variable_name_for_image(image);
 
 		const std::set<rgba16_t> innate_pal = image.second.palette();
 		uint16_t paltag;
@@ -229,7 +229,7 @@ int main(int argc, char* argv[]) {
 		snprintf(pal_name, 16, "plte.%x", paltag);
 
 		uint16_t tile_count = 0;
-		bpp4_output_iterator tiledata_builder;
+		subword_output_iterator tiledata_builder(4);
 		for (auto subimg : image.second.subs(8, 8)) {
 			for (auto pixel : subimg.pixels()) {
 				auto palptr = std::find(used_pal.begin(), used_pal.end(), pixel);
@@ -270,6 +270,28 @@ int main(int argc, char* argv[]) {
 		push_relocation_section(elf, name.c_str(), relocs.data(), relocs.size());
 
 		headerstream << "extern const struct tileset_graphics " << name << ";" << std::endl;
+	}
+
+	for (auto const& image : mono_tileset_imgs) {
+		std::string name = variable_name_for_image(image);
+
+		uint16_t tile_count = 0;
+		subword_output_iterator tiledata_builder(1);
+		for (auto subimg : image.second.subs(8, 8)) {
+			for (auto pixel : subimg.pixels()) {
+				unsigned palindex = pixel == (rgba16_t){0, 0, 0, 1};
+
+				*tiledata_builder = palindex;
+				++tiledata_builder;
+			}
+			++tile_count;
+		}
+		std::vector tiledata = tiledata_builder.result();
+		tiledata.insert(tiledata.begin(), sizeof(uint32_t) * tiledata.size() | 1 << 16);
+
+		object_push_bytes_section(elf, tiledata.data(), sizeof(uint32_t) * tiledata.size(), {name.c_str(), STB_GLOBAL});
+
+		headerstream << "extern const struct {uint16_t size; uint16_t unit_width; char data[];} " << name << ";" << std::endl;
 	}
 
 	headerstream.close();

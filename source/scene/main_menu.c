@@ -38,6 +38,8 @@ static void print_to_tilemap(bg_tile_t* buffer, unsigned x, unsigned y, char* me
 	}
 }
 
+static const palette16_t mono_pal = {{31,31,31}, {0,0,0}};
+
 void MainCB_mainMenu_init(void) {
 	shadow_oam_free_all();
 
@@ -54,13 +56,27 @@ void MainCB_mainMenu_init(void) {
 		.screenblock = 31,
 	};
 
-	queue_load_tileset_graphics(
-		&oldschool,
-		(struct load_tileset_graphics) {
-			.charblock = 0,
-			.palette_offset = 0,
-			.tile_offset = ' ',
-		});
+	vram_op_queue_enqueue((struct vram_op) {
+		.type = VRAM_QUEUE_OP_BG_TILES_BITUNPACK,
+		.tiles_bitunpack = {
+			oldschool.data,
+			0,
+			' ',
+			{
+				.src_length = oldschool.size,
+				.src_bitsize = 1,
+				.dest_bitsize = 4,
+			}
+		}
+	});
+	vram_op_queue_enqueue((struct vram_op) {
+		.type = VRAM_QUEUE_OP_BG_PALETTES,
+		.palettes = {
+			&mono_pal,
+			0,
+			1,
+		}
+	});
 
 	spriteid_arrow = shadow_oam_add_sprite(
 		&arrow_right,

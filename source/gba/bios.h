@@ -1,3 +1,6 @@
+#ifndef GBA_BIOS_H
+#define GBA_BIOS_H
+
 #include <stdbool.h>
 #include <stdint.h>
 
@@ -44,3 +47,5 @@ struct BitUnPack {
 	bool zero : 1;
 };
 void BitUnPack(const void* src, volatile void* dest, const struct BitUnPack*);
+
+#endif

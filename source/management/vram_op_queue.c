@@ -62,6 +62,12 @@ void vram_op_queue_execute(void) {
 					.mode = CPU_SET_COPY,
 				});
 			break;
+		case VRAM_QUEUE_OP_BG_TILES_BITUNPACK:
+			BitUnPack(
+				entry->tiles_bitunpack.from,
+				&vram.bg_charblock[entry->tiles_bitunpack.to_block][entry->tiles_bitunpack.to_tile],
+				&entry->tiles_bitunpack.param);
+			break;
 		case VRAM_QUEUE_OP_BG_MAP:
 			CpuSet(
 				entry->map.from,
