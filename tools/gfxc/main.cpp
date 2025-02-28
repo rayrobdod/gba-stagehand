@@ -115,7 +115,7 @@ int main(int argc, char* argv[]) {
 		}
 	}
 
-	indexed_insert_only_set<std::vector<uint32_t>> tiledatas;
+	indexed_insert_only_set<std::vector<uint8_t>> tiledatas;
 	std::vector<sprite> sprites;
 
 	for (auto const& image : sprite_imgs) {
@@ -172,8 +172,8 @@ int main(int argc, char* argv[]) {
 	for (size_t tiletag = 0; tiletag < tiledatas.size(); ++tiletag) {
 		char tiles_name[16];
 		snprintf(tiles_name, 16, "tile.%lx", FIRST_TAG + tiletag);
-		std::vector<uint32_t> tiledata = tiledatas[tiletag];
-		object_push_bytes_section(elf, tiledata.data(), sizeof(uint32_t) * tiledata.size(), {tiles_name, STB_LOCAL});
+		std::vector<uint8_t> tiledata = tiledatas[tiletag];
+		object_push_bytes_section(elf, tiledata.data(), sizeof(uint8_t) * tiledata.size(), {tiles_name, STB_LOCAL});
 	}
 
 	for (sprite sprite : sprites) {
@@ -245,7 +245,7 @@ int main(int argc, char* argv[]) {
 		std::string tiles_name("tile.");
 		tiles_name += name;
 
-		object_push_bytes_section(elf, tiledata.data(), sizeof(uint32_t) * tiledata.size(), {tiles_name.c_str(), STB_GLOBAL});
+		object_push_bytes_section(elf, tiledata.data(), sizeof(uint8_t) * tiledata.size(), {tiles_name.c_str(), STB_GLOBAL});
 
 		std::array<uint32_t, 4> serialized = {
 			1,
@@ -287,9 +287,13 @@ int main(int argc, char* argv[]) {
 			++tile_count;
 		}
 		std::vector tiledata = tiledata_builder.result();
-		tiledata.insert(tiledata.begin(), sizeof(uint32_t) * tiledata.size() | 1 << 16);
+		unsigned size = tiledata.size();
+		tiledata.insert(tiledata.begin(), 0);
+		tiledata.insert(tiledata.begin(), 1);
+		tiledata.insert(tiledata.begin(), (sizeof(uint8_t) * size) >> 8);
+		tiledata.insert(tiledata.begin(), sizeof(uint8_t) * size);
 
-		object_push_bytes_section(elf, tiledata.data(), sizeof(uint32_t) * tiledata.size(), {name.c_str(), STB_GLOBAL});
+		object_push_bytes_section(elf, tiledata.data(), sizeof(uint8_t) * tiledata.size(), {name.c_str(), STB_GLOBAL});
 
 		headerstream << "extern const struct {uint16_t size; uint16_t unit_width; char data[];} " << name << ";" << std::endl;
 	}
