@@ -47,3 +47,60 @@ CpuFastSet:
 BitUnPack:
 	swi	0x10
 	bx	lr
+
+	.section .text.lz
+	.align 2
+	.global LZ77UnCompWram
+	.thumb_func
+LZ77UnCompWram:
+	swi	0x11
+	bx	lr
+
+	.align 2
+	.global LZ77UnCompVram
+	.thumb_func
+LZ77UnCompVram:
+	swi	0x12
+	bx	lr
+
+	.align 2
+	.global HuffUnComp
+	.thumb_func
+HuffUnComp:
+	swi	0x13
+	bx	lr
+
+	.align 2
+	.global RLUnCompWram
+	.thumb_func
+RLUnCompWram:
+	swi	0x14
+	bx	lr
+
+	.align 2
+	.global RLUnCompVram
+	.thumb_func
+RLUnCompVram:
+	swi	0x15
+	bx	lr
+
+	.align 2
+	.global Diff8UnFilterWram
+	.thumb_func
+Diff8UnCompWram:
+	swi	0x16
+	bx	lr
+
+	.align 2
+	.global Diff8UnFilterVram
+	.thumb_func
+Diff8UnCompVram:
+	swi	0x17
+	bx	lr
+
+	.align 2
+	.global Diff16UnFilter
+	.thumb_func
+Diff16UnComp:
+	swi	0x18
+	bx	lr

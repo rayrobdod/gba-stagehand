@@ -48,4 +48,13 @@ struct BitUnPack {
 };
 void BitUnPack(const void* src, volatile void* dest, const struct BitUnPack*);
 
+void LZ77UnCompWram(const void* src, volatile void* dest);
+void LZ77UnCompVram(const void* src, volatile void* dest);
+void HuffUnComp(const void* src, volatile void* dest);
+void RLUnCompWram(const void* src, volatile void* dest);
+void RLUnCompVram(const void* src, volatile void* dest);
+void Diff8UnFilterWram(const void* src, volatile void* dest);
+void Diff8UnFilterVram(const void* src, volatile void* dest);
+void Diff16UnFilter(const void* src, volatile void* dest);
+
 #endif

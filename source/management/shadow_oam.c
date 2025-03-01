@@ -100,8 +100,8 @@ static const struct {
 
 
 struct shadow_oam_template {
-	palette16_t* palette;
-	tile_4bpp_t* tiles;
+	const palette16_t* palette;
+	const char* tiles;
 	paltag_t paltag;
 	tiletag_t tiletag;
 	enum oam_shape shape: 2;
@@ -242,12 +242,11 @@ shadow_oam_id_t shadow_oam_add_sprite(
 			shadow_tiles[shadow_tile_index].tile_count = tilecount;
 
 			vram_op_queue_enqueue((struct vram_op) {
-				.type = VRAM_QUEUE_OP_OAM_TILES,
-				.tiles = {
+				.type = VRAM_QUEUE_OP_OAM_TILES_LZ,
+				.tiles_compressed = {
 					.from = template->tiles,
 					.to_block = 0,
 					.to_tile = tile_index,
-					.count = tilecount,
 				}
 			});
 

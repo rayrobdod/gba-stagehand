@@ -186,7 +186,7 @@ $(GBAFIX): $(wildcard tools/gbafix/*.c)
 $(GFX2OBJ): $(wildcard tools/gfx2obj/*.c) $(wildcard tools/gfx2obj/*.cpp) $(wildcard tools/gfx2obj/*.h) source/gba/hw_reg_cast.c
 	$(V)cd tools/gfx2obj && make
 
-$(GFXC): $(wildcard tools/gfxc/*.c) $(wildcard tools/gfxc/*.cpp)
+$(GFXC): $(wildcard tools/gfxc/*.c) $(wildcard tools/gfxc/*.cpp) $(wildcard tools/gfxc/**/*.cpp)
 	$(V)cd tools/gfxc && make
 
 generated_headers: $(BUILDSRCDIR)/brickbreak_background.png.h

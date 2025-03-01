@@ -10,6 +10,7 @@
 #include <set>
 #include <string>
 #include <vector>
+#include "compression/lz.hpp"
 #include "image.hpp"
 #include "indexed_insert_only_set.hpp"
 #include "object.h"
@@ -145,7 +146,7 @@ int main(int argc, char* argv[]) {
 				++tiledata_builder;
 			}
 		}
-		std::vector tiledata = tiledata_builder.result();
+		std::vector<uint8_t> tiledata = tiledata_builder.result();
 
 		enum sprite_size size = sprite_size(image.second.width(), image.second.height());
 		uint16_t tiletag = FIRST_TAG + tiledatas.find_or_push_back(tiledata);
@@ -173,7 +174,44 @@ int main(int argc, char* argv[]) {
 		char tiles_name[16];
 		snprintf(tiles_name, 16, "tile.%lx", FIRST_TAG + tiletag);
 		std::vector<uint8_t> tiledata = tiledatas[tiletag];
-		object_push_bytes_section(elf, tiledata.data(), sizeof(uint8_t) * tiledata.size(), {tiles_name, STB_LOCAL});
+		std::vector<uint8_t> tiledataLz = compressLz(tiledata);
+		std::vector<uint8_t> tiledataRound = decompressLz(tiledataLz, false);
+		if (tiledata != tiledataRound) {
+			std::string msg;
+			msg += tiles_name;
+			msg += " compressions failed to round trip\n";
+			auto diff = std::mismatch(tiledata.begin(), tiledata.end(), tiledataRound.begin(), tiledataRound.end());
+			std::vector<unsigned char>::size_type at = diff.first - tiledata.begin();
+			std::vector<unsigned char>::size_type range_start = (at > 3 ? at - 3 : 0);
+			msg += "    at: " + std::to_string(at) + "\n";
+			msg += "    data : {";
+			msg += (range_start != 0 ? "... " : "");
+			for (unsigned i = range_start; i < std::min(range_start + 5, tiledata.size()); i++) {
+				char s[8];
+				sprintf(s, "%02X, ", tiledata[range_start + i]);
+				msg += s;
+			}
+			msg += "}\n";
+			msg += "    round: {";
+			msg += (range_start != 0 ? "... " : "");
+			for (unsigned i = range_start; i < std::min(range_start + 5, tiledata.size()); i++) {
+				char s[8];
+				sprintf(s, "%02X, ", tiledataRound[range_start + i]);
+				msg += s;
+			}
+			msg += "}\n";
+			msg += "    lz: {";
+			for (unsigned i = 0; i < tiledata.size(); i++) {
+				char s[8];
+				sprintf(s, "%02X, ", tiledataLz[i]);
+				msg += s;
+			}
+			msg += "}\n";
+
+			throw std::logic_error(msg);
+		}
+
+		object_push_bytes_section(elf, tiledataLz.data(), sizeof(uint8_t) * tiledataLz.size(), {tiles_name, STB_LOCAL});
 	}
 
 	for (sprite sprite : sprites) {

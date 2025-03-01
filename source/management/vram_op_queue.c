@@ -53,6 +53,11 @@ void vram_op_queue_execute(void) {
 					.mode = CPU_SET_COPY,
 				});
 			break;
+		case VRAM_QUEUE_OP_OAM_TILES_LZ:
+			LZ77UnCompVram(
+				entry->tiles_compressed.from,
+				&vram.obj_charblock[entry->tiles_compressed.to_block][entry->tiles_compressed.to_tile]);
+			break;
 		case VRAM_QUEUE_OP_BG_TILES:
 			CpuFastSet(
 				entry->tiles.from,

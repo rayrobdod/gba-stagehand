@@ -1,3 +1,6 @@
+#ifndef SUBWORD_OUTPUT_ITERATOR_HPP
+#define SUBWORD_OUTPUT_ITERATOR_HPP
+
 #include <cstdint>
 #include <iterator>
 #include <memory>
@@ -46,3 +49,5 @@ public:
 
 	friend subword_output_iterator_deref subword_output_iterator::operator*();
 };
+
+#endif

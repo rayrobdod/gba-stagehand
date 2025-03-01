@@ -33,7 +33,7 @@ TEST_RUNNER_DIR	:= build/test/exe
 # Source files
 
 SRCS_C	:= $(wildcard *.c)
-SRCS_CPP	:= $(wildcard *.cpp)
+SRCS_CPP	:= $(wildcard *.cpp) $(wildcard compression/*.cpp)
 SRCS_TEST_C	:= $(wildcard test/*.c)
 SRCS_TEST_CPP	:= $(wildcard test/*.cpp)
 
@@ -60,7 +60,7 @@ OBJS	:= \
 
 TEST_OBJS := \
 	$(patsubst test/%.c,$(TEST_OBJ_DIR)/%.c.o,$(SRCS_TEST_C)) \
-	$(patsubst %.cpp,$(TEST_OBJ_DIR)/%.cpp.o,$(SRCS_TEST_CPP)) \
+	$(patsubst test/%.cpp,$(TEST_OBJ_DIR)/%.cpp.o,$(SRCS_TEST_CPP)) \
 
 TEST_RUNNERS := \
 	$(patsubst test/%.c,$(TEST_RUNNER_DIR)/%,$(SRCS_TEST_C)) \
@@ -85,7 +85,7 @@ $(TEST_OBJ_DIR)/%.cpp.o : test/%.cpp
 	@$(MKDIR) -p $(@D)
 	$(V)$(CXX) $(CXXFLAGS) -MMD -MP -c -o $@ $<
 
-$(TEST_RUNNER_DIR)/% : $(TEST_OBJ_DIR)/%.cpp.o $(BUILDOBJDIR)/%.cpp.o
+$(TEST_RUNNER_DIR)/% : $(TEST_OBJ_DIR)/%.cpp.o
 	@echo "  HOSTLD  $@"
 	@$(MKDIR) -p $(@D)
 	$(V)$(CXX) -o $@ $^ $(LDFLAGS)

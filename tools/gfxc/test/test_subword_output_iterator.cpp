@@ -1,6 +1,5 @@
-#include "subword_output_iterator.hpp"
-
 #include <cstdio>
+#include "subword_output_iterator.hpp"
 
 bool currentTestFailed;
 unsigned total;
@@ -97,3 +96,5 @@ int main(int argc, char** argv) {
 	printf("Total: %d; Failing: %d\n", total, failed);
 	return 0 != failed;
 }
+
+#include "subword_output_iterator.cpp"

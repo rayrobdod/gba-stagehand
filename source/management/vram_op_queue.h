@@ -23,6 +23,8 @@ enum vram_queue_op_type {
 	VRAM_QUEUE_OP_OAM_PALETTES,
 	/** .tiles */
 	VRAM_QUEUE_OP_OAM_TILES,
+	/** .tiles_compressed */
+	VRAM_QUEUE_OP_OAM_TILES_LZ,
 	/** .oam */
 	VRAM_QUEUE_OP_OAM_ENTRY,
 };
@@ -41,6 +43,11 @@ struct vram_op {
 			uint16_t to_tile;
 			uint16_t count;
 		} tiles;
+		struct {
+			const char* from;
+			uint16_t to_block;
+			uint16_t to_tile;
+		} tiles_compressed;
 		struct {
 			const char* from;
 			uint16_t to_block;
