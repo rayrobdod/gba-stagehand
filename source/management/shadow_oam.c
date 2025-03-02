@@ -290,10 +290,12 @@ void shadow_oam_remove_sprite(shadow_oam_id_t index) {
 	struct shadow_oam* oam = &shadow_oam[index];
 
 	struct shadow_tile* tile = &shadow_tiles[oam->shadow_tile_index];
-	for (int i = tile->tile_start; i < tile->tile_start + tile->tile_count; i++) {
-		shadow_tiles_used[i] = false;
-	}
 	tile->refcount--;
+	if (0 == tile->refcount) {
+		for (int i = tile->tile_start; i < tile->tile_start + tile->tile_count; i++) {
+			shadow_tiles_used[i] = false;
+		}
+	}
 
 	struct shadow_palette* pal = &shadow_palette[oam->palette_index];
 	pal->refcount--;
