@@ -50,8 +50,19 @@ std::set<rgba16_t> image::palette() const {
 
 ////
 
-bufferedimage::bufferedimage(unsigned width, unsigned height, std::vector<rgba16_t> pixels, std::map<std::string, std::string> text, rgb15_t background)
-		: _width(width), _height(height), _pixels(pixels), _text(text), _background(background) {
+bufferedimage::bufferedimage(
+	unsigned width,
+	unsigned height,
+	std::vector<rgba16_t> pixels,
+	std::map<std::string, std::string> text,
+	rgb15_t background,
+	std::map<std::string, std::map<rgba16_t, rgba16_t>> alt_palettes)
+		: _width(width),
+			_height(height),
+			_pixels(pixels),
+			_text(text),
+			_background(background),
+			_alt_palettes(alt_palettes) {
 }
 
 unsigned bufferedimage::width() const {
@@ -72,6 +83,26 @@ rgba16_t bufferedimage::pixel(unsigned x, unsigned y) const {
 
 rgb15_t bufferedimage::background() const {
 	return this->_background;
+}
+
+std::map<std::string, std::vector<rgba16_t>> bufferedimage::alt_palettes(std::vector<rgba16_t> palette) const {
+	std::map<std::string, std::vector<rgba16_t>> retval;
+	for (auto alt : this->_alt_palettes) {
+		std::string name(alt.first);
+		std::map<rgba16_t, rgba16_t> mapping(alt.second);
+		std::vector<rgba16_t> new_pal;
+
+		for (auto color : palette) {
+			auto x = mapping.find(color);
+			if (x == mapping.end()) {
+				new_pal.push_back(color);
+			} else {
+				new_pal.push_back(x->second);
+			}
+		}
+		retval.insert(make_pair(name, new_pal));
+	}
+	return retval;
 }
 
 ////

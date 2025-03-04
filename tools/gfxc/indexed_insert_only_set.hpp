@@ -54,4 +54,12 @@ public:
 	Key operator[](unsigned index) const {
 		return this->_data[index];
 	}
+
+	typename std::vector<Key, Allocator>::const_iterator cbegin() const {
+		return this->_data.cbegin();
+	}
+
+	typename std::vector<Key, Allocator>::const_iterator cend() const {
+		return this->_data.cend();
+	}
 };

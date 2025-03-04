@@ -81,7 +81,7 @@ int main(int argc, char* argv[]) {
 		}
 	}
 
-	std::vector<std::vector<rgba16_t>> single_palettes;
+	indexed_insert_only_set<std::vector<rgba16_t>> single_palettes;
 	{
 		std::set<std::set<rgba16_t>> single_palettes_0;
 		for (auto const& image : sprite_imgs) {
@@ -109,10 +109,11 @@ int main(int argc, char* argv[]) {
 		}
 
 		// TODO: more palette deduplication
+		// E.g. finding subsets
 
 		for (auto pal0 : single_palettes_0) {
-			std::vector pal(pal0.begin(), pal0.end());
-			single_palettes.push_back(pal);
+			std::vector<rgba16_t> pal(pal0.begin(), pal0.end());
+			single_palettes.find_or_push_back(pal);
 		}
 	}
 
@@ -154,13 +155,22 @@ int main(int argc, char* argv[]) {
 		std::string name = variable_name_for_image(image);
 
 		sprites.push_back({name, paltag, tiletag, size});
+
+		std::map<std::string, std::vector<rgba16_t>> altpals = image.second.alt_palettes(used_pal);
+		for (auto altpal : altpals) {
+			std::string altname(name);
+			altname += "_";
+			altname += altpal.first;
+			uint16_t altpaltag = FIRST_TAG + single_palettes.find_or_push_back(altpal.second);
+			sprites.push_back({altname, altpaltag, tiletag, size});
+		}
 	}
 
 	struct Object* elf = object_start(objfile.c_str());
 	std::ofstream headerstream(headerfile);
 
-	for (auto pal0 = single_palettes.begin(); pal0 != single_palettes.end(); ++pal0) {
-		size_t i = pal0 - single_palettes.begin();
+	for (auto pal0 = single_palettes.cbegin(); pal0 != single_palettes.cend(); ++pal0) {
+		size_t i = pal0 - single_palettes.cbegin();
 		char pal_name[16];
 		snprintf(pal_name, 16, "plte.%lx", FIRST_TAG + i);
 		std::vector<rgb15_t> pal;

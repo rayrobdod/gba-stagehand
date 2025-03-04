@@ -22,3 +22,5 @@ int keyinput_horizontal_new(void);
 int keyinput_horizontal_pressed(void);
 int keyinput_vertical_new(void);
 int keyinput_vertical_pressed(void);
+int keyinput_shoulders_new(void);
+int keyinput_shoulders_pressed(void);

@@ -15,6 +15,8 @@
 #include "mgba.h"
 #include "saturating_add.h"
 
+#define arraycount(a) (sizeof(a) / sizeof(a[0]))
+
 enum {
 	BALLPOS_SCALE_SQRT = 1 << 3,
 	BALLPOS_SCALE = 1 << 6,
@@ -56,6 +58,17 @@ static const unsigned paddle_x_max = 160 - 8 - paddle_width / 2;
 static shadow_oam_id_t spriteid_ball;
 static shadow_oam_id_t spriteid_paddle;
 
+static uint8_t paddle_skin;
+static const struct shadow_oam_template* paddle_skins[] = {
+	&breakout_set_paddle,
+	&breakout_set_paddle_green,
+	&breakout_set_paddle_red,
+	&breakout_set_paddle_purple,
+	&breakout_set_paddle_yellow,
+	&breakout_set_paddle_grey,
+	&breakout_set_paddle_brown,
+};
+
 //
 
 //
@@ -64,6 +77,7 @@ static void MainCB_brickBreak_main(void);
 void MainCB_brickBreak_init(void) {
 	shadow_oam_free_all();
 
+	paddle_skin = 0;
 	ball_stuck_to_paddle = true;
 	paddle_x = 80;
 	ballpos = (ucoords16_t){.x = paddle_x * BALLPOS_SCALE, .y = paddle_y * BALLPOS_SCALE};
@@ -76,14 +90,14 @@ void MainCB_brickBreak_init(void) {
 	reg_lcd.DISPCNT.enable_obj = true;
 
 	spriteid_ball = shadow_oam_add_sprite(
-		&breakout_set_ball,
+		&breakout_set_ball_green,
 		(struct shadow_oam_position){
 			.coord = (ucoords16_t){.x = ballpos.x / BALLPOS_SCALE, .y = ballpos.y / BALLPOS_SCALE},
 			.hotspot = HOTSPOT_CENTER,
 		});
 
 	spriteid_paddle = shadow_oam_add_sprite(
-		&breakout_set_paddle,
+		paddle_skins[paddle_skin],
 		(struct shadow_oam_position){
 			.coord = (ucoords16_t){.x = paddle_x, .y = paddle_y},
 			.hotspot = HOTSPOT_TOP,
@@ -99,6 +113,20 @@ static void MainCB_brickBreak_main(void) {
 	if (dselection) {
 		redraw_paddle = true;
 		paddle_x = saturating_add(paddle_x, paddle_x_min, paddle_x_max, dselection);
+	}
+
+	int dshoulder = keyinput_shoulders_new();
+	if (dshoulder) {
+		redraw_paddle = true;
+		paddle_skin = (paddle_skin + dshoulder + arraycount(paddle_skins)) % arraycount(paddle_skins);
+
+		shadow_oam_remove_sprite(spriteid_paddle);
+		spriteid_paddle = shadow_oam_add_sprite(
+			paddle_skins[paddle_skin],
+			(struct shadow_oam_position){
+				.coord = (ucoords16_t){.x = paddle_x, .y = paddle_y},
+				.hotspot = HOTSPOT_TOP,
+			});
 	}
 
 	if (ball_stuck_to_paddle) {

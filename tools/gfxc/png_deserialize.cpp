@@ -79,6 +79,31 @@ static const struct bitfuncs bit16 = {
 	.read_sample = read_sample_16bit,
 };
 
+static std::vector<rgba16_t> png_get_palette(png_structp png_ptr, png_infop info_ptr) {
+	png_byte* transparency;
+	int transparency_length;
+	png_color* palette;
+	int palette_length;
+	std::vector<rgba16_t> retval;
+
+	if (! png_get_PLTE(png_ptr, info_ptr, &palette, &palette_length)) {
+		return retval;
+	}
+	if (! png_get_tRNS(png_ptr, info_ptr, &transparency, &transparency_length, NULL)) {
+		transparency_length = 0;
+	}
+
+	for (int i = 0; i < palette_length; i++) {
+		retval.push_back((rgba16_t){
+			.r = scale_8bit_to_5bit(palette[i].red),
+			.g = scale_8bit_to_5bit(palette[i].green),
+			.b = scale_8bit_to_5bit(palette[i].blue),
+			.a = i >= transparency_length || transparency[i] == 255,
+		});
+	}
+	return retval;
+}
+
 bufferedimage png_deserialize(
 	const std::string& name) {
 	FILE* fp = fopen(name.c_str(), "rb");
@@ -104,6 +129,8 @@ bufferedimage png_deserialize(
 	if (! png_ptr) {
 		throw std::runtime_error("Could not allocate png_struct");
 	}
+
+	png_set_keep_unknown_chunks(png_ptr, PNG_HANDLE_CHUNK_ALWAYS, (png_byte*)"apLT", 1);
 
 	png_infop info_ptr = png_create_info_struct(png_ptr);
 	if (! info_ptr) {
@@ -143,6 +170,61 @@ bufferedimage png_deserialize(
 		text.insert(std::pair(texts[i].key, texts[i].text));
 	}
 
+	std::map<std::string, std::map<rgba16_t, rgba16_t>> alt_palettes;
+	png_unknown_chunk* unknowns;
+	unsigned num_unknowns = png_get_unknown_chunks(png_ptr, info_ptr, &unknowns);
+
+	for (unsigned i = 0; i < num_unknowns; i++) {
+		if (strncmp("apLT", (char*)unknowns[i].name, 4))
+			continue;
+
+		std::vector<rgba16_t> palette = png_get_palette(png_ptr, info_ptr);
+		if (0 == palette.size()) {
+			std::cerr << "apLT without PLTE\n";
+			continue;
+		}
+
+		unsigned size = unknowns[i].size;
+		png_byte* data = unknowns[i].data;
+
+		unsigned name_len = strnlen((char*)data, size);
+		std::string name((char*)data);
+		if (name_len + 2 >= size) {
+			std::cerr << "Invalid apLT chunk: name too long\n";
+			continue;
+		}
+		unsigned depth = data[name_len + 1];
+
+		if (16 == depth || 8 == depth) {
+			const struct bitfuncs* bitfuncs = (depth == 8 ? &bit8 : &bit16);
+			unsigned entry_width = (depth == 8 ? 6 : 10);
+
+			if ((size - (name_len + 2)) % entry_width != 0) {
+				std::cerr << "Invalid apLT chunk: partial pal entries\n";
+				continue;
+			}
+
+			std::map<rgba16_t, rgba16_t> mapping;
+			unsigned count = std::min((size_t)(size - (name_len + 2)) / entry_width, palette.size());
+			png_byte* entry_start = data + name_len + 2;
+
+			for (unsigned i = 0; i < count; i++, entry_start += entry_width) {
+				rgba16_t new_color = {
+					.r = bitfuncs->scale_to_5bit(bitfuncs->read_sample(entry_start, 0)),
+					.g = bitfuncs->scale_to_5bit(bitfuncs->read_sample(entry_start, 1)),
+					.b = bitfuncs->scale_to_5bit(bitfuncs->read_sample(entry_start, 2)),
+					.a = bitfuncs->mask == bitfuncs->read_sample(entry_start, 3),
+				};
+				mapping[palette[i]] = new_color;
+			}
+
+			alt_palettes[name] = mapping;
+		} else {
+			std::cerr << "Invalid apLT chunk: depth neither 8 nor 16\n";
+			continue;
+		}
+	}
+
 	std::vector<rgba16_t> pixels(width * height);
 
 	png_byte** row_pointers = png_get_rows(png_ptr, info_ptr);
@@ -179,25 +261,14 @@ bufferedimage png_deserialize(
 	switch (color_type) {
 	case PNG_COLOR_TYPE_PALETTE:
 		{
-			png_byte* transparency;
-			int transparency_length;
-			png_color* palette;
-			int palette_length;
-			png_get_PLTE(png_ptr, info_ptr, &palette, &palette_length);
-			if (! png_get_tRNS(png_ptr, info_ptr, &transparency, &transparency_length, NULL)) {
-				transparency_length = 0;
-			}
+			std::vector<rgba16_t> palette = png_get_palette(png_ptr, info_ptr);
 
 			png_color_16* backgroundp;
 			if (png_get_bKGD(png_ptr, info_ptr, &backgroundp)) {
 				png_byte palindex = backgroundp->index;
 
-				if (palindex < palette_length) {
-					background = (rgb15_t){
-						.r = scale_8bit_to_5bit(palette[palindex].red),
-						.g = scale_8bit_to_5bit(palette[palindex].green),
-						.b = scale_8bit_to_5bit(palette[palindex].blue),
-					};
+				if (palindex < palette.size()) {
+					background = palette[palindex].strip_alpha();
 				} else {
 					std::cerr << name << ": Invalid bKGD palette index" << std::endl;
 				}
@@ -205,22 +276,14 @@ bufferedimage png_deserialize(
 
 			for (unsigned y = 0; y < height; y++) {
 				for (unsigned x = 0; x < width; x++) {
-					int palindex = bit_depth_funcs->read_sample(row_pointers[y], x);
+					unsigned palindex = bit_depth_funcs->read_sample(row_pointers[y], x);
 
-					if (palindex < palette_length) {
-						pixels[x + y * width] = (rgba16_t){
-							.r = scale_8bit_to_5bit(palette[palindex].red),
-							.g = scale_8bit_to_5bit(palette[palindex].green),
-							.b = scale_8bit_to_5bit(palette[palindex].blue),
-							.a = 1,
-						};
+					if (palindex < palette.size()) {
+						pixels[x + y * width] = palette[palindex];
 					} else {
 						png_destroy_read_struct(&png_ptr, &info_ptr, NULL);
 						fclose(fp);
 						throw std::runtime_error("Invalid palette entry");
-					}
-					if (palindex < transparency_length && transparency[palindex] != 255) {
-						pixels[x + y * width].a = 0;
 					}
 				}
 			}
@@ -345,5 +408,5 @@ bufferedimage png_deserialize(
 
 	png_destroy_read_struct(&png_ptr, &info_ptr, NULL);
 	fclose(fp);
-	return bufferedimage(width, height, pixels, text, background);
+	return bufferedimage(width, height, pixels, text, background, alt_palettes);
 }

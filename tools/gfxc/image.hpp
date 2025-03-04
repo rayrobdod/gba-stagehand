@@ -132,10 +132,16 @@ private:
 	const std::vector<rgba16_t> _pixels;
 	const std::map<std::string, std::string> _text;
 	const rgb15_t _background;
-	// ??? alternate palettes ???
+	const std::map<std::string, std::map<rgba16_t, rgba16_t>> _alt_palettes;
 
 public:
-	bufferedimage(unsigned width, unsigned height, std::vector<rgba16_t> pixels, std::map<std::string, std::string> text, rgb15_t background);
+	bufferedimage(
+		unsigned width,
+		unsigned height,
+		std::vector<rgba16_t> pixels,
+		std::map<std::string, std::string> text,
+		rgb15_t background,
+		std::map<std::string, std::map<rgba16_t, rgba16_t>> alt_palettes);
 
 	unsigned width() const;
 	unsigned height() const;
@@ -143,6 +149,8 @@ public:
 
 	const std::map<std::string, std::string>& text() const;
 	rgb15_t background() const;
+
+	std::map<std::string, std::vector<rgba16_t>> alt_palettes(std::vector<rgba16_t> palette) const;
 };
 
 #endif //  #ifndef IMAGE_H

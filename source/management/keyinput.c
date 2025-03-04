@@ -30,3 +30,12 @@ static int keyinput_vertical(keypad_t k) {
 }
 int keyinput_vertical_new(void) {return keyinput_vertical(keyinputs.new);}
 int keyinput_vertical_pressed(void) {return keyinput_vertical(keyinputs.down);}
+
+static int keyinput_shoulders(keypad_t k) {
+	int retval = 0;
+	if (!k.l) retval--;
+	if (!k.r) retval++;
+	return retval;
+}
+int keyinput_shoulders_new(void) {return keyinput_shoulders(keyinputs.new);}
+int keyinput_shoulders_pressed(void) {return keyinput_shoulders(keyinputs.down);}
