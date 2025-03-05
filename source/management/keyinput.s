@@ -2,7 +2,7 @@
 	.thumb
 	.cpu arm7tdmi
 
-	.align 2
+	.balign 2
 	.global keyinput_read
 	.thumb_func
 keyinput_read:
@@ -21,7 +21,7 @@ keyinput_read:
 	strh r2, [r3, #2]
 
 	bx lr
-	.align 4
+	.balign 4
 .Lstruct:
 	.word keyinputs
 .Lhwreg:
