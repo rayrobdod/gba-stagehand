@@ -89,6 +89,10 @@ void MainCB_brickBreak_init(void) {
 
 	reg_lcd.DISPCNT.enable_obj = true;
 
+	for (unsigned i = 0; i < arraycount(paddle_skins); i++) {
+		shadow_oam_preload_sprite(paddle_skins[i]);
+	}
+
 	spriteid_ball = shadow_oam_add_sprite(
 		&breakout_set_ball_green,
 		(struct shadow_oam_position){
@@ -117,7 +121,7 @@ static void MainCB_brickBreak_main(void) {
 
 	int dshoulder = keyinput_shoulders_new();
 	if (dshoulder) {
-		redraw_paddle = true;
+		redraw_paddle = false;
 		paddle_skin = (paddle_skin + dshoulder + arraycount(paddle_skins)) % arraycount(paddle_skins);
 
 		shadow_oam_remove_sprite(spriteid_paddle);

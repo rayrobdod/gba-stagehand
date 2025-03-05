@@ -37,6 +37,8 @@ struct shadow_oam_position {
 void shadow_oam_init(void);
 
 void shadow_oam_free_all(void);
+void shadow_oam_preload_sprite(
+	const struct shadow_oam_template*);
 shadow_oam_id_t shadow_oam_add_sprite(
 	const struct shadow_oam_template*,
 	const struct shadow_oam_position);
