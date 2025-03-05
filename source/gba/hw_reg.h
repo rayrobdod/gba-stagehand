@@ -209,9 +209,30 @@ typedef struct {
 	bool l : 1;
 } keypad_t;
 
+typedef enum {
+	KEYPAD_CONDITION_OR = 0,
+	KEYPAD_CONDITION_AND = 1,
+} keypad_condition_t;
+
 typedef struct {
-  keypad_t KEYINPUT;	/* 4000130 */
-  keypad_t KEYCNT;	/* 4000132 */
+	bool a : 1;
+	bool b : 1;
+	bool select : 1;
+	bool start : 1;
+	bool right : 1;
+	bool left : 1;
+	bool up : 1;
+	bool down : 1;
+	bool r : 1;
+	bool l : 1;
+	unsigned char _unused : 4;
+	bool enable : 1;
+	keypad_condition_t condition : 1;
+} keypad_control_t;
+
+typedef struct {
+	keypad_t KEYINPUT;	/* 4000130 */
+	keypad_control_t KEYCNT;	/* 4000132 */
 } reg_keypad_t;
 
 extern volatile reg_keypad_t reg_keypad;

@@ -3,7 +3,9 @@
 
 #include <stdbool.h>
 #include <stdint.h>
+#include "gba/shared.h"
 
+void IntrWait(bool discard, interrupt_flag_t flags);
 void VBlankIntrWait(void);
 
 struct Div {

@@ -8,8 +8,14 @@ std::ostream& operator<<(std::ostream& os, enum type typ) {
 	case TYPE_TILESET:
 		os << "TILESET";
 		break;
+	case TYPE_TILESET_MONO:
+		os << "TILESET_MONO";
+		break;
 	case TYPE_SCENE:
 		os << "SCENE";
+		break;
+	case TYPE_SCENE_MODE3:
+		os << "SCENE_MODE3";
 		break;
 	}
 	return os;
@@ -24,6 +30,8 @@ enum type resource_type(const bufferedimage& image) {
 			return TYPE_TILESET;
 		if (explicit_typ->second == "Scene")
 			return TYPE_SCENE;
+		if (explicit_typ->second == "Scene Mode 3")
+			return TYPE_SCENE_MODE3;
 
 		std::string msg("Unknown explicit type: ");
 		msg += explicit_typ->second;

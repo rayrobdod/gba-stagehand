@@ -8,11 +8,12 @@
 #include "management/scene_graphics.h"
 #include "management/shadow_oam.h"
 #include "management/vram_op_queue.h"
+#include "scene/brick_break.h"
+#include "scene/mode3.h"
+#include "graphics.h"
 #include "main.h"
 #include "mgba.h"
 #include "saturating_add.h"
-#include "graphics.h"
-#include "scene/brick_break.h"
 
 // model
 static uint8_t selection = 0;
@@ -92,7 +93,7 @@ void MainCB_mainMenu_init(void) {
 		tilemap_buffer[i] = (bg_tile_t) {' '};
 	}
 
-	print_to_tilemap(tilemap_buffer, 3, 2, "Option 1");
+	print_to_tilemap(tilemap_buffer, 3, 2, "Mode 3");
 	print_to_tilemap(tilemap_buffer, 3, 3, "Brick Break");
 	print_to_tilemap(tilemap_buffer, 3, 4, "Option 3");
 	print_to_tilemap(tilemap_buffer, 3, 5, "Option 4");
@@ -122,7 +123,16 @@ static void MainCB_mainMenu_main(void) {
 	arrow_wiggle_timer++;
 
 	if (! keyinput_get_new().a) {
-		scene_onframe_callback = &MainCB_brickBreak_init;
+		shadow_oam_free_all();
+
+		switch (selection) {
+		case 0:
+			scene_onframe_callback = &MainCB_mode3_init;
+			break;
+		default:
+			scene_onframe_callback = &MainCB_brickBreak_init;
+			break;
+		}
 	}
 
 	bool redraw_arrow = false;

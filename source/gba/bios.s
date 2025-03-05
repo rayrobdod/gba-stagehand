@@ -2,6 +2,13 @@
 	.thumb
 
 	.align 2
+	.global IntrWait
+	.thumb_func
+IntrWait:
+	swi	0x04
+	bx	lr
+
+	.align 2
 	.global VBlankIntrWait
 	.thumb_func
 VBlankIntrWait:

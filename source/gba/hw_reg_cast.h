@@ -5,3 +5,4 @@
 
 uint16_t bgcnt2uint(bgcnt_t);
 uint16_t keypad2uint(keypad_t);
+uint16_t keypad_control2uint(keypad_control_t);

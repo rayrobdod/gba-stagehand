@@ -190,7 +190,7 @@ static shadow_oam_palid_t shadow_oam_add_palette(
 
 	shadow_oam_palid_t pal_index;
 	for (pal_index = 0; pal_index < arraycount(shadow_palette); pal_index++) {
-		if (paltag == shadow_palette[pal_index].tag) {
+		if (0 != shadow_palette[pal_index].refcount && paltag == shadow_palette[pal_index].tag) {
 			shadow_palette[pal_index].refcount += 1;
 			MgbaPrintf(MGBA_LOG_INFO, "  pal_index = %d", pal_index);
 			return pal_index;
@@ -227,7 +227,7 @@ static shadow_oam_tileid_t shadow_oam_add_tiles(
 	unsigned tile_index;
 
 	for (shadow_tile_index = 0; shadow_tile_index < arraycount(shadow_tiles); shadow_tile_index++) {
-		if (tiletag == shadow_tiles[shadow_tile_index].tag) {
+		if (0 != shadow_tiles[shadow_tile_index].refcount && tiletag == shadow_tiles[shadow_tile_index].tag) {
 			shadow_tiles[shadow_tile_index].refcount += 1;
 			tile_index = shadow_tiles[shadow_tile_index].tile_start;
 

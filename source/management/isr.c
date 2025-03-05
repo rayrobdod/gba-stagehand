@@ -3,6 +3,7 @@
 #include "gba/bios.h"
 #include "gba/bios_reg.h"
 #include "gba/hw_reg.h"
+#include "gba/hw_reg_cast.h"
 #include "mgba.h"
 
 __attribute__((section(".iwram.isr_table")))
@@ -67,6 +68,10 @@ static void isr_enable_set(enum InterruptType type, bool value) {
 		reg_interrupt.IE.vcount = value;
 		reg_lcd.DISPSTAT.vcounter_enable = value;
 		break;
+	case II_KEYPAD:
+		reg_interrupt.IE.keypad = value;
+		reg_keypad.KEYCNT.enable = value;
+		break;
 	case II_GAMEPACK:
 		reg_interrupt.IE.gamepak = value;
 		break;
@@ -79,7 +84,6 @@ static void isr_enable_set(enum InterruptType type, bool value) {
 	case II_DMA1:
 	case II_DMA2:
 	case II_DMA3:
-	case II_KEYPAD:
 		MgbaPrintf(MGBA_LOG_FATAL, "UNIMPLEMENTED ISR_ENABLE: %d", type);
 		break;
 	case II_COUNT:

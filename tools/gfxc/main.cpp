@@ -1,3 +1,4 @@
+#include <algorithm>
 #include <array>
 #include <cstddef>
 #include <cstdint>
@@ -34,6 +35,7 @@ static std::string variable_name_for_image(std::pair<std::filesystem::path, buff
 		}
 		retval += image.first.stem().string();
 	}
+	std::replace(retval.begin(), retval.end(), '-', '_');
 	return retval;
 }
 
@@ -51,6 +53,7 @@ int main(int argc, char* argv[]) {
 	std::map<std::filesystem::path, struct bufferedimage> tileset_imgs;
 	std::map<std::filesystem::path, struct bufferedimage> mono_tileset_imgs;
 	std::map<std::filesystem::path, struct bufferedimage> scene_imgs;
+	std::map<std::filesystem::path, struct bufferedimage> scene_mode3_imgs;
 
 	for (auto const& dir_entry : std::filesystem::recursive_directory_iterator{srcdir}) {
 		if (dir_entry.is_regular_file() && dir_entry.path().extension() == ".png") {
@@ -71,8 +74,14 @@ int main(int argc, char* argv[]) {
 						tileset_imgs.insert(nameImage);
 					}
 					break;
+				case TYPE_TILESET_MONO:
+					mono_tileset_imgs.insert(nameImage);
+					break;
 				case TYPE_SCENE:
 					scene_imgs.insert(nameImage);
+					break;
+				case TYPE_SCENE_MODE3:
+					scene_mode3_imgs.insert(nameImage);
 					break;
 				}
 			} catch (const std::exception& e) {
@@ -344,6 +353,22 @@ int main(int argc, char* argv[]) {
 		object_push_bytes_section(elf, tiledata.data(), sizeof(uint8_t) * tiledata.size(), {name.c_str(), STB_GLOBAL});
 
 		headerstream << "extern const struct {uint16_t size; uint16_t unit_width; char data[];} " << name << ";" << std::endl;
+	}
+
+	for (auto const& image : scene_mode3_imgs) {
+		std::string name = variable_name_for_image(image);
+
+		if (image.second.width() != 240 || image.second.height() != 160) {
+			std::string msg(image.first.string());
+			msg += ": mode3 scene does not have expected dimensions";
+			throw std::logic_error(msg);
+		}
+
+		std::vector<rgba16_t> imgdata(image.second.pixels().begin(), image.second.pixels().end());
+
+		object_push_bytes_section(elf, imgdata.data(), sizeof(rgba16_t) * imgdata.size(), {name.c_str(), STB_GLOBAL});
+
+		headerstream << "extern const rgb_t " << name << "[160][240];" << std::endl;
 	}
 
 	headerstream.close();

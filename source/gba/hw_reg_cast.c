@@ -9,3 +9,7 @@ uint16_t bgcnt2uint(uint16_t x) {
 uint16_t keypad2uint(uint16_t x) {
 	return x;
 }
+
+uint16_t keypad_control2uint(uint16_t x) {
+	return x;
+}
