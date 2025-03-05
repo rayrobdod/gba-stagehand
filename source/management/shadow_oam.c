@@ -8,8 +8,8 @@
 #include "vram_op_queue.h"
 
 #define arraycount(a) (sizeof(a) / sizeof(a[0]))
-typedef uint8_t shadow_oam_palid_t;
-typedef uint8_t shadow_oam_tileid_t;
+typedef int8_t shadow_oam_palid_t;
+typedef int8_t shadow_oam_tileid_t;
 
 static const struct {
 	uint8_t tilecount;
@@ -133,7 +133,7 @@ static struct shadow_oam {
 	shadow_oam_palid_t palette_index;
 	uint8_t shadow_tile_index;
 	const struct shadow_oam_template* template;
-} shadow_oam[64] = {0};
+} shadow_oam[128] = {0};
 
 #define arraycount(a) (sizeof(a) / sizeof(a[0]))
 
@@ -174,8 +174,8 @@ static int shadow_tiles_allocate(unsigned count) {
 		}
 		span++;
 		if (span >= count) {
-			for (unsigned i = start; i < start + span; i++) {
-				shadow_tiles_used[start + i] = true;
+			for (unsigned i = start; i < start + count; i++) {
+				shadow_tiles_used[i] = true;
 			}
 			return start;
 		}
@@ -225,6 +225,7 @@ static shadow_oam_tileid_t shadow_oam_add_tiles(
 	tiletag_t tiletag, const char* tiles, unsigned tilecount) {
 	shadow_oam_tileid_t shadow_tile_index;
 	unsigned tile_index;
+
 	for (shadow_tile_index = 0; shadow_tile_index < arraycount(shadow_tiles); shadow_tile_index++) {
 		if (tiletag == shadow_tiles[shadow_tile_index].tag) {
 			shadow_tiles[shadow_tile_index].refcount += 1;
@@ -235,11 +236,13 @@ static shadow_oam_tileid_t shadow_oam_add_tiles(
 			return shadow_tile_index;
 		}
 	}
+
 	tile_index = shadow_tiles_allocate(tilecount);
 	if (tile_index < 0) {
 		MgbaPrintf(MGBA_LOG_ERROR, "Shadow Tiles exhausted");
 		return shadow_id_invalid;
 	}
+
 	for (shadow_tile_index = 0; shadow_tile_index < arraycount(shadow_tiles); shadow_tile_index++) {
 		if (0 == shadow_tiles[shadow_tile_index].refcount) {
 			shadow_tiles[shadow_tile_index].refcount = 1;

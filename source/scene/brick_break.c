@@ -22,6 +22,12 @@ enum {
 	BALLPOS_SCALE = 1 << 6,
 };
 
+typedef struct {
+	int8_t x;
+	int8_t y;
+} coords8_t;
+
+/** Converts the fractional part of a BALLPOS fixpoint to a three-digit string */
 static const char ballpos_scale_frac[BALLPOS_SCALE][4] = {
 	"000", "016", "031", "047", "063", "078", "094", "109",
 	"125", "141", "156", "172", "188", "203", "219", "234",
@@ -37,11 +43,6 @@ inline static void MgbaPrintBallposFixpoint(char* var_name, int value) {
 	MgbaPrintf(MGBA_LOG_INFO, "%s: %d (%d.%s)", var_name, value, value / BALLPOS_SCALE, ballpos_scale_frac[abs(value % BALLPOS_SCALE)]);
 }
 
-typedef struct {
-	int8_t x;
-	int8_t y;
-} coords8_t;
-
 // model
 static ucoords16_t ballpos;
 static coords8_t ballvelocity;
@@ -54,9 +55,19 @@ static const unsigned paddle_width = 32;
 static const unsigned paddle_x_min = 8 + paddle_width / 2;
 static const unsigned paddle_x_max = 160 - 8 - paddle_width / 2;
 
+__attribute__((section(".sbss")))
+static struct {
+	ucoords16_t pos;
+	uint16_t health;
+} bricks[64];
+
+static const unsigned brick_halfwidth = 10 * BALLPOS_SCALE;
+static const unsigned brick_halfheight = 6 * BALLPOS_SCALE;
+
 // viewmodel
 static shadow_oam_id_t spriteid_ball;
 static shadow_oam_id_t spriteid_paddle;
+static shadow_oam_id_t spriteid_bricks[64];
 
 static uint8_t paddle_skin;
 static const struct shadow_oam_template* paddle_skins[] = {
@@ -68,8 +79,38 @@ static const struct shadow_oam_template* paddle_skins[] = {
 	&breakout_set_paddle_grey,
 	&breakout_set_paddle_brown,
 };
+static const struct shadow_oam_template* brick_skins[] = {
+	&breakout_set_brick,
+	&breakout_set_brick_green,
+	&breakout_set_brick_red,
+	&breakout_set_brick_purple,
+	&breakout_set_brick_yellow,
+	&breakout_set_brick_grey,
+	&breakout_set_brick_brown,
+};
 
 //
+
+inline static bool is_between(int value, int left, int right) {
+	return left < value && value < right;
+}
+inline static bool is_between_offset(int value, int center, int offset) {
+	return is_between(value, center - offset, center + offset);
+}
+inline static ucoords16_t coord_add(ucoords16_t a, coords8_t b) {
+	return (ucoords16_t) {
+		.x = a.x + b.x,
+		.y = a.y + b.y,
+	};
+}
+inline static bool point_in_brick(ucoords16_t ballpos, ucoords16_t brickpos) {
+	return is_between_offset(ballpos.x, brickpos.x, brick_halfwidth) &&
+		is_between_offset(ballpos.y, brickpos.y, brick_halfheight);
+}
+inline static bool ball_hit_brick_collision(ucoords16_t ballpos, coords8_t ballvelocity, ucoords16_t brickpos) {
+	return ! point_in_brick(ballpos, brickpos) &&
+		point_in_brick(coord_add(ballpos, ballvelocity), brickpos);
+}
 
 //
 static void MainCB_brickBreak_main(void);
@@ -106,6 +147,21 @@ void MainCB_brickBreak_init(void) {
 			.coord = (ucoords16_t){.x = paddle_x, .y = paddle_y},
 			.hotspot = HOTSPOT_TOP,
 		});
+
+	for (unsigned i = 0; i < 64; i++) {
+		uint16_t x = 24 + 16 * (i % 8);
+		uint16_t y = 16 + 8 * (i / 8);
+
+		spriteid_bricks[i] = shadow_oam_add_sprite(
+			brick_skins[2],
+			(struct shadow_oam_position){
+				.coord = (ucoords16_t){.x = x, .y = y},
+				.hotspot = HOTSPOT_CENTER,
+			});
+		bricks[i].health = 1;
+		bricks[i].pos.x = x * BALLPOS_SCALE;
+		bricks[i].pos.y = y * BALLPOS_SCALE;
+	}
 
 	scene_onframe_callback = &MainCB_brickBreak_main;
 }
@@ -155,6 +211,30 @@ static void MainCB_brickBreak_main(void) {
 		if (ballvelocity.y > 0 && ballpos.y >= (160 + 4) * BALLPOS_SCALE) {
 			ballvelocity.y = -ballvelocity.y;
 		}
+		for (int i = 0; i < arraycount(bricks); i++) {
+			if (0 == bricks[i].health) {
+				continue;
+			}
+
+			bool is_hit = ball_hit_brick_collision(ballpos, ballvelocity, bricks[i].pos);
+
+			if (is_hit) {
+				if (! is_between_offset(ballpos.x, bricks[i].pos.x, brick_halfwidth)) {
+					ballvelocity.x = -ballvelocity.x;
+				}
+				if (! is_between_offset(ballpos.y, bricks[i].pos.y, brick_halfheight)) {
+					ballvelocity.y = -ballvelocity.y;
+				}
+
+				bricks[i].health--;
+				if (0 == bricks[i].health) {
+					shadow_oam_remove_sprite(spriteid_bricks[i]);
+					spriteid_bricks[i] = 0xFF;
+				}
+				break;
+			}
+		}
+
 		if (
 			ballpos.y > (paddle_y * BALLPOS_SCALE) &&
 			ballpos.y < (paddle_y + paddle_height) * BALLPOS_SCALE &&
