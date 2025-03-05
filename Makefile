@@ -38,6 +38,7 @@ CC		:= $(PREFIX)gcc
 CXX		:= $(PREFIX)g++
 OBJDUMP		:= $(PREFIX)objdump
 OBJCOPY		:= $(PREFIX)objcopy
+NM		:= $(PREFIX)nm
 MKDIR		:= mkdir
 RM		:= rm -rf
 FAMICONV	:= superfamiconv
@@ -229,7 +230,7 @@ dump: $(DUMP)
 
 $(SYM): $(ELF)
 	@echo "  OBJDUMP $@"
-	$(V)$(OBJDUMP) -t $< | sort -u | grep -E "^0[2356789]" | $(PERL) -p -e 's/^(\w{8}) (\w).{6} \S+\t(\w{8}) (\S+)$$/\1 \2 \3 \4/g' > $@
+	$(V)$(NM) --numeric-sort --print-size $< >$@
 
 sym: $(SYM)
 
