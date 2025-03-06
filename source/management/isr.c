@@ -68,6 +68,22 @@ static void isr_enable_set(enum InterruptType type, bool value) {
 		reg_interrupt.IE.vcount = value;
 		reg_lcd.DISPSTAT.vcounter_enable = value;
 		break;
+	case II_DMA0:
+		reg_interrupt.IE.dma0 = value;
+		reg_dma[0].control.irq = value;
+		break;
+	case II_DMA1:
+		reg_interrupt.IE.dma1 = value;
+		reg_dma[1].control.irq = value;
+		break;
+	case II_DMA2:
+		reg_interrupt.IE.dma2 = value;
+		reg_dma[2].control.irq = value;
+		break;
+	case II_DMA3:
+		reg_interrupt.IE.dma3 = value;
+		reg_dma[3].control.irq = value;
+		break;
 	case II_KEYPAD:
 		reg_interrupt.IE.keypad = value;
 		reg_keypad.KEYCNT.enable = value;
@@ -80,10 +96,6 @@ static void isr_enable_set(enum InterruptType type, bool value) {
 	case II_TIMER2:
 	case II_TIMER3:
 	case II_COM:
-	case II_DMA0:
-	case II_DMA1:
-	case II_DMA2:
-	case II_DMA3:
 		MgbaPrintf(MGBA_LOG_FATAL, "UNIMPLEMENTED ISR_ENABLE: %d", type);
 		break;
 	case II_COUNT:

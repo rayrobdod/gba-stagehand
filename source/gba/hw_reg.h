@@ -151,26 +151,44 @@ Sound Registers
   uint32_t FIFO_A;	/* 40000A0 */
   uint32_t FIFO_B;	/* 40000A4 */
   uint16_t _unused;	/* 40000A8 */
+#endif
 
-DMA Transfer Channels
+typedef enum {
+	DMA_ADDR_INCREMENT = 0,
+	DMA_ADDR_DECREMENT = 1,
+	DMA_ADDR_FIXED = 2,
+	DMA_ADDR_RELOAD = 3,
+} dma_addr_control_t;
 
-  uint32_t DMA0SAD;	/* 40000B0 */
-  uint32_t DMA0DAD;	/* 40000B4 */
-  uint16_t DMA0CNT_L;	/* 40000B8 */
-  uint16_t DMA0CNT_H;	/* 40000BA */
-  uint32_t DMA1SAD;	/* 40000BC */
-  uint32_t DMA1DAD;	/* 40000C0 */
-  uint16_t DMA1CNT_L;	/* 40000C4 */
-  uint16_t DMA1CNT_H;	/* 40000C6 */
-  uint32_t DMA2SAD;	/* 40000C8 */
-  uint32_t DMA2DAD;	/* 40000CC */
-  uint16_t DMA2CNT_L;	/* 40000D0 */
-  uint16_t DMA2CNT_H;	/* 40000D2 */
-  uint32_t DMA3SAD;	/* 40000D4 */
-  uint32_t DMA3DAD;	/* 40000D8 */
-  uint16_t DMA3CNT_L;	/* 40000DC */
-  uint16_t DMA3CNT_H;	/* 40000DE */
+typedef enum {
+	DMA_START_IMMEDIATELY = 0,
+	DMA_START_VBLANK = 1,
+	DMA_START_HBLANK = 2,
+	DMA_START_SPECIAL = 3,
+} dma_start_t;
 
+typedef struct __attribute((packed)) {
+	short : 5;
+	dma_addr_control_t dest_control : 2;
+	dma_addr_control_t src_control : 2;
+	bool repeat : 1;
+	enum WordSize word_size : 1;
+	bool video_capture_mode : 1;
+	dma_start_t start : 2;
+	bool irq : 1;
+	bool enable : 1;
+} dma_control_t;
+
+struct reg_dma {
+	const void* source;
+	volatile void* destination;
+	uint16_t word_count;
+	dma_control_t control;
+};
+
+extern volatile struct reg_dma reg_dma[4];
+
+#if 0
 Timer Registers
 
   uint16_t TM0CNT_L;	/* 4000100 */

@@ -80,7 +80,7 @@ void vram_op_queue_execute(void) {
 				(struct CpuSet){
 					.word_count = entry->map.count,
 					.mode = CPU_SET_COPY,
-					.datasize = CPU_SET_16BIT,
+					.datasize = WORDSIZE_16BIT,
 				});
 			break;
 		case VRAM_QUEUE_OP_OAM_ENTRY:

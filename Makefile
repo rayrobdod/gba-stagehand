@@ -88,7 +88,7 @@ DEFINES		+= -D__GBA__
 
 ARCH		:= -mcpu=arm7tdmi -mtune=arm7tdmi
 
-WARNFLAGS	:= -Wall
+WARNFLAGS	:= -Wall -Wno-packed-bitfield-compat
 
 INCLUDEFLAGS	:= $(foreach path,$(INCLUDES),-I$(path)) \
 		   $(foreach path,$(LIBDIRS),-I$(path)/include)

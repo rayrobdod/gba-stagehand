@@ -19,6 +19,11 @@ __attribute__((const)) inline static rgb_t rgb(uint16_t r, uint16_t g, uint16_t 
 	return retval;
 }
 
+enum WordSize {
+	WORDSIZE_16BIT = 0,
+	WORDSIZE_32BIT = 1,
+};
+
 typedef enum {
 	PAL_MODE_4BPP = 0,
 	PAL_MODE_8BPP = 1,

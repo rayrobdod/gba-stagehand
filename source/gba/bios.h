@@ -21,16 +21,12 @@ enum CpuSetMode {
 	CPU_SET_COPY = 0,
 	CPU_SET_FILL = 1,
 };
-enum CpuSetSize {
-	CPU_SET_16BIT = 0,
-	CPU_SET_32BIT = 1,
-};
 struct CpuSet {
 	uint32_t word_count : 21;
 	uint32_t unused_0 : 3;
 	enum CpuSetMode mode : 1;
 	uint32_t unused_1 : 1;
-	enum CpuSetSize datasize : 1;
+	enum WordSize datasize : 1;
 };
 void CpuSet(const void* src, volatile void* dest, const struct CpuSet);
 

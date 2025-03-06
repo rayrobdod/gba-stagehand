@@ -2,7 +2,7 @@
  * SPDX-License-Identifier: CC0-1.0
  *
  * SPDX-FileContributor: Antonio Niño Díaz, 2022
- * SPDX-FileContributor: Raymond Dodge, 2024
+ * SPDX-FileContributor: Raymond Dodge, 2024-2025
  */
 
 /*
@@ -268,6 +268,8 @@ SECTIONS
     {
         *(.hw_reg.lcd)
         . = 0x60;
+        . = 0xB0;
+        *(.hw_reg.dma)
         . = 0x130;
         *(.hw_reg.keypad)
         . = 0x200;
