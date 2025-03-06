@@ -251,7 +251,7 @@ static shadow_oam_tileid_t shadow_oam_add_tiles(
 			shadow_tiles[shadow_tile_index].tile_count = tilecount;
 
 			vram_op_queue_enqueue((struct vram_op){
-				.type = VRAM_QUEUE_OP_OAM_TILES_LZ,
+				.type = VRAM_QUEUE_OP_OAM_TILES_COMPRESSED,
 				.tiles_compressed = {
 					.from = tiles,
 					.to_block = 0,

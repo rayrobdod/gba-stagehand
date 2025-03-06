@@ -25,6 +25,8 @@ enum vram_queue_op_type {
 	VRAM_QUEUE_OP_OAM_TILES,
 	/** .tiles_compressed */
 	VRAM_QUEUE_OP_OAM_TILES_LZ,
+	/** .tiles_compressed */
+	VRAM_QUEUE_OP_OAM_TILES_COMPRESSED,
 	/** .oam */
 	VRAM_QUEUE_OP_OAM_ENTRY,
 };

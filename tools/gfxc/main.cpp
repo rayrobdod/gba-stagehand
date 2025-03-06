@@ -10,8 +10,10 @@
 #include <map>
 #include <set>
 #include <string>
+#include <string_view>
 #include <vector>
 #include "compression/lz.hpp"
+#include "compression/rl.hpp"
 #include "image.hpp"
 #include "indexed_insert_only_set.hpp"
 #include "object.h"
@@ -36,6 +38,82 @@ static std::string variable_name_for_image(std::pair<std::filesystem::path, buff
 		retval += image.first.stem().string();
 	}
 	std::replace(retval.begin(), retval.end(), '-', '_');
+	return retval;
+}
+
+struct choosable_compression {
+	std::string_view alg_name;
+	std::vector<uint8_t> (*compress)(std::vector<uint8_t> src);
+	std::vector<uint8_t> (*decompress)(std::vector<uint8_t> src, bool decompile);
+};
+struct choosen_compression {
+	std::string_view alg_name;
+	std::vector<uint8_t> data;
+};
+
+using namespace std::string_view_literals;
+const static std::array<choosable_compression, 2> compression_algs = {{
+	{"LZ"sv,	&compressLz,	&decompressLz,},
+	{"RL"sv,	&compressRl,	&decompressRl,}
+}};
+
+static choosen_compression choose_compression(std::string tiles_name, std::vector<uint8_t> data) {
+	choosen_compression retval;
+	retval.alg_name = "IDENT"sv;
+	retval.data.clear();
+	retval.data.push_back(0);
+	retval.data.push_back(data.size());
+	retval.data.push_back(data.size() >> 8);
+	retval.data.push_back(data.size() >> 16);
+	std::copy(data.begin(), data.end(), std::back_inserter(retval.data));
+
+	for (auto alg : compression_algs) {
+		std::vector<uint8_t> compressed = alg.compress(data);
+		std::vector<uint8_t> round = alg.decompress(compressed, false);
+
+		if (data != round) {
+			std::string msg;
+			msg += "Compressing ";
+			msg += tiles_name;
+			msg += " using ";
+			msg += alg.alg_name;
+			msg += " failed to round trip\n";
+			auto diff = std::mismatch(data.begin(), data.end(), round.begin(), round.end());
+			std::vector<unsigned char>::size_type at = diff.first - data.begin();
+			std::vector<unsigned char>::size_type range_start = (at > 3 ? at - 3 : 0);
+			msg += "    at: " + std::to_string(at) + "\n";
+			msg += "    data : {";
+			msg += (range_start != 0 ? "... " : "");
+			for (unsigned i = range_start; i < std::min(range_start + 5, data.size()); i++) {
+				char s[8];
+				sprintf(s, "%02X, ", data[range_start + i]);
+				msg += s;
+			}
+			msg += "}\n";
+			msg += "    round: {";
+			msg += (range_start != 0 ? "... " : "");
+			for (unsigned i = range_start; i < std::min(range_start + 5, data.size()); i++) {
+				char s[8];
+				sprintf(s, "%02X, ", round[range_start + i]);
+				msg += s;
+			}
+			msg += "}\n";
+			msg += "    compressed: {";
+			for (unsigned i = 0; i < data.size(); i++) {
+				char s[8];
+				sprintf(s, "%02X, ", compressed[i]);
+				msg += s;
+			}
+			msg += "}\n";
+
+			throw std::logic_error(msg);
+		}
+		if (compressed.size() < retval.data.size()) {
+			retval.alg_name = alg.alg_name;
+			retval.data = compressed;
+		}
+	}
+
 	return retval;
 }
 
@@ -192,45 +270,13 @@ int main(int argc, char* argv[]) {
 	for (size_t tiletag = 0; tiletag < tiledatas.size(); ++tiletag) {
 		char tiles_name[16];
 		snprintf(tiles_name, 16, "tile.%lx", FIRST_TAG + tiletag);
-		std::vector<uint8_t> tiledata = tiledatas[tiletag];
-		std::vector<uint8_t> tiledataLz = compressLz(tiledata);
-		std::vector<uint8_t> tiledataRound = decompressLz(tiledataLz, false);
-		if (tiledata != tiledataRound) {
-			std::string msg;
-			msg += tiles_name;
-			msg += " compressions failed to round trip\n";
-			auto diff = std::mismatch(tiledata.begin(), tiledata.end(), tiledataRound.begin(), tiledataRound.end());
-			std::vector<unsigned char>::size_type at = diff.first - tiledata.begin();
-			std::vector<unsigned char>::size_type range_start = (at > 3 ? at - 3 : 0);
-			msg += "    at: " + std::to_string(at) + "\n";
-			msg += "    data : {";
-			msg += (range_start != 0 ? "... " : "");
-			for (unsigned i = range_start; i < std::min(range_start + 5, tiledata.size()); i++) {
-				char s[8];
-				sprintf(s, "%02X, ", tiledata[range_start + i]);
-				msg += s;
-			}
-			msg += "}\n";
-			msg += "    round: {";
-			msg += (range_start != 0 ? "... " : "");
-			for (unsigned i = range_start; i < std::min(range_start + 5, tiledata.size()); i++) {
-				char s[8];
-				sprintf(s, "%02X, ", tiledataRound[range_start + i]);
-				msg += s;
-			}
-			msg += "}\n";
-			msg += "    lz: {";
-			for (unsigned i = 0; i < tiledata.size(); i++) {
-				char s[8];
-				sprintf(s, "%02X, ", tiledataLz[i]);
-				msg += s;
-			}
-			msg += "}\n";
+		auto compressed = choose_compression(tiles_name, tiledatas[tiletag]);
 
-			throw std::logic_error(msg);
+		if (false) {
+			std::cout << "  " << tiles_name << ": " << compressed.alg_name << std::endl;
 		}
 
-		object_push_bytes_section(elf, tiledataLz.data(), sizeof(uint8_t) * tiledataLz.size(), {tiles_name, STB_LOCAL});
+		object_push_bytes_section(elf, compressed.data.data(), sizeof(uint8_t) * compressed.data.size(), {tiles_name, STB_LOCAL});
 	}
 
 	for (sprite sprite : sprites) {
