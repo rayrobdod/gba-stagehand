@@ -94,20 +94,20 @@ RLUnCompVram:
 	.align 2
 	.global Diff8UnFilterWram
 	.thumb_func
-Diff8UnCompWram:
+Diff8UnFilterWram:
 	swi	0x16
 	bx	lr
 
 	.align 2
 	.global Diff8UnFilterVram
 	.thumb_func
-Diff8UnCompVram:
+Diff8UnFilterVram:
 	swi	0x17
 	bx	lr
 
 	.align 2
 	.global Diff16UnFilter
 	.thumb_func
-Diff16UnComp:
+Diff16UnFilter:
 	swi	0x18
 	bx	lr
