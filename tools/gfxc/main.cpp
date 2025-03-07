@@ -129,7 +129,7 @@ int main(int argc, char* argv[]) {
 
 	std::map<std::filesystem::path, struct bufferedimage> sprite_imgs;
 	std::map<std::filesystem::path, struct bufferedimage> tileset_imgs;
-	std::map<std::filesystem::path, struct bufferedimage> mono_tileset_imgs;
+	std::map<std::filesystem::path, struct bufferedimage> monochrome_tileset_imgs;
 	std::map<std::filesystem::path, struct bufferedimage> scene_imgs;
 	std::map<std::filesystem::path, struct bufferedimage> scene_mode3_imgs;
 
@@ -146,14 +146,10 @@ int main(int argc, char* argv[]) {
 					sprite_imgs.insert(nameImage);
 					break;
 				case TYPE_TILESET:
-					if (result.palette().size() == 2) {
-						mono_tileset_imgs.insert(nameImage);
-					} else {
-						tileset_imgs.insert(nameImage);
-					}
+					tileset_imgs.insert(nameImage);
 					break;
-				case TYPE_TILESET_MONO:
-					mono_tileset_imgs.insert(nameImage);
+				case TYPE_TILESET_MONOCHROME:
+					monochrome_tileset_imgs.insert(nameImage);
 					break;
 				case TYPE_SCENE:
 					scene_imgs.insert(nameImage);
@@ -375,7 +371,7 @@ int main(int argc, char* argv[]) {
 		headerstream << "extern const struct tileset_graphics " << name << ";" << std::endl;
 	}
 
-	for (auto const& image : mono_tileset_imgs) {
+	for (auto const& image : monochrome_tileset_imgs) {
 		std::string name = variable_name_for_image(image);
 
 		uint16_t tile_count = 0;

@@ -8,7 +8,7 @@ std::ostream& operator<<(std::ostream& os, enum type typ) {
 	case TYPE_TILESET:
 		os << "TILESET";
 		break;
-	case TYPE_TILESET_MONO:
+	case TYPE_TILESET_MONOCHROME:
 		os << "TILESET_MONO";
 		break;
 	case TYPE_SCENE:
@@ -28,6 +28,8 @@ enum type resource_type(const bufferedimage& image) {
 			return TYPE_SPRITE;
 		if (explicit_typ->second == "Tileset")
 			return TYPE_TILESET;
+		if (explicit_typ->second == "Tileset Monochrome")
+			return TYPE_TILESET_MONOCHROME;
 		if (explicit_typ->second == "Scene")
 			return TYPE_SCENE;
 		if (explicit_typ->second == "Scene Mode 3")
