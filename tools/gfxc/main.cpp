@@ -12,6 +12,7 @@
 #include <string>
 #include <string_view>
 #include <vector>
+#include "compression/huff.hpp"
 #include "compression/lz.hpp"
 #include "compression/rl.hpp"
 #include "image.hpp"
@@ -52,9 +53,10 @@ struct choosen_compression {
 };
 
 using namespace std::string_view_literals;
-const static std::array<choosable_compression, 2> compression_algs = {{
+const static std::array<choosable_compression, 3> compression_algs = {{
 	{"LZ"sv,	&compressLz,	&decompressLz,},
-	{"RL"sv,	&compressRl,	&decompressRl,}
+	{"RL"sv,	&compressRl,	&decompressRl,},
+	{"Huff8"sv,	&compressHuff8,	&decompressHuff8,},
 }};
 
 static choosen_compression choose_compression(std::string tiles_name, std::vector<uint8_t> data) {
@@ -92,7 +94,7 @@ static choosen_compression choose_compression(std::string tiles_name, std::vecto
 			msg += "}\n";
 			msg += "    round: {";
 			msg += (range_start != 0 ? "... " : "");
-			for (unsigned i = range_start; i < std::min(range_start + 5, data.size()); i++) {
+			for (unsigned i = range_start; i < std::min(range_start + 5, round.size()); i++) {
 				char s[8];
 				sprintf(s, "%02X, ", round[range_start + i]);
 				msg += s;
@@ -220,11 +222,11 @@ int main(int argc, char* argv[]) {
 		const std::vector<rgba16_t> used_pal = single_palettes[paltag];
 		paltag += FIRST_TAG;
 
-		subword_output_iterator tiledata_builder(4);
+		subword_output_iterator<uint8_t, uint4_t, DIRECTION_INC> tiledata_builder;
 		for (auto subimg : image.second.subs(8, 8)) {
 			for (auto pixel : subimg.pixels()) {
 				auto palptr = std::find(used_pal.begin(), used_pal.end(), pixel);
-				unsigned palindex = palptr - used_pal.begin();
+				uint4_t palindex(palptr - used_pal.begin());
 
 				*tiledata_builder = palindex;
 				++tiledata_builder;
@@ -328,11 +330,11 @@ int main(int argc, char* argv[]) {
 		snprintf(pal_name, 16, "plte.%x", paltag);
 
 		uint16_t tile_count = 0;
-		subword_output_iterator tiledata_builder(4);
+		subword_output_iterator<uint8_t, uint4_t, DIRECTION_INC> tiledata_builder;
 		for (auto subimg : image.second.subs(8, 8)) {
 			for (auto pixel : subimg.pixels()) {
 				auto palptr = std::find(used_pal.begin(), used_pal.end(), pixel);
-				unsigned palindex = palptr - used_pal.begin();
+				uint4_t palindex(palptr - used_pal.begin());
 
 				*tiledata_builder = palindex;
 				++tiledata_builder;
@@ -375,10 +377,10 @@ int main(int argc, char* argv[]) {
 		std::string name = variable_name_for_image(image);
 
 		uint16_t tile_count = 0;
-		subword_output_iterator tiledata_builder(1);
+		subword_output_iterator<uint8_t, uint1_t, DIRECTION_INC> tiledata_builder;
 		for (auto subimg : image.second.subs(8, 8)) {
 			for (auto pixel : subimg.pixels()) {
-				unsigned palindex = pixel == (rgba16_t){0, 0, 0, 1};
+				uint1_t palindex(pixel == (rgba16_t){0, 0, 0, 1} ? 1 : 0);
 
 				*tiledata_builder = palindex;
 				++tiledata_builder;

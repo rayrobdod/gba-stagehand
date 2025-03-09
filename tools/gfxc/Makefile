@@ -49,6 +49,7 @@ CXXFLAGS += -I../gfx2obj
 CXXFLAGS += -I.
 CXXFLAGS += -Wall
 CXXFLAGS += -ggdb -DDEBUG
+CXXFLAGS += -fconcepts
 LDFLAGS += $(LIBS)
 
 # Intermediates
@@ -63,8 +64,11 @@ TEST_OBJS := \
 	$(patsubst test/%.cpp,$(TEST_OBJ_DIR)/%.cpp.o,$(SRCS_TEST_CPP)) \
 
 TEST_RUNNERS := \
-	$(patsubst test/%.c,$(TEST_RUNNER_DIR)/%,$(SRCS_TEST_C)) \
-	$(patsubst test/%.cpp,$(TEST_RUNNER_DIR)/%,$(SRCS_TEST_CPP)) \
+	$(filter-out \
+		$(TEST_RUNNER_DIR)/_shared, \
+		$(patsubst test/%.c,$(TEST_RUNNER_DIR)/%,$(SRCS_TEST_C)) \
+		$(patsubst test/%.cpp,$(TEST_RUNNER_DIR)/%,$(SRCS_TEST_CPP)) \
+	)
 
 DEPS	:= $(OBJS:.o=.d) $(TEST_OBJS:.o=.d)
 
@@ -85,7 +89,7 @@ $(TEST_OBJ_DIR)/%.cpp.o : test/%.cpp
 	@$(MKDIR) -p $(@D)
 	$(V)$(CXX) $(CXXFLAGS) -MMD -MP -c -o $@ $<
 
-$(TEST_RUNNER_DIR)/% : $(TEST_OBJ_DIR)/%.cpp.o
+$(TEST_RUNNER_DIR)/% : $(TEST_OBJ_DIR)/%.cpp.o $(TEST_OBJ_DIR)/_shared.cpp.o
 	@echo "  HOSTLD  $@"
 	@$(MKDIR) -p $(@D)
 	$(V)$(CXX) -o $@ $^ $(LDFLAGS)
@@ -113,6 +117,9 @@ $(BUILDOBJDIR)/object.cpp.o : ../gfx2obj/object.cpp
 $(NAME): $(OBJS)
 	@echo "  HOSTLD  $@"
 	$(V)$(CXX) -o $@ $(OBJS) $(LDFLAGS)
+
+$(TEST_RUNNER_DIR)/test_huff: $(BUILDOBJDIR)/ints.cpp.o
+$(TEST_RUNNER_DIR)/test_subword_output_iterator: $(BUILDOBJDIR)/ints.cpp.o
 
 check: $(TEST_RUNNERS)
 	$(V)for r in $(TEST_RUNNERS); do $$r ; done

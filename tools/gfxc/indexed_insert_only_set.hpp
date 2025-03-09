@@ -2,7 +2,7 @@
 #include <cstddef>
 #include <vector>
 
-template <
+template<
 	class A,
 	class Compare = std::equal_to<A>>
 class partially_applied_equal_to {
@@ -18,7 +18,7 @@ public:
 	}
 };
 
-template <
+template<
 	class Key,
 	class Compare = std::equal_to<Key>,
 	class Allocator = std::allocator<Key>>
