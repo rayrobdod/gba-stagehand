@@ -31,6 +31,12 @@ public :
 	subword_output_iterator() : _word(0), _subword(0) {
 		_backing = std::make_shared<std::vector<OUT>>();
 	}
+
+	subword_output_iterator(const subword_output_iterator& other) :
+			_backing(other._backing),
+			_word(other._word),
+			_subword(other._subword) {}
+
 	~subword_output_iterator() {
 	}
 
@@ -52,6 +58,25 @@ public :
 			_subword = 0;
 			_word++;
 		}
+		return retval;
+	}
+
+	bool operator==(const subword_output_iterator<OUT, IN, DIR>& other) const {
+		return
+			this->_backing == other._backing &&
+			this->_word == other._word &&
+			this->_subword == other._subword;
+	}
+
+	bool operator!=(const subword_output_iterator<OUT, IN, DIR>& other) const {
+		return !(*this == other);
+	}
+
+	subword_output_iterator<OUT, IN, DIR> operator+(unsigned delta) const {
+		subword_output_iterator<OUT, IN, DIR> retval = *this;
+		retval._subword += bitsize<IN> * delta;
+		retval._word += retval._subword / bitsize<OUT>;
+		retval._subword %= bitsize<OUT>;
 		return retval;
 	}
 

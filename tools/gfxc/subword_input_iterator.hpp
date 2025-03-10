@@ -26,6 +26,11 @@ public:
 	subword_input_iterator(const std::vector<IN>& backing) :
 		_backing(backing), _word(0), _subword(0) {}
 
+	subword_input_iterator(const subword_input_iterator& other) :
+			_backing(other._backing),
+			_word(other._word),
+			_subword(other._subword) {}
+
 	~subword_input_iterator() {}
 
 	OUT operator*() {
@@ -63,6 +68,25 @@ public:
 			_subword = 0;
 			++_word;
 		}
+		return retval;
+	}
+
+	bool operator==(const subword_input_iterator<IN, OUT, DIR>& other) const {
+		return
+			this->_backing == other._backing &&
+			this->_word == other._word &&
+			this->_subword == other._subword;
+	}
+
+	bool operator!=(const subword_input_iterator<IN, OUT, DIR>& other) const {
+		return !(*this == other);
+	}
+
+	subword_input_iterator<IN, OUT, DIR> operator+(unsigned delta) const {
+		subword_input_iterator<IN, OUT, DIR> retval(*this);
+		retval._subword += bitsize<OUT> * delta;
+		retval._word += retval._subword / bitsize<IN>;
+		retval._subword %= bitsize<IN>;
 		return retval;
 	}
 };

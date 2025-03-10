@@ -6,7 +6,6 @@
 struct uint1_t {
 	uint8_t value : 1;
 	operator uint8_t() const;
-	operator uint32_t() const;
 	explicit uint1_t(unsigned long long int);
 };
 
@@ -15,7 +14,6 @@ uint1_t operator""_u1(unsigned long long int);
 struct uint2_t {
 	uint8_t value : 2;
 	operator uint8_t() const;
-	operator uint32_t() const;
 	explicit uint2_t(unsigned long long int);
 };
 
@@ -24,7 +22,6 @@ uint2_t operator""_u2(unsigned long long int);
 struct uint4_t {
 	uint8_t value : 4;
 	operator uint8_t() const;
-	operator uint32_t() const;
 	explicit uint4_t(unsigned long long int);
 };
 
