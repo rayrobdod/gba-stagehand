@@ -143,6 +143,10 @@ image_pixel_iterator::image_pixel_iterator(const image* backing, unsigned x, uns
 		: _backing(backing), _x(x), _y(y) {
 }
 
+image_pixel_iterator::image_pixel_iterator(const image_pixel_iterator& other)
+		: _backing(other._backing), _x(other._x), _y(other._y) {
+}
+
 bool image_pixel_iterator::operator==(const image_pixel_iterator& other) const {
 	return this->_backing == other._backing && this->_x == other._x && this->_y == other._y;
 }
@@ -151,12 +155,19 @@ bool image_pixel_iterator::operator!=(const image_pixel_iterator& other) const {
 	return ! (*this == other);
 }
 
-void image_pixel_iterator::operator++() {
+image_pixel_iterator& image_pixel_iterator::operator++() {
 	++this->_x;
 	if (this->_x >= this->_backing->width()) {
 		this->_x = 0;
 		this->_y++;
 	}
+	return *this;
+}
+
+image_pixel_iterator image_pixel_iterator::operator++(int) {
+	image_pixel_iterator retval(*this);
+	this->operator++();
+	return retval;
 }
 
 rgba16_t image_pixel_iterator::operator*() const {
@@ -183,6 +194,10 @@ image_tile_iterator::image_tile_iterator(const image* backing, unsigned width, u
 		: _backing(backing), _width(width), _height(height), _left(left), _top(top) {
 }
 
+image_tile_iterator::image_tile_iterator(const image_tile_iterator& other)
+		: _backing(other._backing), _width(other._width), _height(other._height), _left(other._left), _top(other._top) {
+}
+
 bool image_tile_iterator::operator==(const image_tile_iterator& other) const {
 	return this->_backing == other._backing &&
 		this->_width == other._width &&
@@ -195,12 +210,19 @@ bool image_tile_iterator::operator!=(const image_tile_iterator& other) const {
 	return ! (*this == other);
 }
 
-void image_tile_iterator::operator++() {
+image_tile_iterator& image_tile_iterator::operator++() {
 	++this->_left;
 	if (this->_left >= this->_backing->width() / this->_width) {
 		this->_left = 0;
 		this->_top++;
 	}
+	return *this;
+}
+
+image_tile_iterator image_tile_iterator::operator++(int) {
+	image_tile_iterator retval(*this);
+	this->operator++();
+	return retval;
 }
 
 subimage image_tile_iterator::operator*() const {

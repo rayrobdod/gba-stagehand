@@ -3,6 +3,7 @@
 #include <cstdbool>
 #include <cstdlib>
 #include <cstring>
+#include <iostream>
 #include <png.h>
 #include <stdexcept>
 

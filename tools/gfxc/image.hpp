@@ -2,7 +2,6 @@
 #define IMAGE_H
 
 #include <cstdint>
-#include <iostream>
 #include <map>
 #include <ostream>
 #include <set>
@@ -30,9 +29,6 @@ typedef struct rgba16 {
 
 bool operator<(const rgba16_t&, const rgba16_t&);
 bool operator==(const rgba16_t&, const rgba16_t&);
-
-static const rgba16_t TRANSPARENT_BLACK = {0, 0, 0, 0};
-static const rgba16_t TRANSPARENT_MAGENTA = {31, 0, 31, 0};
 
 std::ostream& operator<<(std::ostream& os, const rgba16_t& value);
 
@@ -63,10 +59,12 @@ private:
 
 public:
 	explicit image_pixel_iterator(const image*, unsigned x, unsigned y);
+	image_pixel_iterator(const image_pixel_iterator&);
 
 	bool operator==(const image_pixel_iterator&) const;
 	bool operator!=(const image_pixel_iterator&) const;
-	void operator++();
+	image_pixel_iterator& operator++();
+	image_pixel_iterator operator++(int);
 	rgba16_t operator*() const;
 };
 
@@ -80,7 +78,7 @@ public:
 	image_pixel_iterator end() const;
 };
 
-class image_tile_iterator : public std::iterator<std::forward_iterator_tag, rgba16_t> {
+class image_tile_iterator : public std::iterator<std::forward_iterator_tag, subimage> {
 private:
 	const image* const _backing;
 	const unsigned _width;
@@ -90,10 +88,12 @@ private:
 
 public:
 	explicit image_tile_iterator(const image*, unsigned width, unsigned height, unsigned left, unsigned top);
+	image_tile_iterator(const image_tile_iterator&);
 
 	bool operator==(const image_tile_iterator&) const;
 	bool operator!=(const image_tile_iterator&) const;
-	void operator++();
+	image_tile_iterator& operator++();
+	image_tile_iterator operator++(int);
 	subimage operator*() const;
 };
 
@@ -120,9 +120,9 @@ private:
 public:
 	subimage(const image*, unsigned left, unsigned top, unsigned width, unsigned height);
 
-	unsigned width() const;
-	unsigned height() const;
-	rgba16_t pixel(unsigned x, unsigned y) const;
+	unsigned width() const override;
+	unsigned height() const override;
+	rgba16_t pixel(unsigned x, unsigned y) const override;
 };
 
 class bufferedimage : public image {
@@ -143,9 +143,9 @@ public:
 		rgb15_t background,
 		std::map<std::string, std::map<rgba16_t, rgba16_t>> alt_palettes);
 
-	unsigned width() const;
-	unsigned height() const;
-	rgba16_t pixel(unsigned x, unsigned y) const;
+	unsigned width() const override;
+	unsigned height() const override;
+	rgba16_t pixel(unsigned x, unsigned y) const override;
 
 	const std::map<std::string, std::string>& text() const;
 	rgb15_t background() const;

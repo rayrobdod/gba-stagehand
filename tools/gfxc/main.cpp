@@ -377,7 +377,6 @@ int main(int argc, char* argv[]) {
 	for (auto const& image : monochrome_tileset_imgs) {
 		std::string name = variable_name_for_image(image);
 
-		uint16_t tile_count = 0;
 		subword_output_iterator<uint8_t, uint1_t, DIRECTION_INC> tiledata_builder;
 		for (auto subimg : image.second.subs(8, 8)) {
 			for (auto pixel : subimg.pixels()) {
@@ -386,7 +385,6 @@ int main(int argc, char* argv[]) {
 				*tiledata_builder = palindex;
 				++tiledata_builder;
 			}
-			++tile_count;
 		}
 		std::vector tiledata = tiledata_builder.result();
 		unsigned size = tiledata.size();
