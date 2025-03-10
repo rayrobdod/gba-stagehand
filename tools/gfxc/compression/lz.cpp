@@ -61,36 +61,32 @@ static std::vector<CopyInstruction> instructions(std::vector<uint8_t> src, std::
 	static const unsigned max_offset = 0xFFF;
 	static const std::vector<uint8_t>::size_type min_length = 3;
 
-	std::vector<CopyInstruction> src_instrs;
-	src_instrs.push_back((CopyInstruction){.length = 1, .value = src[0]});
-	for (unsigned i = 1; i < src.size(); i++) {
+	std::vector<CopyInstruction> instrs;
+	unsigned src_pos = 1;
+
+	instrs.push_back((CopyInstruction){.length = 1, .value = src[0]});
+	while (src_pos < src.size()) {
 		CopyInstruction best;
 		best.length = 1;
-		best.value = src[i];
+		best.value = src[src_pos];
 		// GBA Bios LzUncompVram doesn't write correctly with offset = 1
-		for (unsigned j = (i > max_offset ? i - max_offset : 0); j < i - 1; j++) {
+		for (unsigned j = (src_pos > max_offset ? src_pos - max_offset : 0); j < src_pos - 1; j++) {
 			unsigned k;
-			for (k = 0; k < std::min(max_length, src.size() - i); k++) {
-				if (src[i + k] != src[j + k]) {
+			for (k = 0; k < std::min(max_length, src.size() - src_pos); k++) {
+				if (src[src_pos + k] != src[j + k]) {
 					break;
 				}
 			}
 			if (k >= best.length && k >= min_length) {
 				best.length = k;
-				best.offset = i - j - 1;
+				best.offset = src_pos - j - 1;
 			}
 		}
-		src_instrs.push_back(best);
+		instrs.push_back(best);
+		src_pos += best.length;
 	}
 
-	std::vector<CopyInstruction> dest_instrs;
-	unsigned srcPos = 0;
-	while (srcPos < src.size()) {
-		dest_instrs.push_back(src_instrs[srcPos]);
-		srcPos += src_instrs[srcPos].length;
-	}
-
-	return dest_instrs;
+	return instrs;
 }
 
 std::vector<uint8_t> compressLz(std::vector<uint8_t> src) {
