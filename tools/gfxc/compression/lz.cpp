@@ -10,10 +10,7 @@ struct CopyInstruction {
 	};
 };
 
-static unsigned max_offset = 0xFFF;
-static std::vector<uint8_t>::size_type max_length = 15 + 3;
-static std::vector<uint8_t>::size_type min_length = 3;
-static std::vector<uint8_t>::size_type flags_per_byte = 8;
+static const std::vector<uint8_t>::size_type flags_per_byte = 8;
 
 std::vector<uint8_t> decompressLz(std::vector<uint8_t> src, bool decompile) {
 	unsigned expected_size = src[1] | src[2] << 8 | src[3] << 16;
@@ -60,7 +57,10 @@ std::vector<uint8_t> decompressLz(std::vector<uint8_t> src, bool decompile) {
 	return dest;
 }
 
-std::vector<uint8_t> compressLz(std::vector<uint8_t> src) {
+static std::vector<CopyInstruction> instructions(std::vector<uint8_t> src, std::vector<uint8_t>::size_type max_length) {
+	static const unsigned max_offset = 0xFFF;
+	static const std::vector<uint8_t>::size_type min_length = 3;
+
 	std::vector<CopyInstruction> src_instrs;
 	src_instrs.push_back((CopyInstruction){.length = 1, .value = src[0]});
 	for (unsigned i = 1; i < src.size(); i++) {
@@ -90,26 +90,32 @@ std::vector<uint8_t> compressLz(std::vector<uint8_t> src) {
 		srcPos += src_instrs[srcPos].length;
 	}
 
+	return dest_instrs;
+}
+
+std::vector<uint8_t> compressLz(std::vector<uint8_t> src) {
+	auto instrs = instructions(src, 15 + 3);
+
 	std::vector<uint8_t> result;
 	result.push_back(0x10);
 	result.push_back(src.size());
 	result.push_back(src.size() >> 8);
 	result.push_back(src.size() >> 16);
 
-	for (unsigned i = 0; i < dest_instrs.size(); i += flags_per_byte) {
+	for (unsigned i = 0; i < instrs.size(); i += flags_per_byte) {
 		uint8_t flags(0);
-		for (unsigned j = 0; j < std::min(flags_per_byte, dest_instrs.size() - i); j++) {
-			if (dest_instrs[i + j].length != 1)
+		for (unsigned j = 0; j < std::min(flags_per_byte, instrs.size() - i); j++) {
+			if (instrs[i + j].length != 1)
 				flags |= 1 << (flags_per_byte - 1 - j);
 		}
 		result.push_back(flags);
 
-		for (unsigned j = 0; j < std::min(flags_per_byte, dest_instrs.size() - i); j++) {
-			if (dest_instrs[i + j].length == 1) {
-				result.push_back(dest_instrs[i + j].value);
+		for (unsigned j = 0; j < std::min(flags_per_byte, instrs.size() - i); j++) {
+			if (instrs[i + j].length == 1) {
+				result.push_back(instrs[i + j].value);
 			} else {
-				result.push_back(((dest_instrs[i + j].length - 3) << 4) | (dest_instrs[i + j].offset >> 8));
-				result.push_back(dest_instrs[i + j].offset);
+				result.push_back(((instrs[i + j].length - 3) << 4) | (instrs[i + j].offset >> 8));
+				result.push_back(instrs[i + j].offset);
 			}
 		}
 	}
