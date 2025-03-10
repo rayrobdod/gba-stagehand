@@ -144,7 +144,7 @@ public:
 	}
 
 	template<typename LEAF_FN, typename BRANCH_FN>
-	void fold(LEAF_FN leaf_fn, BRANCH_FN branch_fn) const;
+	void visit(LEAF_FN leaf_fn, BRANCH_FN branch_fn) const;
 
 	friend std::ostream& operator<<(std::ostream&, prefix_tree_ptr);
 	friend class prefix_tree;
@@ -275,7 +275,7 @@ public:
 			prefix_tree_serialize_queue_elem node = nodes.front();
 			nodes.pop();
 
-			node.value.fold(
+			node.value.visit(
 				[&retval, &node](const prefix_tree_leaf* leaf) {
 					retval[node.position] = leaf->value();
 				},
@@ -380,7 +380,7 @@ prefix_tree_node* prefix_tree_ptr::operator->() const {
 }
 
 template<typename LEAF_FN, typename BRANCH_FN>
-void prefix_tree_ptr::fold(LEAF_FN leaf_fn, BRANCH_FN branch_fn) const {
+void prefix_tree_ptr::visit(LEAF_FN leaf_fn, BRANCH_FN branch_fn) const {
 	if (this->_is_leaf) {
 		leaf_fn(this->_backing->_leaves.data() + this->_index);
 	} else {
