@@ -18,83 +18,11 @@ public:
 	}
 };
 
-std::vector<uint8_t> decompressHuff8(std::vector<uint8_t> src, bool decompile) {
+template<typename DATASIZE>
+static std::vector<uint8_t> decompressHuff(std::vector<uint8_t> src, bool decompile) {
 	unsigned expected_size = src[1] | src[2] << 8 | src[3] << 16;
-	std::vector<uint8_t> dest;
-	dest.reserve(expected_size);
-
-	if (decompile) {
-		std::cout << std::endl;
-		std::stack<prefix_tree_print_stack_elem> nodes;
-		nodes.emplace(5, 0, false);
-
-		while (! nodes.empty()) {
-			auto node = nodes.top();
-			nodes.pop();
-
-			for (unsigned i = 0; i < node.depth; i++) {
-				std::cout << ' ';
-			}
-			if (node.is_leaf) {
-				char value[10] = {0};
-				snprintf(value, sizeof(value), "0x%02x '%c'", src[node.position], src[node.position]);
-
-				std::cout << "(L) " << value << std::endl;
-			} else {
-				unsigned off = src[node.position] & 0x3F;
-				bool left_is_leaf = src[node.position] & 0x80;
-				bool right_is_leaf = src[node.position] & 0x40;
-				unsigned next_pos = (node.position & ~1) + off * 2 + 2;
-				std::cout << "(B) " << left_is_leaf << " " << right_is_leaf << " " << off << "(" << next_pos << ")" << std::endl;
-
-				nodes.emplace(next_pos + 1, node.depth + 1, right_is_leaf);
-				nodes.emplace(next_pos, node.depth + 1, left_is_leaf);
-			}
-		}
-	}
-
-	unsigned bitstream_offset = src[4];
-
-	std::vector<uint32_t> src32;
-
-	if (bitstream_offset & 1) {
-		for (auto i = src.begin() + 4 + ((bitstream_offset + 1) * 2); i + 3 < src.end(); i += 4) {
-			uint32_t v = *(i + 0) | *(i + 1) << 8 | *(i + 2) << 16 | *(i + 3) << 24;
-			src32.push_back(v);
-		}
-	} else {
-		for (auto i = src.begin() + 2 + ((bitstream_offset + 1) * 2); i + 3 < src.end(); i += 4) {
-			uint32_t v = *(i + 0) << 16 | *(i + 1) << 24 | *(i + 2) << 0 | *(i + 3) << 8;
-			src32.push_back(v);
-		}
-	}
-
-	subword_input_iterator<uint32_t, uint1_t, DIRECTION_DEC> src1(src32);
-
-	while (dest.size() < expected_size) {
-		bool is_leaf = false;
-		unsigned code_pos = 5;
-
-		while (! is_leaf) {
-			unsigned next_node = *(src1++);
-			if (decompile)
-				printf("%3d [%02x] | %d\n", code_pos, src[code_pos], next_node);
-			is_leaf = (next_node ? src[code_pos] & 0x40 : src[code_pos] & 0x80);
-			code_pos = (code_pos & ~1) + (src[code_pos] & 0x3F) * 2 + (next_node ? 3 : 2);
-		}
-		if (decompile)
-			printf("%3d [%02x] | LEAF\n", code_pos, src[code_pos]);
-
-		dest.push_back(src[code_pos]);
-	}
-
-	return dest;
-}
-
-std::vector<uint8_t> decompressHuff4(std::vector<uint8_t> src, bool decompile) {
-	unsigned expected_size = src[1] | src[2] << 8 | src[3] << 16;
-	subword_output_iterator<uint8_t, uint4_t, DIRECTION_INC> dest;
-	const auto dest_end = dest + expected_size * bitsize<uint8_t> / bitsize<uint4_t>;
+	subword_output_iterator<uint8_t, DATASIZE, DIRECTION_INC> dest;
+	const auto dest_end = dest + expected_size * bitsize<uint8_t> / bitsize<DATASIZE>;
 
 	if (decompile) {
 		std::cout << std::endl;
@@ -158,11 +86,19 @@ std::vector<uint8_t> decompressHuff4(std::vector<uint8_t> src, bool decompile) {
 		if (decompile)
 			printf("%3d [%02x] | LEAF\n", code_pos, src[code_pos]);
 
-		*dest = static_cast<uint4_t>(src[code_pos]);
+		*dest = static_cast<DATASIZE>(src[code_pos]);
 		dest++;
 	}
 
 	return dest.result();
+}
+
+std::vector<uint8_t> decompressHuff8(std::vector<uint8_t> src, bool decompile) {
+	return decompressHuff<uint8_t>(src, decompile);
+}
+
+std::vector<uint8_t> decompressHuff4(std::vector<uint8_t> src, bool decompile) {
+	return decompressHuff<uint4_t>(src, decompile);
 }
 
 ///////
