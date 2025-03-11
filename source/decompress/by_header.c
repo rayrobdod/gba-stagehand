@@ -3,6 +3,7 @@
 #include <stddef.h>
 #include <stdint.h>
 #include "decompress/identity.h"
+#include "decompress/lz11.h"
 #include "gba/bios.h"
 #include "mgba.h"
 
