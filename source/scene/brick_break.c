@@ -18,7 +18,6 @@
 #define arraycount(a) (sizeof(a) / sizeof(a[0]))
 
 enum {
-	BALLPOS_SCALE_SQRT = 1 << 3,
 	BALLPOS_SCALE = 1 << 6,
 };
 
@@ -247,8 +246,12 @@ static void MainCB_brickBreak_main(void) {
 				MgbaPrintBallposFixpoint("dy", dy);
 			}
 
+			// if neither dx nor dy can be larger than 16,
+			// then hypotSq should be no larger than 512.
+			// 512 is 10 bits; BALLPOS_SCALE is 6 bits, squared is 12 bits.
+			// A 10.12 fixpoint fits in the 32 bits available to an int
 			const int hypotSq = (dx * dx / BALLPOS_SCALE) + (dy * dy / BALLPOS_SCALE);
-			const int hypot = Sqrt(hypotSq) * BALLPOS_SCALE_SQRT;
+			const int hypot = Sqrt(hypotSq * BALLPOS_SCALE);
 			if (false) {
 				MgbaPrintBallposFixpoint("hypot", hypot);
 			}
