@@ -119,8 +119,8 @@ __attribute__((section(".sbss.shadow_oam.tiles")))
 static struct shadow_tile {
 	uint8_t refcount;
 	tiletag_t tag;
-	unsigned tile_start;
-	unsigned tile_count;
+	uint16_t tile_start;
+	uint16_t tile_count;
 } shadow_tiles[64] = {0};
 
 __attribute__((aligned(4)))
@@ -154,7 +154,7 @@ void shadow_oam_free_all(void) {
 	uint32_t i = 0;
 	_Static_assert(0 == (sizeof(shadow_tiles_used) % 32), "CpuFastSet requires 32-byte-multiple length");
 	CpuFastSet(&i, shadow_tiles_used, (struct CpuFastSet) {
-		.word_count = sizeof(shadow_tiles_used) / sizeof(uint8_t),
+		.word_count = sizeof(shadow_tiles_used) / sizeof(uint32_t),
 		.mode = CPU_SET_FILL
 	});
 	vram_op_queue_enqueue((struct vram_op) {
