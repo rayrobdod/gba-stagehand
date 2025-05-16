@@ -1,5 +1,6 @@
 #include "compression/huff.hpp"
 
+#include <array>
 #include <cstdio>
 #include <iostream>
 #include <optional>

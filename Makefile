@@ -88,7 +88,8 @@ DEFINES		+= -D__GBA__
 
 ARCH		:= -mcpu=arm7tdmi -mtune=arm7tdmi
 
-WARNFLAGS	:= -Wall -Wno-packed-bitfield-compat
+# -Wsizeof-array-div keeps yelling whenever I need to count the number of words in an item
+WARNFLAGS	:= -Wall -Wno-packed-bitfield-compat -Wno-sizeof-array-div
 
 INCLUDEFLAGS	:= $(foreach path,$(INCLUDES),-I$(path)) \
 		   $(foreach path,$(LIBDIRS),-I$(path)/include)

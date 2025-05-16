@@ -39,11 +39,13 @@ SRCS_TEST_CPP	:= $(wildcard test/*.cpp)
 
 # Flags
 
+CFLAGS += -std=gnu11
 CFLAGS += -I../../source
 CFLAGS += -I../gfx2obj
 CFLAGS += -I.
 CFLAGS += -Wall
 CFLAGS += -ggdb -DDEBUG
+CXXFLAGS += -std=gnu++20
 CXXFLAGS += -I../../source
 CXXFLAGS += -I../gfx2obj
 CXXFLAGS += -I.

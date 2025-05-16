@@ -87,6 +87,10 @@ void MainCB_mainMenu_init(void) {
 		});
 
 	tilemap_buffer = malloc(TILEMAP_BUFFER_COUNT * sizeof(bg_tile_t));
+	if (! tilemap_buffer) {
+		MgbaPrintf(MGBA_LOG_ERROR, "Did not allocate main_menu's tilemap_buffer");
+		return;
+	}
 
 	unsigned i;
 	for (i = 0; i < TILEMAP_BUFFER_COUNT; i++) {

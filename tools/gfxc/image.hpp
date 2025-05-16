@@ -2,6 +2,7 @@
 #define IMAGE_H
 
 #include <cstdint>
+#include <iterator>
 #include <map>
 #include <ostream>
 #include <set>
@@ -51,13 +52,16 @@ public:
 	std::set<rgba16_t> palette() const;
 };
 
-class image_pixel_iterator : public std::iterator<std::forward_iterator_tag, rgba16_t> {
+class image_pixel_iterator {
 private:
-	const image* const _backing;
+	const image* _backing;
 	unsigned _x;
 	unsigned _y;
 
 public:
+	using difference_type = std::ptrdiff_t;
+	using value_type = rgba16_t;
+
 	explicit image_pixel_iterator(const image*, unsigned x, unsigned y);
 	image_pixel_iterator(const image_pixel_iterator&);
 
@@ -78,7 +82,7 @@ public:
 	image_pixel_iterator end() const;
 };
 
-class image_tile_iterator : public std::iterator<std::forward_iterator_tag, subimage> {
+class image_tile_iterator {
 private:
 	const image* const _backing;
 	const unsigned _width;
@@ -87,6 +91,9 @@ private:
 	unsigned _top;
 
 public:
+	using difference_type = std::ptrdiff_t;
+	using value_type = subimage;
+
 	explicit image_tile_iterator(const image*, unsigned width, unsigned height, unsigned left, unsigned top);
 	image_tile_iterator(const image_tile_iterator&);
 
