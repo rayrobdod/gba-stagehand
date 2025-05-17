@@ -5,6 +5,7 @@
 #include "gba/vram.h"
 #include "mgba.h"
 #include "vram_op_queue.h"
+#include "graphics.h"
 
 // The main thing I want is to have "windows" that I can print text to
 // without having to predetermine where in VRAM the needed tiles are.
@@ -43,11 +44,10 @@ static bool shadow_tiles_used[4 * 0x200] = {0};
 
 
 static inline void shadow_vram_reserve_charblock(bgcnt_t cnt) {
-	MgbaPrintf(MGBA_LOG_INFO, "ENTER shadow_vram_reserve_charblock");
-	MgbaPrintf(MGBA_LOG_INFO, "  cnt.charblock = %d",  cnt.charblock);
-	MgbaPrintf(MGBA_LOG_INFO, "  cnt.screenblock = %d",  cnt.screenblock);
-	MgbaPrintf(MGBA_LOG_INFO, "  cnt.size = %d",  cnt.size);
-	MgbaPrintf(MGBA_LOG_INFO, "  TILES_PER_SCREENBLOCK = %d",  TILES_PER_SCREENBLOCK);
+	MgbaPrintf(MGBA_LOG_DEBUG, "ENTER shadow_vram_reserve_charblock");
+	MgbaPrintf(MGBA_LOG_DEBUG, "  cnt.charblock = %d",  cnt.charblock);
+	MgbaPrintf(MGBA_LOG_DEBUG, "  cnt.screenblock = %d",  cnt.screenblock);
+	MgbaPrintf(MGBA_LOG_DEBUG, "  cnt.size = %d",  cnt.size);
 	const uint32_t one = 0x02020202;
 
 	_Static_assert(0 == (TILES_PER_SCREENBLOCK % 32), "CpuFastSet requires 32-byte-multiple length");
@@ -67,13 +67,13 @@ void shadow_vram_init(void) {
 	// ???: Should this also set the BGnCNT registers?
 
 	if (reg_lcd.DISPCNT.enable_bg0)
-		shadow_vram_reserve_charblock(reg_lcd.BG0CNT);
+		shadow_vram_reserve_charblock(reg_lcd.BGCNT[0]);
 	if (reg_lcd.DISPCNT.enable_bg1)
-		shadow_vram_reserve_charblock(reg_lcd.BG1CNT);
+		shadow_vram_reserve_charblock(reg_lcd.BGCNT[1]);
 	if (reg_lcd.DISPCNT.enable_bg2)
-		shadow_vram_reserve_charblock(reg_lcd.BG2CNT);
+		shadow_vram_reserve_charblock(reg_lcd.BGCNT[2]);
 	if (reg_lcd.DISPCNT.enable_bg3)
-		shadow_vram_reserve_charblock(reg_lcd.BG3CNT);
+		shadow_vram_reserve_charblock(reg_lcd.BGCNT[3]);
 }
 
 void shadow_vram_free_all(void) {
@@ -101,14 +101,33 @@ int shadow_tiles_allocate(unsigned charblock, unsigned tilecount) {
 			for (unsigned i = start; i < start + tilecount; i++) {
 				shadow_tiles_used[i] = true;
 			}
-			return start;
+			return start - charblock * TILES_PER_CHARBLOCK;
 		}
 	}
 	return -1;
 }
 
+int shadow_tiles_load_tileset(unsigned bg, unsigned count, const tile_4bpp_t* tileset) {
+	int start = shadow_tiles_allocate(reg_lcd.BGCNT[bg].charblock, count);
+	if (start < 0) {
+		return -1;
+	}
+
+	vram_op_queue_enqueue((struct vram_op) {
+		.type = VRAM_QUEUE_OP_BG_TILES,
+		.tiles = {
+			.from = tileset,
+			.to_block = reg_lcd.BGCNT[bg].charblock,
+			.to_tile = start,
+			.count = count,
+		},
+	});
+
+	return start;
+}
+
 bool shadow_tiles_load_tileset_fixed(unsigned bg, unsigned start, unsigned count, const tile_4bpp_t* tileset) {
-	start += TILES_PER_CHARBLOCK * (&reg_lcd.BG0CNT)[bg].charblock;
+	start += TILES_PER_CHARBLOCK * reg_lcd.BGCNT[bg].charblock;
 	for (unsigned i = start; i < start + count; i++) {
 		if (shadow_tiles_used[i])
 			return false;
@@ -124,6 +143,37 @@ bool shadow_tiles_load_tileset_fixed(unsigned bg, unsigned start, unsigned count
 			.to_block = 0,
 			.to_tile = start,
 			.count = count,
+		},
+	});
+
+	return true;
+}
+
+bool shadow_tiles_load_background(struct background* data, struct shadow_tiles_load_background args) {
+	MgbaPrintf(MGBA_LOG_DEBUG, "ENTER shadow_tiles_load_background");
+	MgbaPrintf(MGBA_LOG_DEBUG, "  data->tilemap_count = %d",  data->tilemap_count);
+	MgbaPrintf(MGBA_LOG_DEBUG, "  data->tileset_count = %d",  data->tileset_count);
+
+	if (! shadow_tiles_load_tileset_fixed(args.bg, 0, data->tileset_count, data->tileset)) {
+		return false;
+	}
+
+	vram_op_queue_enqueue((struct vram_op) {
+		.type = VRAM_QUEUE_OP_BG_PALETTES,
+		.palettes = {
+			.from = data->palette,
+			.to_palette = 0,
+			.count = 1,
+		},
+	});
+
+	vram_op_queue_enqueue((struct vram_op) {
+		.type = VRAM_QUEUE_OP_BG_MAP,
+		.map = {
+			.from = data->tilemap,
+			.to_block = reg_lcd.BGCNT[args.bg].screenblock,
+			.to_tile = 0,
+			.count = data->tilemap_count,
 		},
 	});
 

@@ -51,7 +51,7 @@ void MainCB_mainMenu_init(void) {
 		.enable_obj = true,
 	};
 
-	reg_lcd.BG1CNT = (bgcnt_t) {
+	reg_lcd.BGCNT[1] = (bgcnt_t) {
 		.priority = 0,
 		.charblock = 0,
 		.screenblock = 31,

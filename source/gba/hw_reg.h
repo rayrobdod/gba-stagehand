@@ -83,10 +83,7 @@ typedef struct {
 	uint16_t _unused0;	/* 4000002 */
 	dispstat_t DISPSTAT;	/* 4000004 */
 	uint16_t VCOUNT;	/* 4000006 */
-	bgcnt_t BG0CNT;	/* 4000008 */
-	bgcnt_t BG1CNT;	/* 400000A */
-	bgcnt_t BG2CNT;	/* 400000C */
-	bgcnt_t BG3CNT;	/* 400000E */
+	bgcnt_t BGCNT[4];	/* 4000008 */
 	uint16_t BG0HOFS;	/* 4000010 */
 	uint16_t BG0VOFS;	/* 4000012 */
 	uint16_t BG1HOFS;	/* 4000014 */

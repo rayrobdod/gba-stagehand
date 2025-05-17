@@ -8,8 +8,8 @@
 #include "management/keyinput.h"
 #include "management/scene_graphics.h"
 #include "management/shadow_oam.h"
+#include "management/shadow_vram.h"
 #include "management/vram_op_queue.h"
-#include "brickbreak_background.png.h"
 #include "graphics.h"
 #include "main.h"
 #include "mgba.h"
@@ -37,6 +37,8 @@ static const char ballpos_scale_frac[BALLPOS_SCALE][4] = {
 	"750", "766", "781", "797", "813", "828", "844", "859",
 	"875", "891", "906", "922", "938", "953", "969", "984",
 };
+
+static const tile_4bpp_t tile_zero = {0};
 
 inline static void MgbaPrintBallposFixpoint(char* var_name, int value) {
 	MgbaPrintf(MGBA_LOG_INFO, "%s: %d (%d.%s)", var_name, value, value / BALLPOS_SCALE, ballpos_scale_frac[abs(value % BALLPOS_SCALE)]);
@@ -67,6 +69,8 @@ static const unsigned brick_halfheight = 6 * BALLPOS_SCALE;
 static shadow_oam_id_t spriteid_ball;
 static shadow_oam_id_t spriteid_paddle;
 static shadow_oam_id_t spriteid_bricks[64];
+__attribute__((section(".sbss")))
+static bg_tile_t zero_tile_ref;
 
 static uint8_t paddle_skin;
 static const struct shadow_oam_template* paddle_skins[] = {
@@ -115,7 +119,25 @@ inline static bool ball_hit_brick_collision(ucoords16_t ballpos, coords8_t ballv
 static void MainCB_brickBreak_main(void);
 
 void MainCB_brickBreak_init(void) {
-	shadow_oam_free_all();
+	reg_lcd.DISPCNT = (dispcnt_t) {
+		.mode = 0,
+		.obj_character_mapping = OBJ_CHAR_MAP_1D,
+		.enable_bg0 = true,
+		.enable_bg3 = true,
+	};
+	reg_lcd.BGCNT[0] = (bgcnt_t) {
+		.priority = 3,
+		.charblock = 0,
+		.screenblock = 31,
+	};
+	reg_lcd.BGCNT[3] = (bgcnt_t) {
+		.priority = 0,
+		.charblock = 0,
+		.screenblock = 30,
+	};
+
+	shadow_oam_init();
+	shadow_vram_init();
 
 	paddle_skin = 0;
 	ball_stuck_to_paddle = true;
@@ -123,9 +145,21 @@ void MainCB_brickBreak_init(void) {
 	ballpos = (ucoords16_t){.x = paddle_x * BALLPOS_SCALE, .y = paddle_y * BALLPOS_SCALE};
 	ballvelocity = (coords8_t){.x = BALLPOS_SCALE, .y = -BALLPOS_SCALE};
 
-	queue_load_scene_graphics(
+	shadow_tiles_load_background(
 		&brickbreak_background,
-		(struct load_scene_graphics){});
+		(struct shadow_tiles_load_background){.bg = 0});
+
+	zero_tile_ref = (bg_tile_t) {.tile = shadow_tiles_load_tileset(3, 1, &tile_zero)};
+
+	vram_op_queue_enqueue((struct vram_op) {
+		.type = VRAM_QUEUE_OP_BG_MAP_FILL,
+		.map_fill = {
+			.value = zero_tile_ref,
+			.to_block = 30,
+			.to_tile = 0,
+			.count = 32 * 20,
+		},
+	});
 
 	reg_lcd.DISPCNT.enable_obj = true;
 

@@ -11,10 +11,10 @@ std::ostream& operator<<(std::ostream& os, enum type typ) {
 	case TYPE_TILESET_MONOCHROME:
 		os << "TILESET_MONO";
 		break;
-	case TYPE_SCENE:
+	case TYPE_BACKGROUND:
 		os << "SCENE";
 		break;
-	case TYPE_SCENE_MODE3:
+	case TYPE_BACKGROUND_MODE3:
 		os << "SCENE_MODE3";
 		break;
 	}
@@ -30,10 +30,10 @@ enum type resource_type(const bufferedimage& image) {
 			return TYPE_TILESET;
 		if (explicit_typ->second == "Tileset Monochrome")
 			return TYPE_TILESET_MONOCHROME;
-		if (explicit_typ->second == "Scene")
-			return TYPE_SCENE;
-		if (explicit_typ->second == "Scene Mode 3")
-			return TYPE_SCENE_MODE3;
+		if (explicit_typ->second == "Background")
+			return TYPE_BACKGROUND;
+		if (explicit_typ->second == "Background Mode 3")
+			return TYPE_BACKGROUND_MODE3;
 
 		std::string msg("Unknown explicit type: ");
 		msg += explicit_typ->second;
@@ -44,7 +44,7 @@ enum type resource_type(const bufferedimage& image) {
 		return TYPE_SPRITE;
 	}
 	if (image.width() == 32 * 8 && image.height() > 20 * 8) {
-		return TYPE_SCENE;
+		return TYPE_BACKGROUND;
 	}
 	return TYPE_TILESET;
 }
