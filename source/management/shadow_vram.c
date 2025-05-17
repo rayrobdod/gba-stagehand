@@ -1,5 +1,6 @@
 #include "shadow_vram.h"
 
+#include <stdlib.h>
 #include "gba/bios.h"
 #include "gba/hw_reg.h"
 #include "gba/vram.h"
@@ -43,7 +44,13 @@ __attribute__((aligned(4)))
 __attribute__((section(".sbss.shadow_vram.hwreg")))
 static bgcnt_t shadow_tiles_bgcnt[4] = {0};
 
-
+__attribute__((aligned(4)))
+__attribute__((section(".sbss.shadow_vram.windows")))
+static struct {
+	bool in_use;
+	uint16_t bg_tile_start;
+	struct shadow_tiles_window_allocate args;
+} windows[16] = {0};
 
 
 static inline void shadow_vram_reserve_screenblock(bgcnt_t cnt) {
@@ -100,6 +107,9 @@ void shadow_vram_init(const struct shadow_vram_init* args) {
 }
 
 void shadow_vram_free_all(void) {
+	for (unsigned i = 0; i < arraycount(windows); i++) {
+		windows[i].in_use = false;
+	}
 	const uint32_t zero = 0;
 	_Static_assert(0 == (sizeof(shadow_tiles_used) % 32), "CpuFastSet requires 32-byte-multiple length");
 	CpuFastSet(&zero, shadow_tiles_used, (struct CpuFastSet) {
@@ -108,7 +118,8 @@ void shadow_vram_free_all(void) {
 	});
 }
 
-int shadow_tiles_allocate(unsigned charblock, unsigned tilecount) {
+static int shadow_tiles_allocate(unsigned bg, unsigned tilecount) {
+	unsigned charblock = shadow_tiles_bgcnt[bg].charblock;
 	unsigned start = charblock * TILES_PER_CHARBLOCK;
 	const unsigned max = min(4 * TILES_PER_CHARBLOCK, start + 2 * TILES_PER_CHARBLOCK);
 	unsigned span = 0;
@@ -130,8 +141,79 @@ int shadow_tiles_allocate(unsigned charblock, unsigned tilecount) {
 	return -1;
 }
 
+window_id_t shadow_tiles_window_allocate(const struct shadow_tiles_window_allocate* args) {
+	window_id_t index;
+	for (index = 0; index < arraycount(windows); index++) {
+		if (!windows[index].in_use)
+			break;
+	}
+	if (index >= arraycount(windows)) {
+		return -1;
+	}
+
+	int bg_tile_start = shadow_tiles_allocate(args->bg, args->width * args->height);
+	if (bg_tile_start < 0) {
+		return -1;
+	}
+
+	windows[index].in_use = true;
+	windows[index].bg_tile_start = bg_tile_start;
+	windows[index].args = *args;
+	return index;
+}
+
+void shadow_tiles_window_queue_map(window_id_t id) {
+	if (! windows[id].in_use) return;
+
+	const unsigned width = windows[id].args.width;
+	const unsigned height = windows[id].args.height;
+	unsigned x = windows[id].args.x;
+	unsigned y = windows[id].args.y;
+	const unsigned screenblock = shadow_tiles_bgcnt[windows[id].args.bg].screenblock;
+
+	unsigned bg_tile_id = windows[id].bg_tile_start | (windows[id].args.palette << 12);
+	unsigned map_tile_id = x + y * 32;
+
+
+	for (unsigned j = 0; j < height; j++) {
+		uint16_t* buffer = malloc(sizeof(uint16_t) * width * height);
+		if (!buffer) return;
+
+		for (unsigned i = 0; i < width; i++) {
+			buffer[i] = bg_tile_id;
+			++bg_tile_id;
+		}
+		vram_op_queue_enqueue((struct vram_op){
+			.type = VRAM_QUEUE_OP_BG_MAP_FREE,
+			.map_free = {
+				.from = (bg_tile_t *) buffer,
+				.to_block = screenblock,
+				.to_tile = map_tile_id,
+				.count = width,
+			}});
+		map_tile_id += 32;
+	}
+}
+
+void shadow_tiles_window_queue_tiles(window_id_t id, const tile_4bpp_t* data) {
+	if (! windows[id].in_use) return;
+
+	const unsigned charblock = shadow_tiles_bgcnt[windows[id].args.bg].charblock;
+	const unsigned bg_tile_id = windows[id].bg_tile_start;
+	const unsigned area = windows[id].args.width * windows[id].args.height;
+
+	vram_op_queue_enqueue((struct vram_op){
+		.type = VRAM_QUEUE_OP_BG_TILES,
+		.tiles = {
+			.from = data,
+			.to_block = charblock,
+			.to_tile = bg_tile_id,
+			.count = area,
+		}});
+}
+
 int shadow_tiles_load_tileset(unsigned bg, unsigned count, const tile_4bpp_t* tileset) {
-	int start = shadow_tiles_allocate(shadow_tiles_bgcnt[bg].charblock, count);
+	int start = shadow_tiles_allocate(bg, count);
 	if (start < 0) {
 		return -1;
 	}

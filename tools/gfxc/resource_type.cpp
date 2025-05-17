@@ -5,6 +5,9 @@ std::ostream& operator<<(std::ostream& os, enum type typ) {
 	case TYPE_SPRITE:
 		os << "SPRITE";
 		break;
+	case TYPE_FONT:
+		os << "FONT";
+		break;
 	case TYPE_TILESET:
 		os << "TILESET";
 		break;
@@ -26,6 +29,8 @@ enum type resource_type(const bufferedimage& image) {
 	if (explicit_typ != image.text().end()) {
 		if (explicit_typ->second == "Sprite")
 			return TYPE_SPRITE;
+		if (explicit_typ->second == "Font")
+			return TYPE_FONT;
 		if (explicit_typ->second == "Tileset")
 			return TYPE_TILESET;
 		if (explicit_typ->second == "Tileset Monochrome")

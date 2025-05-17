@@ -8,22 +8,7 @@
 
 struct background;
 
-typedef uint8_t shadow_vram_tiles_id_t;
-
-enum {
-	BG_CHARBLOCK_OVERLAP_NONE,
-	BG_CHARBLOCK_OVERLAP_01,
-	BG_CHARBLOCK_OVERLAP_02,
-	BG_CHARBLOCK_OVERLAP_03,
-	BG_CHARBLOCK_OVERLAP_12,
-	BG_CHARBLOCK_OVERLAP_13,
-	BG_CHARBLOCK_OVERLAP_23,
-	BG_CHARBLOCK_OVERLAP_012,
-	BG_CHARBLOCK_OVERLAP_013,
-	BG_CHARBLOCK_OVERLAP_023,
-	BG_CHARBLOCK_OVERLAP_123,
-	BG_CHARBLOCK_OVERLAP_1234,
-};
+typedef uint8_t window_id_t;
 
 struct shadow_vram_init {
 	bool enable_bg[4];
@@ -32,6 +17,19 @@ struct shadow_vram_init {
 };
 void shadow_vram_init(const struct shadow_vram_init*);
 void shadow_vram_free_all(void);
+
+struct shadow_tiles_window_allocate {
+	uint8_t bg;
+	uint8_t palette;
+	uint8_t x;
+	uint8_t y;
+	uint8_t width;
+	uint8_t height;
+};
+window_id_t shadow_tiles_window_allocate(const struct shadow_tiles_window_allocate*);
+
+void shadow_tiles_window_queue_map(window_id_t id);
+void shadow_tiles_window_queue_tiles(window_id_t id, const tile_4bpp_t*);
 
 int shadow_tiles_load_tileset(unsigned bg, unsigned count, const tile_4bpp_t*);
 

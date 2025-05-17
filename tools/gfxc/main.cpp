@@ -16,6 +16,7 @@
 #include "compression/lz.hpp"
 #include "compression/rl.hpp"
 #include "background.hpp"
+#include "font.hpp"
 #include "image.hpp"
 #include "indexed_insert_only_set.hpp"
 #include "object.h"
@@ -23,25 +24,9 @@
 #include "resource_type.hpp"
 #include "sprite.hpp"
 #include "subword_output_iterator.hpp"
+#include "variable_name_for_image.hpp"
 
 static const unsigned FIRST_TAG = 0x1000;
-
-static std::string variable_name_for_image(std::pair<std::filesystem::path, bufferedimage> image) {
-	std::string retval;
-	auto manual = image.second.text().find(std::string("Variable"));
-	if (manual != image.second.text().end()) {
-		retval = manual->second;
-	} else {
-		std::filesystem::path p = image.first.parent_path();
-		for (auto segment : p) {
-			retval += segment;
-			retval += "_";
-		}
-		retval += image.first.stem().string();
-	}
-	std::replace(retval.begin(), retval.end(), '-', '_');
-	return retval;
-}
 
 struct choosable_compression {
 	std::string_view alg_name;
@@ -152,6 +137,7 @@ int main(int argc, char* argv[]) {
 	std::map<std::filesystem::path, struct bufferedimage> monochrome_tileset_imgs;
 	std::map<std::filesystem::path, struct bufferedimage> background_imgs;
 	std::map<std::filesystem::path, struct bufferedimage> background_mode3_imgs;
+	std::map<std::filesystem::path, struct bufferedimage> font_imgs;
 
 	for (auto const& dir_entry : std::filesystem::recursive_directory_iterator{srcdir}) {
 		if (dir_entry.is_regular_file() && dir_entry.path().extension() == ".png") {
@@ -164,6 +150,9 @@ int main(int argc, char* argv[]) {
 				switch (resource_type(result)) {
 				case TYPE_SPRITE:
 					sprite_imgs.insert(nameImage);
+					break;
+				case TYPE_FONT:
+					font_imgs.insert(nameImage);
 					break;
 				case TYPE_TILESET:
 					tileset_imgs.insert(nameImage);
@@ -314,6 +303,11 @@ int main(int argc, char* argv[]) {
 		backgrounds.push_back({name, paltag, tileset_flat, tilemap});
 	}
 
+	std::vector<font> fonts;
+	for (auto const& image : font_imgs) {
+		fonts.emplace_back(image);
+	}
+
 	struct Object* elf = object_start(objfile.c_str());
 	std::ofstream headerstream(headerfile);
 	headerstream << "#include \"gba/palette.h\"" << std::endl;
@@ -339,6 +333,11 @@ int main(int argc, char* argv[]) {
 		}
 
 		object_push_bytes_section(elf, compressed.data.data(), sizeof(uint8_t) * compressed.data.size(), {tiles_name, STB_LOCAL});
+	}
+
+	font::write_struct(headerstream);
+	for (font font : fonts) {
+		font.write(headerstream, elf);
 	}
 
 	for (sprite sprite : sprites) {
