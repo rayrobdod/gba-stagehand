@@ -118,26 +118,26 @@ inline static bool ball_hit_brick_collision(ucoords16_t ballpos, coords8_t ballv
 //
 static void MainCB_brickBreak_main(void);
 
-void MainCB_brickBreak_init(void) {
-	reg_lcd.DISPCNT = (dispcnt_t) {
-		.mode = 0,
-		.obj_character_mapping = OBJ_CHAR_MAP_1D,
-		.enable_bg0 = true,
-		.enable_bg3 = true,
-	};
-	reg_lcd.BGCNT[0] = (bgcnt_t) {
-		.priority = 3,
-		.charblock = 0,
-		.screenblock = 31,
-	};
-	reg_lcd.BGCNT[3] = (bgcnt_t) {
-		.priority = 0,
-		.charblock = 0,
-		.screenblock = 30,
-	};
+static const struct shadow_vram_init brick_break_reg = (struct shadow_vram_init) {
+	.enable_bg = {true, false, false, true},
+	.enable_obj = true,
+	.bgcnt = {
+		[0] = {
+			.priority = 3,
+			.charblock = 0,
+			.screenblock = 31,
+		},
+		[3] = {
+			.priority = 0,
+			.charblock = 0,
+			.screenblock = 30,
+		}
+	}
+};
 
+void MainCB_brickBreak_init(void) {
 	shadow_oam_init();
-	shadow_vram_init();
+	shadow_vram_init(&brick_break_reg);
 
 	paddle_skin = 0;
 	ball_stuck_to_paddle = true;
@@ -160,8 +160,6 @@ void MainCB_brickBreak_init(void) {
 			.count = 32 * 20,
 		},
 	});
-
-	reg_lcd.DISPCNT.enable_obj = true;
 
 	for (unsigned i = 0; i < arraycount(paddle_skins); i++) {
 		shadow_oam_preload_sprite(paddle_skins[i]);

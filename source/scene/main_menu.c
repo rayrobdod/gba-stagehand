@@ -44,18 +44,29 @@ static const palette16_t mono_pal = {{31,31,31}, {0,0,0}};
 void MainCB_mainMenu_init(void) {
 	shadow_oam_free_all();
 
-	reg_lcd.DISPCNT = (dispcnt_t) {
-		.mode = 0,
-		.obj_character_mapping = OBJ_CHAR_MAP_1D,
-		.enable_bg1 = true,
-		.enable_obj = true,
-	};
+	vram_op_queue_enqueue((struct vram_op) {
+		.type = VRAM_QUEUE_OP_HWREG_DISPCNT,
+		.dispcnt = {
+			.value = (dispcnt_t) {
+				.mode = 0,
+				.obj_character_mapping = OBJ_CHAR_MAP_1D,
+				.enable_bg1 = true,
+				.enable_obj = true,
+			}
+		},
+	});
 
-	reg_lcd.BGCNT[1] = (bgcnt_t) {
-		.priority = 0,
-		.charblock = 0,
-		.screenblock = 31,
-	};
+	vram_op_queue_enqueue((struct vram_op) {
+		.type = VRAM_QUEUE_OP_HWREG_BGCNT,
+		.bgcnt = {
+			.value = (bgcnt_t) {
+				.priority = 0,
+				.charblock = 0,
+				.screenblock = 31,
+			},
+			.to_index = 1
+		}
+	});
 
 	vram_op_queue_enqueue((struct vram_op) {
 		.type = VRAM_QUEUE_OP_BG_TILES_BITUNPACK,

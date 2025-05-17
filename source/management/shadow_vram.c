@@ -39,12 +39,15 @@ __attribute__((aligned(4)))
 __attribute__((section(".sbss.shadow_vram.tiles_used")))
 static bool shadow_tiles_used[4 * 0x200] = {0};
 
+__attribute__((aligned(4)))
+__attribute__((section(".sbss.shadow_vram.hwreg")))
+static bgcnt_t shadow_tiles_bgcnt[4] = {0};
 
 
 
 
-static inline void shadow_vram_reserve_charblock(bgcnt_t cnt) {
-	MgbaPrintf(MGBA_LOG_DEBUG, "ENTER shadow_vram_reserve_charblock");
+static inline void shadow_vram_reserve_screenblock(bgcnt_t cnt) {
+	MgbaPrintf(MGBA_LOG_DEBUG, "ENTER shadow_vram_reserve_screenblock");
 	MgbaPrintf(MGBA_LOG_DEBUG, "  cnt.charblock = %d",  cnt.charblock);
 	MgbaPrintf(MGBA_LOG_DEBUG, "  cnt.screenblock = %d",  cnt.screenblock);
 	MgbaPrintf(MGBA_LOG_DEBUG, "  cnt.size = %d",  cnt.size);
@@ -61,19 +64,39 @@ static inline void shadow_vram_reserve_charblock(bgcnt_t cnt) {
 	);
 }
 
-void shadow_vram_init(void) {
+void shadow_vram_init(const struct shadow_vram_init* args) {
 	shadow_vram_free_all();
 
-	// ???: Should this also set the BGnCNT registers?
+	vram_op_queue_enqueue((struct vram_op) {
+		.type = VRAM_QUEUE_OP_HWREG_DISPCNT,
+		.dispcnt = {
+			.value = (dispcnt_t) {
+				.mode = 0,
+				.obj_character_mapping = OBJ_CHAR_MAP_1D,
+				.enable_bg0 = args->enable_bg[0],
+				.enable_bg1 = args->enable_bg[1],
+				.enable_bg2 = args->enable_bg[2],
+				.enable_bg3 = args->enable_bg[3],
+				.enable_obj = args->enable_obj,
+			}
+		}
+	});
 
-	if (reg_lcd.DISPCNT.enable_bg0)
-		shadow_vram_reserve_charblock(reg_lcd.BGCNT[0]);
-	if (reg_lcd.DISPCNT.enable_bg1)
-		shadow_vram_reserve_charblock(reg_lcd.BGCNT[1]);
-	if (reg_lcd.DISPCNT.enable_bg2)
-		shadow_vram_reserve_charblock(reg_lcd.BGCNT[2]);
-	if (reg_lcd.DISPCNT.enable_bg3)
-		shadow_vram_reserve_charblock(reg_lcd.BGCNT[3]);
+	for (int i = 0; i < 4; i++) {
+		if (args->enable_bg[i]) {
+			shadow_vram_reserve_screenblock(args->bgcnt[i]);
+			vram_op_queue_enqueue((struct vram_op) {
+				.type = VRAM_QUEUE_OP_HWREG_BGCNT,
+				.bgcnt = {
+					.value = args->bgcnt[i],
+					.to_index = i,
+				}
+			});
+			shadow_tiles_bgcnt[i] = args->bgcnt[i];
+		} else {
+			shadow_tiles_bgcnt[i] = (bgcnt_t) {0};
+		}
+	}
 }
 
 void shadow_vram_free_all(void) {
@@ -108,7 +131,7 @@ int shadow_tiles_allocate(unsigned charblock, unsigned tilecount) {
 }
 
 int shadow_tiles_load_tileset(unsigned bg, unsigned count, const tile_4bpp_t* tileset) {
-	int start = shadow_tiles_allocate(reg_lcd.BGCNT[bg].charblock, count);
+	int start = shadow_tiles_allocate(shadow_tiles_bgcnt[bg].charblock, count);
 	if (start < 0) {
 		return -1;
 	}
@@ -117,7 +140,7 @@ int shadow_tiles_load_tileset(unsigned bg, unsigned count, const tile_4bpp_t* ti
 		.type = VRAM_QUEUE_OP_BG_TILES,
 		.tiles = {
 			.from = tileset,
-			.to_block = reg_lcd.BGCNT[bg].charblock,
+			.to_block = shadow_tiles_bgcnt[bg].charblock,
 			.to_tile = start,
 			.count = count,
 		},
@@ -127,7 +150,7 @@ int shadow_tiles_load_tileset(unsigned bg, unsigned count, const tile_4bpp_t* ti
 }
 
 bool shadow_tiles_load_tileset_fixed(unsigned bg, unsigned start, unsigned count, const tile_4bpp_t* tileset) {
-	start += TILES_PER_CHARBLOCK * reg_lcd.BGCNT[bg].charblock;
+	start += TILES_PER_CHARBLOCK * shadow_tiles_bgcnt[bg].charblock;
 	for (unsigned i = start; i < start + count; i++) {
 		if (shadow_tiles_used[i])
 			return false;
@@ -171,7 +194,7 @@ bool shadow_tiles_load_background(struct background* data, struct shadow_tiles_l
 		.type = VRAM_QUEUE_OP_BG_MAP,
 		.map = {
 			.from = data->tilemap,
-			.to_block = reg_lcd.BGCNT[args.bg].screenblock,
+			.to_block = shadow_tiles_bgcnt[args.bg].screenblock,
 			.to_tile = 0,
 			.count = data->tilemap_count,
 		},

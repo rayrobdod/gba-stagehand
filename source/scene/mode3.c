@@ -43,17 +43,16 @@ static const struct reg_dma dma_mountain_1 = {
 
 void MainCB_mode3_init(void) {
 
-	reg_lcd.DISPCNT = (dispcnt_t){
-		.mode = 3,
-		.enable_bg2 = true,
-	};
-
 	// According to the debug print, the gba is able to write half the data during a vblank
 	// mGBA seems fine with writing the whole data in one frame,
 	// even though by my understanding the gba should not be willing to write to VRAM when not in vblank
 
 	if (true) {
 		VBlankIntrWait();
+		reg_lcd.DISPCNT = (dispcnt_t){
+			.mode = 3,
+			.enable_bg2 = true,
+		};
 		reg_dma[3] = dma_mountain_0;
 		MgbaPrintf(MGBA_LOG_INFO, "VCOUNT: %d", reg_lcd.VCOUNT);
 		VBlankIntrWait();

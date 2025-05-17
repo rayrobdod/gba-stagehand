@@ -3,6 +3,7 @@
 
 #include <stdbool.h>
 #include <stdint.h>
+#include "gba/hw_reg.h"
 #include "gba/vram.h"
 
 struct background;
@@ -24,7 +25,12 @@ enum {
 	BG_CHARBLOCK_OVERLAP_1234,
 };
 
-void shadow_vram_init(void);
+struct shadow_vram_init {
+	bool enable_bg[4];
+	bool enable_obj;
+	bgcnt_t bgcnt[4];
+};
+void shadow_vram_init(const struct shadow_vram_init*);
 void shadow_vram_free_all(void);
 
 int shadow_tiles_load_tileset(unsigned bg, unsigned count, const tile_4bpp_t*);

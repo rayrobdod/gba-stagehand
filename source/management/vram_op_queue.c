@@ -102,6 +102,12 @@ void vram_op_queue_execute(void) {
 		case VRAM_QUEUE_OP_OAM_ENTRY:
 			oam[entry->oam.to_index] = entry->oam.value;
 			break;
+		case VRAM_QUEUE_OP_HWREG_DISPCNT:
+			reg_lcd.DISPCNT = entry->dispcnt.value;
+			break;
+		case VRAM_QUEUE_OP_HWREG_BGCNT:
+			reg_lcd.BGCNT[entry->bgcnt.to_index] = entry->bgcnt.value;
+			break;
 		}
 	}
 	vram_op_queue_count = 0;

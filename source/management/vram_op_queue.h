@@ -2,6 +2,7 @@
 #define VRAM_OP_QUEUE_H
 
 #include "gba/bios.h"
+#include "gba/hw_reg.h"
 #include "gba/oam.h"
 #include "gba/palette.h"
 #include "gba/vram.h"
@@ -31,6 +32,10 @@ enum vram_queue_op_type {
 	VRAM_QUEUE_OP_OAM_TILES_COMPRESSED,
 	/** .oam */
 	VRAM_QUEUE_OP_OAM_ENTRY,
+	/** .dispcnt */
+	VRAM_QUEUE_OP_HWREG_DISPCNT,
+	/** .bgcnt */
+	VRAM_QUEUE_OP_HWREG_BGCNT,
 };
 
 struct vram_op {
@@ -74,6 +79,13 @@ struct vram_op {
 			oam_t value;
 			uint16_t to_index;
 		} oam;
+		struct {
+			dispcnt_t value;
+		} dispcnt;
+		struct {
+			bgcnt_t value;
+			uint16_t to_index;
+		} bgcnt;
 	};
 };
 
