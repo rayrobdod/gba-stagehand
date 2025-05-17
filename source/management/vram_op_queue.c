@@ -1,5 +1,6 @@
 #include "vram_op_queue.h"
 
+#include <stdlib.h>
 #include "decompress/by_header.h"
 #include "gba/bios.h"
 #include "mgba.h"
@@ -88,6 +89,17 @@ void vram_op_queue_execute(void) {
 					.mode = CPU_SET_COPY,
 					.datasize = WORDSIZE_16BIT,
 				});
+			break;
+		case VRAM_QUEUE_OP_BG_MAP_FREE:
+			CpuSet(
+				entry->map_free.from,
+				&vram.screenblock[entry->map_free.to_block][entry->map_free.to_tile],
+				(struct CpuSet){
+					.word_count = entry->map_free.count,
+					.mode = CPU_SET_COPY,
+					.datasize = WORDSIZE_16BIT,
+				});
+			free(entry->map_free.from);
 			break;
 		case VRAM_QUEUE_OP_BG_MAP_FILL:
 			CpuSet(

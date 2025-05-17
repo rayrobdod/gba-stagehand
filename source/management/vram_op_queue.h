@@ -20,6 +20,8 @@ enum vram_queue_op_type {
 	VRAM_QUEUE_OP_BG_TILES_BITUNPACK,
 	/** .map */
 	VRAM_QUEUE_OP_BG_MAP,
+	/** .map_free ; becomes the owner of `.from` and will free `.from` */
+	VRAM_QUEUE_OP_BG_MAP_FREE,
 	/** .map_fill */
 	VRAM_QUEUE_OP_BG_MAP_FILL,
 	/** .palettes */
@@ -69,6 +71,12 @@ struct vram_op {
 			uint16_t to_tile;
 			uint16_t count;
 		} map;
+		struct {
+			bg_tile_t* from;
+			uint16_t to_block;
+			uint16_t to_tile;
+			uint16_t count;
+		} map_free;
 		struct {
 			bg_tile_t value;
 			uint16_t to_block;
