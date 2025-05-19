@@ -3,13 +3,19 @@
 #include "graphics.h"
 #include "mgba.h"
 
+_Static_assert(sizeof(uint32_t) == sizeof(font_colors_t));
+union font_colors_2_uint {
+	font_colors_t colors;
+	uint32_t uint;
+};
+
 static void set_one_pixel(
 	tile_4bpp_t* tiles,
 	unsigned tiles_width,
 	unsigned tiles_height,
 	int pixel_x,
 	int pixel_y,
-	unsigned new_value
+	uint32_t new_value
 ) {
 	new_value &= 0xF;
 
@@ -53,6 +59,8 @@ void bg_print(
 	int y = start_point.y;
 	char c = *message;
 
+	const union font_colors_2_uint colors_u = {.colors = colors};
+
 	for (; '\0' != (c = *message); message++) {
 		if (c >= 32 && (c - 32) < font->glyph_count) {
 			const int width = font->glyphs[c - 32].width;
@@ -71,22 +79,9 @@ void bg_print(
 					pixel_data_word = pixel_data_word >> 2;
 				}
 
-				if (0 != (pixel_data_word & 0x3) || colors.write_background) {
-					uint8_t new_color = 0;
-					switch(pixel_data_word & 0x3) {
-					case 0:
-						new_color = colors.background;
-						break;
-					case 1:
-						new_color = colors.light;
-						break;
-					case 2:
-						new_color = colors.shadow;
-						break;
-					case 3:
-						new_color = colors.dark;
-						break;
-					}
+				if (0 != (pixel_data_word & 0x3) || colors_u.colors.write_background) {
+					uint8_t new_color = (colors_u.uint)
+						>> (4 * (pixel_data_word & 0x3)) & 0xF;
 
 					set_one_pixel(
 						buffer,

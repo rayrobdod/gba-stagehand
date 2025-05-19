@@ -26,7 +26,7 @@ int main(int argc, char* argv[]) {
 	scene_onframe_callback = &MainCB_mainMenu_init;
 
 	while (1) {
-		if (false) {
+		if (reg_lcd.VCOUNT < 160 || reg_lcd.VCOUNT > 175) {
 			MgbaPrintf(MGBA_LOG_INFO, "VCOUNT: %d", reg_lcd.VCOUNT);
 		}
 		VBlankIntrWait();
