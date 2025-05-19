@@ -31,5 +31,10 @@ void bg_print(
 	font_colors_t colors,
 	const char* message);
 
+__attribute__((pure, nonnull))
+unsigned text_width(
+	const struct font* font,
+	coord16_t kerning,
+	const char* message);
 
 #endif        //  #ifndef TEXT_PRINTER_H

@@ -10,6 +10,7 @@
 #include "management/vram_op_queue.h"
 #include "scene/brick_break.h"
 #include "scene/mode3.h"
+#include "scene/text_print_profile.h"
 #include "graphics.h"
 #include "main.h"
 #include "mgba.h"
@@ -102,9 +103,9 @@ void MainCB_mainMenu_init(void) {
 			tilemap_buffer[i] = (bg_tile_t) {' '};
 		}
 
-		print_to_tilemap(tilemap_buffer, 3, 2, "Mode 3");
-		print_to_tilemap(tilemap_buffer, 3, 3, "Brick Break");
-		print_to_tilemap(tilemap_buffer, 3, 4, "Option 3");
+		print_to_tilemap(tilemap_buffer, 3, 2, "Brick Break");
+		print_to_tilemap(tilemap_buffer, 3, 3, "Mode 3");
+		print_to_tilemap(tilemap_buffer, 3, 4, "Text Print Profile");
 		print_to_tilemap(tilemap_buffer, 3, 5, "Option 4");
 
 		MgbaPrintf(MGBA_LOG_DEBUG, "sizeof(struct vram_op) = %d", sizeof(struct vram_op));
@@ -131,8 +132,11 @@ static void MainCB_mainMenu_main(void) {
 		shadow_oam_free_all();
 
 		switch (selection) {
-		case 0:
+		case 1:
 			scene_onframe_callback = &MainCB_mode3_init;
+			break;
+		case 2:
+			scene_onframe_callback = &MainCB_textPrintProfile_init;
 			break;
 		default:
 			scene_onframe_callback = &MainCB_brickBreak_init;

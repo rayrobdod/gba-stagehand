@@ -6,6 +6,9 @@ volatile reg_lcd_t reg_lcd;
 __attribute__((section(".hw_reg.dma"), used))
 volatile struct reg_dma reg_dma[4];
 
+__attribute__((section(".hw_reg.timer"), used))
+volatile struct timer reg_timer[4];
+
 __attribute__((section(".hw_reg.keypad"), used))
 volatile reg_keypad_t reg_keypad;
 

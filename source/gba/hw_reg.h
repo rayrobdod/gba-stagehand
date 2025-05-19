@@ -27,6 +27,17 @@ typedef struct {
 	bool enable_win_obj: 1;
 } dispcnt_t;
 
+enum bgcnt_size {
+	BGCNT_SIZE_TEXT_SMALL = 0,
+	BGCNT_SIZE_TEXT_TALL = 1,
+	BGCNT_SIZE_TEXT_WIDE = 2,
+	BGCNT_SIZE_TEXT_BIG = 3,
+	BGCNT_SIZE_AFFINE_128 = 0,
+	BGCNT_SIZE_AFFINE_256 = 1,
+	BGCNT_SIZE_AFFINE_512 = 2,
+	BGCNT_SIZE_AFFINE_1024 = 3,
+};
+
 typedef struct {
 	uint8_t priority: 2;
 	uint8_t charblock : 2;
@@ -35,7 +46,7 @@ typedef struct {
 	palette_mode_t palette_mode: 1;
 	uint8_t screenblock: 5;
 	bool overflow_wraparound: 1;
-	uint8_t size: 2;
+	enum bgcnt_size size: 2;
 } bgcnt_t;
 
 typedef struct {
@@ -185,19 +196,32 @@ struct reg_dma {
 
 extern volatile struct reg_dma reg_dma[4];
 
+// Timer Registers
+
+enum timer_prescaler {
+	TIMER_PRESCALER_1 = 0,
+	TIMER_PRESCALER_64 = 1,
+	TIMER_PRESCALER_256 = 2,
+	TIMER_PRESCALER_1024 = 3,
+};
+
+typedef struct {
+	enum timer_prescaler prescaler: 2;
+	bool cascade: 1;
+	uint16_t _padding1: 3;
+	bool irq_enable : 1;
+	bool timer_enable : 1;
+	uint16_t _padding2: 8;
+} timer_control_t;
+
+struct timer {
+	uint16_t counter;
+	timer_control_t control;
+};
+
+extern volatile struct timer reg_timer[4]; /* 4000100 */
+
 #if 0
-Timer Registers
-
-  uint16_t TM0CNT_L;	/* 4000100 */
-  uint16_t TM0CNT_H;	/* 4000102 */
-  uint16_t TM1CNT_L;	/* 4000104 */
-  uint16_t TM1CNT_H;	/* 4000106 */
-  uint16_t TM2CNT_L;	/* 4000108 */
-  uint16_t TM2CNT_H;	/* 400010A */
-  uint16_t TM3CNT_L;	/* 400010C */
-  uint16_t TM3CNT_H;	/* 400010E */
-  uint16_t _unused;	/* 4000110 */
-
 Serial Communication (1)
 
   uint32_t SIODATA32;	/* 4000120 */

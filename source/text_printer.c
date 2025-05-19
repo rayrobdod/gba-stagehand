@@ -3,6 +3,8 @@
 #include "graphics.h"
 #include "mgba.h"
 
+#define max(a, b) (a > b ? a : b)
+
 _Static_assert(sizeof(uint32_t) == sizeof(font_colors_t));
 union font_colors_2_uint {
 	font_colors_t colors;
@@ -57,11 +59,14 @@ void bg_print(
 	const int height = font->glyph_height;
 	int x = start_point.x;
 	int y = start_point.y;
-	char c = *message;
 
 	const union font_colors_2_uint colors_u = {.colors = colors};
 
-	for (; '\0' != (c = *message); message++) {
+	for (char c; '\0' != (c = *message); message++) {
+		if (c == '\n') {
+			x = start_point.x;
+			y += height + kerning.y;
+		} else
 		if (c >= 32 && (c - 32) < font->glyph_count) {
 			const int width = font->glyphs[c - 32].width;
 			const uint8_t* pixel_data = font->pixel_data + font->glyphs[c - 32].pixel_data_start_index;
@@ -97,6 +102,27 @@ void bg_print(
 			x += width + kerning.x;
 		}
 	}
-
 }
 
+unsigned text_width(
+	const struct font* font,
+	coord16_t kerning,
+	const char* message) {
+
+	unsigned x = 0;
+	unsigned max_x = 0;
+
+	for (char c; '\0' != (c = *message); message++) {
+		if (c == '\n') {
+			x = 0;
+		} else
+		if (c >= 32 && (c - 32) < font->glyph_count) {
+			const int width = font->glyphs[c - 32].width;
+
+			x += width + kerning.x;
+			max_x = max(max_x, x);
+		}
+	}
+
+	return max_x;
+}

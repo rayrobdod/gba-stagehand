@@ -270,6 +270,8 @@ SECTIONS
         . = 0x60;
         . = 0xB0;
         *(.hw_reg.dma)
+        . = 0x100;
+        *(.hw_reg.timer)
         . = 0x130;
         *(.hw_reg.keypad)
         . = 0x200;
