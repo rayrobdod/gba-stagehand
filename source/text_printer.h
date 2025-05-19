@@ -22,7 +22,7 @@ typedef struct {
 	uint16_t _padding : 15;
 } font_colors_t;
 
-void bg_print(
+void text_print(
 	tile_4bpp_t* buffer,
 	const struct shadow_tiles_window_allocate* window_args,
 	const struct font* font,

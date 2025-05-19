@@ -165,7 +165,7 @@ static void redraw_score_window() {
 			.mode = CPU_SET_FILL,
 		});
 
-	bg_print(
+	text_print(
 		score_window_shadow_tiles,
 		&score_window_template,
 		&bitmapfont,

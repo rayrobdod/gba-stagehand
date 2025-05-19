@@ -47,7 +47,7 @@ static void set_one_pixel(
 	}
 }
 
-void bg_print(
+void text_print(
 	tile_4bpp_t* buffer,
 	const struct shadow_tiles_window_allocate* window_args,
 	const struct font* font,
@@ -56,7 +56,7 @@ void bg_print(
 	font_colors_t colors,
 	const char* message) {
 
-	const int height = font->glyph_height;
+	const int glyph_height = font->glyph_height;
 	int x = start_point.x;
 	int y = start_point.y;
 
@@ -65,28 +65,28 @@ void bg_print(
 	for (char c; '\0' != (c = *message); message++) {
 		if (c == '\n') {
 			x = start_point.x;
-			y += height + kerning.y;
+			y += glyph_height + kerning.y;
 		} else
 		if (c >= 32 && (c - 32) < font->glyph_count) {
-			const int width = font->glyphs[c - 32].width;
-			const uint8_t* pixel_data = font->pixel_data + font->glyphs[c - 32].pixel_data_start_index;
+			const int glyph_width = font->glyphs[c - 32].width;
+			const uint8_t* input_data = font->pixel_data + font->glyphs[c - 32].pixel_data_start_index;
 			unsigned subword_index = 0;
-			unsigned pixel_data_word;
+			unsigned input_data_word;
 
-			for (int dy = 0; dy < height; dy++)
-			for (int dx = 0; dx < width; dx++) {
+			for (int dy = 0; dy < glyph_height; dy++)
+			for (int dx = 0; dx < glyph_width; dx++) {
 				if (subword_index == 0) {
 					subword_index = 3;
-					pixel_data_word = *pixel_data;
-					pixel_data++;
+					input_data_word = *input_data;
+					input_data++;
 				} else {
 					subword_index--;
-					pixel_data_word = pixel_data_word >> 2;
+					input_data_word = input_data_word >> 2;
 				}
 
-				if (0 != (pixel_data_word & 0x3) || colors_u.colors.write_background) {
+				if (0 != (input_data_word & 0x3) || colors_u.colors.write_background) {
 					uint8_t new_color = (colors_u.uint)
-						>> (4 * (pixel_data_word & 0x3)) & 0xF;
+						>> (4 * (input_data_word & 0x3)) & 0xF;
 
 					set_one_pixel(
 						buffer,
@@ -99,7 +99,7 @@ void bg_print(
 				}
 			}
 
-			x += width + kerning.x;
+			x += glyph_width + kerning.x;
 		}
 	}
 }
