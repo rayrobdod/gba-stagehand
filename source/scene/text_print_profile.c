@@ -76,6 +76,8 @@ void MainCB_textPrintProfile_init(void) {
 	background_palette[0][1] = rgb(31,31,31);
 	background_palette[0][2] = rgb(16,16,16);
 	background_palette[0][3] = rgb(0,0,0);
+	background_palette[0][4] = rgb(0,31,0);
+	background_palette[0][5] = rgb(31,16,16);
 
 	CpuFastSet(
 		&zero_uint32,
@@ -93,8 +95,8 @@ void MainCB_textPrintProfile_init(void) {
 		&whole_screen_window,
 		&bitmapfont,
 		(coord16_t) {4, 4},
-		(coord16_t) {0, 0},
-		(font_colors_t) {0,1,2,3, true},
+		(coord16_t) {-1, 0},
+		(font_colors_t) {4,1,2,3, false},
 		lorem_ipsum);
 
 	uint32_t time = profile_stop();
@@ -116,7 +118,7 @@ void MainCB_textPrintProfile_init(void) {
 		&bitmapfont,
 		(coord16_t) {LABEL_X, TOTAL_Y},
 		(coord16_t) {1,1},
-		(font_colors_t) {0,1,2,3, true},
+		(font_colors_t) {4,1,2,3, true},
 		"Total:");
 	text_print(
 		(tile_4bpp_t*) vram.bg_charblock[0],
@@ -124,7 +126,7 @@ void MainCB_textPrintProfile_init(void) {
 		&bitmapfont,
 		(coord16_t) {LABEL_X, CHAR_Y},
 		(coord16_t) {1,1},
-		(font_colors_t) {0,1,2,3, true},
+		(font_colors_t) {4,1,2,3, true},
 		"Per Char:");
 
 	start_x = text_width(&bitmapfont, (coord16_t) {1,1}, "Cycles");
@@ -134,7 +136,7 @@ void MainCB_textPrintProfile_init(void) {
 		&bitmapfont,
 		(coord16_t) {CYCLE_X - start_x, LABEL_Y},
 		(coord16_t) {1,1},
-		(font_colors_t) {0,1,2,3, true},
+		(font_colors_t) {0,5,2,3, true},
 		"Cycles");
 	start_x = text_width(&bitmapfont, (coord16_t) {1,1}, "Frames");
 	text_print(
@@ -143,7 +145,7 @@ void MainCB_textPrintProfile_init(void) {
 		&bitmapfont,
 		(coord16_t) {FRAME_X - start_x, LABEL_Y},
 		(coord16_t) {1,1},
-		(font_colors_t) {0,1,2,3, true},
+		(font_colors_t) {0,5,2,3, true},
 		"Frames");
 
 	snprintf(buffer, 32, "%ld", time);

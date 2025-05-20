@@ -25,7 +25,7 @@ struct uint4_t {
 	explicit uint4_t(unsigned long long int);
 };
 
-uint4_t operator""_4(unsigned long long int);
+uint4_t operator""_u4(unsigned long long int);
 
 template<typename T>
 constexpr unsigned bitsize;
@@ -41,6 +41,9 @@ constexpr unsigned bitsize<uint4_t> = 4;
 
 template<>
 constexpr unsigned bitsize<uint8_t> = 8;
+
+template<>
+constexpr unsigned bitsize<uint16_t> = 16;
 
 template<>
 constexpr unsigned bitsize<uint32_t> = 32;

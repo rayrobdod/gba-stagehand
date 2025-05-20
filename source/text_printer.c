@@ -11,42 +11,6 @@ union font_colors_2_uint {
 	uint32_t uint;
 };
 
-static void set_one_pixel(
-	tile_4bpp_t* tiles,
-	unsigned tiles_width,
-	unsigned tiles_height,
-	int pixel_x,
-	int pixel_y,
-	uint32_t new_value
-) {
-	new_value &= 0xF;
-
-	int tile_x = pixel_x / 8;
-	int tile_y = pixel_y / 8;
-	if (tile_x < 0) return;
-	if (tile_y < 0) return;
-	if (tile_x >= tiles_width) return;
-	if (tile_y >= tiles_height) return;
-	unsigned tileid = tile_y * tiles_width + tile_x;
-
-	pixel_x %= 8;
-	pixel_y %= 8;
-	unsigned shortid = (pixel_y * 2 + pixel_x / 4);
-	if (pixel_x % 4 == 0) {
-		tiles[tileid][shortid] &= 0xFFF0;
-		tiles[tileid][shortid] |= new_value;
-	} else if (pixel_x % 4 == 1) {
-		tiles[tileid][shortid] &= 0xFF0F;
-		tiles[tileid][shortid] |= new_value << 4;
-	} else if (pixel_x % 4 == 2) {
-		tiles[tileid][shortid] &= 0xF0FF;
-		tiles[tileid][shortid] |= new_value << 8;
-	} else {
-		tiles[tileid][shortid] &= 0x0FFF;
-		tiles[tileid][shortid] |= new_value << 12;
-	}
-}
-
 void text_print(
 	tile_4bpp_t* buffer,
 	const struct shadow_tiles_window_allocate* window_args,
@@ -54,13 +18,13 @@ void text_print(
 	coord16_t start_point,
 	coord16_t kerning,
 	font_colors_t colors,
-	const char* message) {
+	const char* message
+) {
 
 	const int glyph_height = font->glyph_height;
 	int x = start_point.x;
 	int y = start_point.y;
-
-	const union font_colors_2_uint colors_u = {.colors = colors};
+	unsigned tiles_width = window_args->width;
 
 	for (char c; '\0' != (c = *message); message++) {
 		if (c == '\n') {
@@ -69,33 +33,69 @@ void text_print(
 		} else
 		if (c >= 32 && (c - 32) < font->glyph_count) {
 			const int glyph_width = font->glyphs[c - 32].width;
-			const uint8_t* input_data = font->pixel_data + font->glyphs[c - 32].pixel_data_start_index;
-			unsigned subword_index = 0;
-			unsigned input_data_word;
 
-			for (int dy = 0; dy < glyph_height; dy++)
-			for (int dx = 0; dx < glyph_width; dx++) {
-				if (subword_index == 0) {
-					subword_index = 3;
-					input_data_word = *input_data;
+			const uint16_t* input_data = font->pixel_data + font->glyphs[c - 32].pixel_data_start_index;
+
+			for (int dy = 0; dy < glyph_height; dy++) {
+				int pixel_y = y + dy;
+				int tile_y = pixel_y / 8;
+				int subtile_y = pixel_y % 8;
+
+				for (int dx = 0; dx < glyph_width; dx += 4) {
+					int pixel_x = x + dx;
+					int tile_x = pixel_x / 8;
+					int subtile_x = pixel_x % 8;
+
+					unsigned input_word = *input_data;
 					input_data++;
-				} else {
-					subword_index--;
-					input_data_word = input_data_word >> 2;
-				}
 
-				if (0 != (input_data_word & 0x3) || colors_u.colors.write_background) {
-					uint8_t new_color = (colors_u.uint)
-						>> (4 * (input_data_word & 0x3)) & 0xF;
+					unsigned output_mask = ((input_word >> 0) & 0x1111) * 0xF;
+					unsigned output_paint = ((input_word >> 0) & 0x1111) * colors.light;
+					output_mask |= ((input_word >> 1) & 0x1111) * 0xF;
+					output_paint |= ((input_word >> 1) & 0x1111) * colors.shadow;
+					output_mask |= ((input_word >> 2) & 0x1111) * 0xF;
+					output_paint |= ((input_word >> 2) & 0x1111) * colors.dark;
+					if (colors.write_background) {
+						output_mask |= ((input_word >> 3) & 0x1111) * 0xF;
+						output_paint |= ((input_word >> 3) & 0x1111) * colors.background;
+					}
 
-					set_one_pixel(
-						buffer,
-						window_args->width,
-						window_args->height,
-						x + dx,
-						y + dy,
-						new_color
-					);
+					unsigned tileid = tile_y * tiles_width + tile_x;
+					unsigned subtileid = (subtile_y * 2 + subtile_x / 4);
+					unsigned shift = (subtile_x % 4) * 4;
+
+					if (0 <= tile_x && tile_x < window_args->width) {
+						uint16_t output_word = buffer[tileid][subtileid];
+
+						uint16_t output_mask1 = output_mask << shift;
+						output_word &= ~output_mask1;
+						uint16_t output_paint1 = output_paint << shift;
+						output_word |= output_paint1;
+						buffer[tileid][subtileid] = output_word;
+					}
+
+					if (subtile_x == 0 || subtile_x == 4) {
+						continue;
+					} else if (subtile_x < 4) {
+						subtile_x += 4;
+						subtileid += 1;
+					} else {
+						tile_x += 1;
+						subtile_x -= 4;
+						tileid += 1;
+						subtileid -= 1;
+					}
+					shift = 16 - shift;
+
+					if (0 <= tile_x && tile_x < window_args->width) {
+						uint16_t output_word = buffer[tileid][subtileid];
+
+						uint16_t output_mask1 = output_mask >> shift;
+						output_word &= ~output_mask1;
+						uint16_t output_paint1 = output_paint >> shift;
+						output_word |= output_paint1;
+						buffer[tileid][subtileid] = output_word;
+					}
 				}
 			}
 

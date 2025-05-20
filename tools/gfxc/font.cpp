@@ -58,23 +58,20 @@ font::font(const std::pair<std::filesystem::path, bufferedimage> data)
 			}
 		}
 
-		subword_output_iterator<uint8_t, uint2_t, DIRECTION_INC> bits;
+		subword_output_iterator<uint16_t, uint4_t, DIRECTION_INC> bits;
 
-		subimage cropped = subimg.sub(0, 0, glyph.width, this->height);
+		subimage cropped = subimg.sub(0, 0, (((glyph.width - 1) / 4) + 1) * 4, this->height);
 		for (auto pixel : cropped.pixels()) {
 			if (pixel == background)
-				*bits = 0_u2;
+				*bits = 8_u4;
 			else if (pixel == light)
-				*bits = 1_u2;
+				*bits = 1_u4;
 			else if (pixel == shadow)
-				*bits = 2_u2;
+				*bits = 2_u4;
 			else if (pixel == dark)
-				*bits = 3_u2;
+				*bits = 4_u4;
 			else {
-				std::ostringstream msg;
-				msg << data.first.string();
-				msg << ": non-square or differently-heighted glyphs: ";
-				throw std::logic_error(msg.str());
+				*bits = 0_u4;
 			}
 			++bits;
 		}
@@ -87,7 +84,7 @@ font::font(const std::pair<std::filesystem::path, bufferedimage> data)
 void font::write_struct(std::ostream& headerstream) {
 	headerstream << std::endl
 		<< "struct font {" << std::endl
-		<< "	const uint8_t* pixel_data;" << std::endl
+		<< "	const uint16_t* pixel_data;" << std::endl
 		<< "	uint16_t glyph_height;" << std::endl
 		<< "	uint16_t glyph_count;" << std::endl
 		<< "	struct font_glyph {" << std::endl
@@ -100,7 +97,7 @@ void font::write_struct(std::ostream& headerstream) {
 void font::write(std::ostream& headerstream, struct Object* elf) const {
 	headerstream << "extern const struct font " << this->var_name << ";" << std::endl;
 
-	std::vector<uint8_t> pixel_data;
+	std::vector<uint16_t> pixel_data;
 	std::vector<uint16_t> metadata;
 	metadata.push_back(0);
 	metadata.push_back(0);
@@ -109,7 +106,7 @@ void font::write(std::ostream& headerstream, struct Object* elf) const {
 	for (font_glyph glyph : this->glyphs) {
 		metadata.push_back(glyph.width);
 		metadata.push_back(pixel_data.size());
-		for (uint8_t b : glyph.data) {
+		for (uint16_t b : glyph.data) {
 			pixel_data.push_back(b);
 		}
 	}
@@ -117,7 +114,7 @@ void font::write(std::ostream& headerstream, struct Object* elf) const {
 	std::string pixeldata_name(this->var_name);
 	pixeldata_name += ".pixeldata";
 
-	object_push_bytes_section(elf, pixel_data.data(), sizeof(uint8_t) * pixel_data.size(), {pixeldata_name.c_str(), STB_LOCAL});
+	object_push_bytes_section(elf, pixel_data.data(), sizeof(uint16_t) * pixel_data.size(), {pixeldata_name.c_str(), STB_LOCAL});
 	object_push_bytes_section(elf, metadata.data(), sizeof(uint16_t) * metadata.size(), {this->var_name.c_str(), STB_GLOBAL});
 
 	std::array<relocation_template, 1> relocs;

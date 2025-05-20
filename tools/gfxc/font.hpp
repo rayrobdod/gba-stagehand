@@ -8,7 +8,7 @@
 
 struct font_glyph {
 	uint8_t width;
-	std::vector<uint8_t> data;
+	std::vector<uint16_t> data;
 };
 
 struct font {
