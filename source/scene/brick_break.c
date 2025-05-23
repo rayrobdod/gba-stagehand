@@ -155,7 +155,7 @@ static const struct shadow_tiles_window_allocate score_window_template = (struct
 
 static void redraw_score_window() {
 	char scorestr[8];
-	snprintf(scorestr, 8, "%ld ", score);
+	snprintf(scorestr, 8, "%ld", score);
 	uint32_t zero = 0;
 	CpuFastSet(
 		&zero,
@@ -165,11 +165,16 @@ static void redraw_score_window() {
 			.mode = CPU_SET_FILL,
 		});
 
+	uint16_t text_x = 6*8 - 2 - text_width(
+		&breakout_set_font,
+		(coord16_t) {.x = 0, .y = 0},
+		scorestr);
+
 	text_print(
 		score_window_shadow_tiles,
 		&score_window_template,
-		&bitmapfont,
-		(coord16_t) {.x = 4, .y = 3},
+		&breakout_set_font,
+		(coord16_t) {.x = text_x, .y = 4},
 		(coord16_t) {.x = 0, .y = 0},
 		(font_colors_t) {0,1,2,3, true},
 		scorestr);
