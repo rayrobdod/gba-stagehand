@@ -113,7 +113,7 @@ void shadow_vram_free_all(void) {
 	const uint32_t zero = 0;
 	_Static_assert(0 == (sizeof(shadow_tiles_used) % 32), "CpuFastSet requires 32-byte-multiple length");
 	CpuFastSet(&zero, shadow_tiles_used, (struct CpuFastSet) {
-		.word_count = sizeof(shadow_tiles_used) / sizeof(uint8_t),
+		.word_count = sizeof(shadow_tiles_used) / sizeof(uint32_t),
 		.mode = CPU_SET_FILL
 	});
 }
@@ -167,8 +167,8 @@ void shadow_tiles_window_queue_map(window_id_t id) {
 
 	const unsigned width = windows[id].args.width;
 	const unsigned height = windows[id].args.height;
-	unsigned x = windows[id].args.x;
-	unsigned y = windows[id].args.y;
+	const unsigned x = windows[id].args.x;
+	const unsigned y = windows[id].args.y;
 	const unsigned screenblock = shadow_tiles_bgcnt[windows[id].args.bg].screenblock;
 
 	unsigned bg_tile_id = windows[id].bg_tile_start | (windows[id].args.palette << 12);
@@ -176,7 +176,7 @@ void shadow_tiles_window_queue_map(window_id_t id) {
 
 
 	for (unsigned j = 0; j < height; j++) {
-		uint16_t* buffer = malloc(sizeof(uint16_t) * width * height);
+		uint16_t* buffer = malloc(sizeof(uint16_t) * width);
 		if (!buffer) return;
 
 		for (unsigned i = 0; i < width; i++) {
