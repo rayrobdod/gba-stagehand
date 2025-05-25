@@ -1,6 +1,7 @@
 #include "scene/brick_break.h"
 
 #include <stdint.h>
+#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include "gba/bios.h"
@@ -8,12 +9,13 @@
 #include "management/keyinput.h"
 #include "management/scene_graphics.h"
 #include "management/shadow_oam.h"
+#include "management/shadow_vram.h"
 #include "management/vram_op_queue.h"
-#include "brickbreak_background.png.h"
 #include "graphics.h"
 #include "main.h"
 #include "mgba.h"
 #include "saturating_add.h"
+#include "text_printer.h"
 
 #define arraycount(a) (sizeof(a) / sizeof(a[0]))
 
@@ -38,11 +40,14 @@ static const char ballpos_scale_frac[BALLPOS_SCALE][4] = {
 	"875", "891", "906", "922", "938", "953", "969", "984",
 };
 
+static const tile_4bpp_t tile_zero = {0};
+
 inline static void MgbaPrintBallposFixpoint(char* var_name, int value) {
 	MgbaPrintf(MGBA_LOG_INFO, "%s: %d (%d.%s)", var_name, value, value / BALLPOS_SCALE, ballpos_scale_frac[abs(value % BALLPOS_SCALE)]);
 }
 
 // model
+static uint32_t score;
 static ucoords16_t ballpos;
 static coords8_t ballvelocity;
 
@@ -67,6 +72,12 @@ static const unsigned brick_halfheight = 6 * BALLPOS_SCALE;
 static shadow_oam_id_t spriteid_ball;
 static shadow_oam_id_t spriteid_paddle;
 static shadow_oam_id_t spriteid_bricks[64];
+static window_id_t score_window;
+
+__attribute__((section(".sbss")))
+static bg_tile_t zero_tile_ref;
+
+static tile_4bpp_t score_window_shadow_tiles[2 * 6];
 
 static uint8_t paddle_skin;
 static const struct shadow_oam_template* paddle_skins[] = {
@@ -114,24 +125,107 @@ inline static bool ball_hit_brick_collision(ucoords16_t ballpos, coords8_t ballv
 //
 static void MainCB_brickBreak_main(void);
 
-void MainCB_brickBreak_init(void) {
-	shadow_oam_free_all();
+static const struct shadow_vram_init brick_break_reg = (struct shadow_vram_init) {
+	.enable_bg = {true, false, false, true},
+	.enable_obj = true,
+	.bgcnt = {
+		[0] = {
+			.priority = 3,
+			.charblock = 0,
+			.screenblock = 31,
+		},
+		[3] = {
+			.priority = 0,
+			.charblock = 0,
+			.screenblock = 30,
+		}
+	}
+};
 
+static const palette16_t text_pal = {{0,31,16}, {31,31,31}, {16,16,16}, {0,0,0}};
+
+static const struct shadow_tiles_window_allocate score_window_template = (struct shadow_tiles_window_allocate) {
+	.bg = 3,
+	.palette = 15,
+	.x = 22,
+	.y = 2,
+	.width = 6,
+	.height = 2,
+};
+
+static void redraw_score_window() {
+	char scorestr[8];
+	snprintf(scorestr, 8, "%ld", score);
+	uint32_t zero = 0;
+	CpuFastSet(
+		&zero,
+		score_window_shadow_tiles,
+		(struct CpuFastSet){
+			.word_count = sizeof(score_window_shadow_tiles) / sizeof(uint32_t),
+			.mode = CPU_SET_FILL,
+		});
+
+	uint16_t text_x = 6*8 - 2 - text_width(
+		&breakout_set_font,
+		(coord16_t) {.x = 0, .y = 0},
+		scorestr);
+
+	text_print(
+		score_window_shadow_tiles,
+		&score_window_template,
+		&breakout_set_font,
+		(coord16_t) {.x = text_x, .y = 4},
+		(coord16_t) {.x = 0, .y = 0},
+		(font_colors_t) {0,1,2,3, true},
+		scorestr);
+
+	shadow_tiles_window_queue_tiles(score_window, score_window_shadow_tiles);
+
+}
+
+void MainCB_brickBreak_init(void) {
+	shadow_oam_init();
+	shadow_vram_init(&brick_break_reg);
+
+	score = 0;
 	paddle_skin = 0;
 	ball_stuck_to_paddle = true;
 	paddle_x = 80;
 	ballpos = (ucoords16_t){.x = paddle_x * BALLPOS_SCALE, .y = paddle_y * BALLPOS_SCALE};
 	ballvelocity = (coords8_t){.x = BALLPOS_SCALE, .y = -BALLPOS_SCALE};
 
-	queue_load_scene_graphics(
+	shadow_tiles_load_background(
 		&brickbreak_background,
-		(struct load_scene_graphics){});
+		(struct shadow_tiles_load_background){.bg = 0});
 
-	reg_lcd.DISPCNT.enable_obj = true;
+	vram_op_queue_enqueue((struct vram_op) {
+		.type = VRAM_QUEUE_OP_BG_PALETTES,
+		.palettes = {
+			.from = &text_pal,
+			.to_palette = 15,
+			.count = 1,
+		},
+	});
+
+	zero_tile_ref = (bg_tile_t) {.tile = shadow_tiles_load_tileset(3, 1, &tile_zero)};
+
+	vram_op_queue_enqueue((struct vram_op) {
+		.type = VRAM_QUEUE_OP_BG_MAP_FILL,
+		.map_fill = {
+			.value = zero_tile_ref,
+			.to_block = 30,
+			.to_tile = 0,
+			.count = 32 * 20,
+		},
+	});
 
 	for (unsigned i = 0; i < arraycount(paddle_skins); i++) {
 		shadow_oam_preload_sprite(paddle_skins[i]);
 	}
+
+	score_window = shadow_tiles_window_allocate(&score_window_template);
+	shadow_tiles_window_queue_map(score_window);
+	redraw_score_window();
 
 	spriteid_ball = shadow_oam_add_sprite(
 		&breakout_set_ball_green,
@@ -218,6 +312,9 @@ static void MainCB_brickBreak_main(void) {
 			bool is_hit = ball_hit_brick_collision(ballpos, ballvelocity, bricks[i].pos);
 
 			if (is_hit) {
+				score += 100;
+				redraw_score_window();
+
 				if (! is_between_offset(ballpos.x, bricks[i].pos.x, brick_halfwidth)) {
 					ballvelocity.x = -ballvelocity.x;
 				}

@@ -191,20 +191,6 @@ $(GFX2OBJ): $(wildcard tools/gfx2obj/*.c) $(wildcard tools/gfx2obj/*.cpp) $(wild
 $(GFXC): $(wildcard tools/gfxc/*.c) $(wildcard tools/gfxc/*.cpp) $(wildcard tools/gfxc/**/*.cpp)
 	$(V)cd tools/gfxc && make
 
-generated_headers: $(BUILDSRCDIR)/brickbreak_background.png.h
-OBJS += $(BUILDOBJDIR)/brickbreak_background.png.o
-$(BUILDOBJDIR)/brickbreak_background.png.o $(BUILDSRCDIR)/brickbreak_background.png.h: $(GFX2OBJ) $(BUILDGRAPHICSDIR)/brickbreak_background.png.tilemap $(BUILDGRAPHICSDIR)/brickbreak_background.png.4bpp $(BUILDGRAPHICSDIR)/brickbreak_background.png.gbapal
-	@echo "  GFX2OBJ brickbreak_background.png"
-	@$(MKDIR) -p $(BUILDOBJDIR)
-	@$(MKDIR) -p $(BUILDSRCDIR)
-	$(V)$(GFX2OBJ) scene \
-		--out_object $(BUILDOBJDIR)/brickbreak_background.png.o \
-		--out_header $(BUILDSRCDIR)/brickbreak_background.png.h \
-		--in_palettes $(BUILDGRAPHICSDIR)/brickbreak_background.png.gbapal \
-		--in_tiles $(BUILDGRAPHICSDIR)/brickbreak_background.png.4bpp \
-		--in_map0 $(BUILDGRAPHICSDIR)/brickbreak_background.png.tilemap \
-		--variable_name brickbreak_background
-
 generated_headers: $(BUILDSRCDIR)/graphics.h
 OBJS += $(BUILDOBJDIR)/graphics.o
 $(BUILDOBJDIR)/graphics.o $(BUILDSRCDIR)/graphics.h: $(GFXC) $(SOURCES_PNG)

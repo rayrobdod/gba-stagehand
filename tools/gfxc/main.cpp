@@ -15,6 +15,8 @@
 #include "compression/huff.hpp"
 #include "compression/lz.hpp"
 #include "compression/rl.hpp"
+#include "background.hpp"
+#include "font.hpp"
 #include "image.hpp"
 #include "indexed_insert_only_set.hpp"
 #include "object.h"
@@ -22,25 +24,9 @@
 #include "resource_type.hpp"
 #include "sprite.hpp"
 #include "subword_output_iterator.hpp"
+#include "variable_name_for_image.hpp"
 
 static const unsigned FIRST_TAG = 0x1000;
-
-static std::string variable_name_for_image(std::pair<std::filesystem::path, bufferedimage> image) {
-	std::string retval;
-	auto manual = image.second.text().find(std::string("Variable"));
-	if (manual != image.second.text().end()) {
-		retval = manual->second;
-	} else {
-		std::filesystem::path p = image.first.parent_path();
-		for (auto segment : p) {
-			retval += segment;
-			retval += "_";
-		}
-		retval += image.first.stem().string();
-	}
-	std::replace(retval.begin(), retval.end(), '-', '_');
-	return retval;
-}
 
 struct choosable_compression {
 	std::string_view alg_name;
@@ -120,6 +106,22 @@ static choosen_compression choose_compression(std::string tiles_name, std::vecto
 	return retval;
 }
 
+uint16_t find_palette_superset(indexed_insert_only_set<std::vector<rgba16_t>> haystack, std::set<rgba16_t> needle) {
+	uint16_t retval;
+	for (retval = 0; retval < haystack.size(); ++retval) {
+		const std::vector<rgba16_t> check_pal = haystack[retval];
+
+		if (std::includes(check_pal.begin(), check_pal.end(), needle.begin(), needle.end())) {
+			break;
+		}
+	}
+	if (retval >= haystack.size()) {
+		std::string msg("Lost this sprite's palette");
+		throw std::logic_error(msg);
+	}
+	return retval;
+}
+
 int main(int argc, char* argv[]) {
 	if (argc < 4) {
 		printf("TODO \n");
@@ -133,8 +135,9 @@ int main(int argc, char* argv[]) {
 	std::map<std::filesystem::path, struct bufferedimage> sprite_imgs;
 	std::map<std::filesystem::path, struct bufferedimage> tileset_imgs;
 	std::map<std::filesystem::path, struct bufferedimage> monochrome_tileset_imgs;
-	std::map<std::filesystem::path, struct bufferedimage> scene_imgs;
-	std::map<std::filesystem::path, struct bufferedimage> scene_mode3_imgs;
+	std::map<std::filesystem::path, struct bufferedimage> background_imgs;
+	std::map<std::filesystem::path, struct bufferedimage> background_mode3_imgs;
+	std::map<std::filesystem::path, struct bufferedimage> font_imgs;
 
 	for (auto const& dir_entry : std::filesystem::recursive_directory_iterator{srcdir}) {
 		if (dir_entry.is_regular_file() && dir_entry.path().extension() == ".png") {
@@ -148,17 +151,20 @@ int main(int argc, char* argv[]) {
 				case TYPE_SPRITE:
 					sprite_imgs.insert(nameImage);
 					break;
+				case TYPE_FONT:
+					font_imgs.insert(nameImage);
+					break;
 				case TYPE_TILESET:
 					tileset_imgs.insert(nameImage);
 					break;
 				case TYPE_TILESET_MONOCHROME:
 					monochrome_tileset_imgs.insert(nameImage);
 					break;
-				case TYPE_SCENE:
-					scene_imgs.insert(nameImage);
+				case TYPE_BACKGROUND:
+					background_imgs.insert(nameImage);
 					break;
-				case TYPE_SCENE_MODE3:
-					scene_mode3_imgs.insert(nameImage);
+				case TYPE_BACKGROUND_MODE3:
+					background_mode3_imgs.insert(nameImage);
 					break;
 				}
 			} catch (const std::exception& e) {
@@ -194,6 +200,18 @@ int main(int argc, char* argv[]) {
 			single_palettes_0.insert(new_pal);
 		}
 
+		for (auto const& image : background_imgs) {
+			std::set<rgba16_t> new_pal;
+			new_pal.insert(image.second.background().with_alpha(0));
+			new_pal.merge(image.second.palette());
+			if (new_pal.size() > 16) {
+				std::string msg(image.first.string());
+				msg += ": palette larger than 16 colors";
+				throw std::logic_error(msg);
+			}
+			single_palettes_0.insert(new_pal);
+		}
+
 		// TODO: more palette deduplication
 		// E.g. finding subsets
 
@@ -207,19 +225,7 @@ int main(int argc, char* argv[]) {
 	std::vector<sprite> sprites;
 
 	for (auto const& image : sprite_imgs) {
-		const std::set<rgba16_t> innate_pal = image.second.palette();
-		uint16_t paltag;
-		for (paltag = 0; paltag < single_palettes.size(); ++paltag) {
-			const std::vector<rgba16_t> check_pal = single_palettes[paltag];
-
-			if (std::includes(check_pal.begin(), check_pal.end(), innate_pal.begin(), innate_pal.end())) {
-				break;
-			}
-		}
-		if (paltag >= single_palettes.size()) {
-			std::string msg("Lost this sprite's palette");
-			throw std::logic_error(msg);
-		}
+		uint16_t paltag = find_palette_superset(single_palettes, image.second.palette());
 		const std::vector<rgba16_t> used_pal = single_palettes[paltag];
 		paltag += FIRST_TAG;
 
@@ -252,8 +258,59 @@ int main(int argc, char* argv[]) {
 		}
 	}
 
+	std::vector<background> backgrounds;
+	for (auto const& image : background_imgs) {
+		uint16_t paltag = find_palette_superset(single_palettes, image.second.palette());
+		const std::vector<rgba16_t> used_pal = single_palettes[paltag];
+		paltag += FIRST_TAG;
+
+		std::vector<std::vector<uint8_t>> tileset;
+		std::vector<bg_tile_t> tilemap;
+
+		for (auto subimg : image.second.subs(8, 8)) {
+			subword_output_iterator<uint8_t, uint4_t, DIRECTION_INC> tile1_builder;
+			for (auto pixel : subimg.pixels()) {
+				auto palptr = std::find(used_pal.begin(), used_pal.end(), pixel);
+				uint4_t palindex(palptr - used_pal.begin());
+
+				*tile1_builder = palindex;
+				++tile1_builder;
+			}
+			std::vector<uint8_t> tile1(tile1_builder.result());
+
+			unsigned i;
+			for (i = 0; i < tileset.size(); i++) {
+				if (tile1 == tileset[i]) {
+					tilemap.push_back(bg_tile_t(i));
+					break;
+				}
+			}
+			if (i >= tileset.size()) {
+				tileset.push_back(tile1);
+				tilemap.push_back(bg_tile_t(i));
+			}
+		}
+
+		std::vector<uint8_t> tileset_flat;
+		for (auto tile1 : tileset) {
+			for (auto item : tile1) {
+				tileset_flat.push_back(item);
+			}
+		}
+
+		std::string name = variable_name_for_image(image);
+
+		backgrounds.push_back({name, paltag, tileset_flat, tilemap});
+	}
+
+	std::vector<font> fonts;
+	for (auto const& image : font_imgs) {
+		fonts.emplace_back(image);
+	}
+
 	struct Object* elf = object_start(objfile.c_str());
 	std::ofstream headerstream(headerfile);
+	headerstream << "#include \"gba/palette.h\"" << std::endl;
 
 	for (auto pal0 = single_palettes.cbegin(); pal0 != single_palettes.cend(); ++pal0) {
 		size_t i = pal0 - single_palettes.cbegin();
@@ -276,6 +333,11 @@ int main(int argc, char* argv[]) {
 		}
 
 		object_push_bytes_section(elf, compressed.data.data(), sizeof(uint8_t) * compressed.data.size(), {tiles_name, STB_LOCAL});
+	}
+
+	font::write_struct(headerstream);
+	for (font font : fonts) {
+		font.write(headerstream, elf);
 	}
 
 	for (sprite sprite : sprites) {
@@ -307,6 +369,55 @@ int main(int argc, char* argv[]) {
 		push_relocation_section(elf, sprite.var_name.c_str(), relocs.data(), relocs.size());
 
 		headerstream << "extern const struct shadow_oam_template " << sprite.var_name << ";" << std::endl;
+	}
+
+	headerstream << std::endl
+		<< "struct background {" << std::endl
+		<< "	const palette16_t* palette;" << std::endl
+		<< "	const tile_4bpp_t* tileset;" << std::endl
+		<< "	const bg_tile_t* tilemap;" << std::endl
+		<< "	const uint16_t tileset_count;" << std::endl
+		<< "	const uint16_t tilemap_count;" << std::endl
+		<< "};" << std::endl;
+	for (auto const& background : backgrounds) {
+		std::array<uint32_t, 4> serialized = {
+			0,
+			0,
+			0,
+			static_cast<uint32_t>((background.tileset.size() / 32) | ((background.tilemap.size()) << 16)),
+		};
+
+		char pal_name[16];
+		snprintf(pal_name, 16, "plte.%x", background.paltag);
+		char tileset_name[32];
+		snprintf(tileset_name, 32, "%s.tileset", background.var_name.c_str());
+		char tilemap_name[32];
+		snprintf(tilemap_name, 32, "%s.tilemap", background.var_name.c_str());
+
+		std::array<relocation_template, 3> relocs;
+		relocs[0] = (struct relocation_template){
+			.offset = 0,
+			.type = R_ARM_ABS32,
+			.symbol_name = pal_name,
+		};
+		relocs[1] = (struct relocation_template){
+			.offset = 4,
+			.type = R_ARM_ABS32,
+			.symbol_name = tileset_name,
+		};
+		relocs[2] = (struct relocation_template){
+			.offset = 8,
+			.type = R_ARM_ABS32,
+			.symbol_name = tilemap_name,
+		};
+
+		object_push_bytes_section(elf, background.tileset.data(), sizeof(uint8_t) * background.tileset.size(), {tileset_name, STB_LOCAL});
+		object_push_bytes_section(elf, background.tilemap.data(), sizeof(bg_tile_t) * background.tilemap.size(), {tilemap_name, STB_LOCAL});
+
+		object_push_bytes_section(elf, serialized.data(), sizeof(uint32_t) * serialized.size(), {background.var_name.c_str(), STB_GLOBAL});
+		push_relocation_section(elf, background.var_name.c_str(), relocs.data(), relocs.size());
+
+		headerstream << "extern struct background " << background.var_name << ";" << std::endl;
 	}
 
 	for (auto const& image : tileset_imgs) {
@@ -398,12 +509,12 @@ int main(int argc, char* argv[]) {
 		headerstream << "extern const struct {uint16_t size; uint16_t unit_width; char data[];} " << name << ";" << std::endl;
 	}
 
-	for (auto const& image : scene_mode3_imgs) {
+	for (auto const& image : background_mode3_imgs) {
 		std::string name = variable_name_for_image(image);
 
 		if (image.second.width() != 240 || image.second.height() != 160) {
 			std::string msg(image.first.string());
-			msg += ": mode3 scene does not have expected dimensions";
+			msg += ": mode3 background does not have expected dimensions";
 			throw std::logic_error(msg);
 		}
 

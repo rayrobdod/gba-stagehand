@@ -62,7 +62,7 @@ void queue_load_scene_graphics(
 		.obj_character_mapping = OBJ_CHAR_MAP_1D,
 	};
 
-	reg_lcd.BG0CNT = data->bg0.cnt;
+	reg_lcd.BGCNT[0] = data->bg0.cnt;
 	reg_lcd.BG0HOFS = 0;
 	reg_lcd.BG0VOFS = 0;
 

@@ -134,7 +134,11 @@ image_pixel_iterator image_pixel_range::begin() const {
 }
 
 image_pixel_iterator image_pixel_range::end() const {
-	return image_pixel_iterator(_backing, 0, _backing->height());
+	if (_backing->width() == 0) {
+		return image_pixel_iterator(_backing, 0, 0);
+	} else {
+		return image_pixel_iterator(_backing, 0, _backing->height());
+	}
 }
 
 ////

@@ -2,6 +2,7 @@
 #define VRAM_OP_QUEUE_H
 
 #include "gba/bios.h"
+#include "gba/hw_reg.h"
 #include "gba/oam.h"
 #include "gba/palette.h"
 #include "gba/vram.h"
@@ -19,6 +20,10 @@ enum vram_queue_op_type {
 	VRAM_QUEUE_OP_BG_TILES_BITUNPACK,
 	/** .map */
 	VRAM_QUEUE_OP_BG_MAP,
+	/** .map_free ; becomes the owner of `.from` and will free `.from` */
+	VRAM_QUEUE_OP_BG_MAP_FREE,
+	/** .map_fill */
+	VRAM_QUEUE_OP_BG_MAP_FILL,
 	/** .palettes */
 	VRAM_QUEUE_OP_OAM_PALETTES,
 	/** .tiles */
@@ -29,6 +34,10 @@ enum vram_queue_op_type {
 	VRAM_QUEUE_OP_OAM_TILES_COMPRESSED,
 	/** .oam */
 	VRAM_QUEUE_OP_OAM_ENTRY,
+	/** .dispcnt */
+	VRAM_QUEUE_OP_HWREG_DISPCNT,
+	/** .bgcnt */
+	VRAM_QUEUE_OP_HWREG_BGCNT,
 };
 
 struct vram_op {
@@ -63,9 +72,28 @@ struct vram_op {
 			uint16_t count;
 		} map;
 		struct {
+			bg_tile_t* from;
+			uint16_t to_block;
+			uint16_t to_tile;
+			uint16_t count;
+		} map_free;
+		struct {
+			bg_tile_t value;
+			uint16_t to_block;
+			uint16_t to_tile;
+			uint16_t count;
+		} map_fill;
+		struct {
 			oam_t value;
 			uint16_t to_index;
 		} oam;
+		struct {
+			dispcnt_t value;
+		} dispcnt;
+		struct {
+			bgcnt_t value;
+			uint16_t to_index;
+		} bgcnt;
 	};
 };
 

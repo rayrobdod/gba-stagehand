@@ -192,7 +192,7 @@ static shadow_oam_palid_t shadow_oam_add_palette(
 	for (pal_index = 0; pal_index < arraycount(shadow_palette); pal_index++) {
 		if (0 != shadow_palette[pal_index].refcount && paltag == shadow_palette[pal_index].tag) {
 			shadow_palette[pal_index].refcount += 1;
-			MgbaPrintf(MGBA_LOG_INFO, "  pal_index = %d", pal_index);
+			MgbaPrintf(MGBA_LOG_DEBUG, "  pal_index = %d", pal_index);
 			return pal_index;
 		}
 	}
@@ -208,7 +208,7 @@ static shadow_oam_palid_t shadow_oam_add_palette(
 					.count = 1,
 				}});
 
-			MgbaPrintf(MGBA_LOG_INFO, "  pal_index = %d", pal_index);
+			MgbaPrintf(MGBA_LOG_DEBUG, "  pal_index = %d", pal_index);
 			return pal_index;
 		}
 	}
@@ -231,8 +231,8 @@ static shadow_oam_tileid_t shadow_oam_add_tiles(
 			shadow_tiles[shadow_tile_index].refcount += 1;
 			tile_index = shadow_tiles[shadow_tile_index].tile_start;
 
-			MgbaPrintf(MGBA_LOG_INFO, "  tile_index = %d", tile_index);
-			MgbaPrintf(MGBA_LOG_INFO, "  shadow_tile_index = %d", shadow_tile_index);
+			MgbaPrintf(MGBA_LOG_DEBUG, "  tile_index = %d", tile_index);
+			MgbaPrintf(MGBA_LOG_DEBUG, "  shadow_tile_index = %d", shadow_tile_index);
 			return shadow_tile_index;
 		}
 	}
@@ -258,8 +258,8 @@ static shadow_oam_tileid_t shadow_oam_add_tiles(
 					.to_tile = tile_index,
 				}});
 
-			MgbaPrintf(MGBA_LOG_INFO, "  tile_index = %d", tile_index);
-			MgbaPrintf(MGBA_LOG_INFO, "  shadow_tile_index = %d", shadow_tile_index);
+			MgbaPrintf(MGBA_LOG_DEBUG, "  tile_index = %d", tile_index);
+			MgbaPrintf(MGBA_LOG_DEBUG, "  shadow_tile_index = %d", shadow_tile_index);
 			return shadow_tile_index;
 		}
 	}
@@ -288,7 +288,7 @@ void shadow_oam_preload_sprite(
 shadow_oam_id_t shadow_oam_add_sprite(
 	const struct shadow_oam_template* template,
 	const struct shadow_oam_position position) {
-	MgbaPrintf(MGBA_LOG_INFO, "ENTER shadow_oam_add_sprite");
+	MgbaPrintf(MGBA_LOG_DEBUG, "ENTER shadow_oam_add_sprite");
 
 	shadow_oam_palid_t pal_index =
 		shadow_oam_add_palette(template->paltag, template->palette);
@@ -319,7 +319,7 @@ shadow_oam_id_t shadow_oam_add_sprite(
 	}
 
 	if (shadow_oam_index >= arraycount(shadow_oam)) {
-		MgbaPrintf(MGBA_LOG_INFO, "  shadow oams exhausted");
+		MgbaPrintf(MGBA_LOG_ERROR, "  shadow oams exhausted");
 		shadow_oam_index = shadow_id_invalid;
 	}
 

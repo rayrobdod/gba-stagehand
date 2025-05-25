@@ -2,10 +2,11 @@
 
 enum type {
 	TYPE_SPRITE,
+	TYPE_FONT,
 	TYPE_TILESET,
 	TYPE_TILESET_MONOCHROME,
-	TYPE_SCENE,
-	TYPE_SCENE_MODE3,
+	TYPE_BACKGROUND,
+	TYPE_BACKGROUND_MODE3,
 };
 
 std::ostream& operator<<(std::ostream& os, enum type typ);
