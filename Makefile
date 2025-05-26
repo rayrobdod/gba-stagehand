@@ -183,10 +183,10 @@ $(BUILDGRAPHICSDIR)/%.png.tilemap : $(GRAPHICSDIR)/%.png $(BUILDGRAPHICSDIR)/%.p
 .PHONY: all clean dump sym generated_headers
 
 $(GBAFIX): $(wildcard tools/gbafix/*.c)
-	$(V)cd tools/gbafix && make
+	$(V)cd tools/gbafix && $(MAKE)
 
 $(GFXC): $(wildcard tools/gfxc/*.c) $(wildcard tools/gfxc/*.cpp) $(wildcard tools/gfxc/**/*.cpp)
-	$(V)cd tools/gfxc && make
+	$(V)cd tools/gfxc && $(MAKE)
 
 generated_headers: $(BUILDSRCDIR)/graphics.h
 OBJS += $(BUILDOBJDIR)/graphics.o
@@ -221,8 +221,8 @@ sym: $(SYM)
 clean:
 	@echo "  CLEAN"
 	$(V)$(RM) $(ROM) $(ELF) $(DUMP) $(SYM) $(MAP) $(BUILDDIR)
-	$(V)cd tools/gbafix && make clean
-	$(V)cd tools/gfxc && make clean
+	$(V)cd tools/gbafix && $(MAKE) clean
+	$(V)cd tools/gfxc && $(MAKE) clean
 
 generated_headers:
 	@:
