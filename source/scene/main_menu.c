@@ -8,6 +8,7 @@
 #include "management/shadow_oam.h"
 #include "management/vram_op_queue.h"
 #include "scene/brick_break.h"
+#include "scene/gradient.h"
 #include "scene/mode3.h"
 #include "scene/text_print_profile.h"
 #include "graphics.h"
@@ -105,7 +106,8 @@ void MainCB_mainMenu_init(void) {
 		print_to_tilemap(tilemap_buffer, 3, 2, "Brick Break");
 		print_to_tilemap(tilemap_buffer, 3, 3, "Mode 3");
 		print_to_tilemap(tilemap_buffer, 3, 4, "Text Print Profile");
-		print_to_tilemap(tilemap_buffer, 3, 5, "Option 4");
+		print_to_tilemap(tilemap_buffer, 3, 5, "Gradient");
+		print_to_tilemap(tilemap_buffer, 3, 6, "Option 4");
 
 		MgbaPrintf(MGBA_LOG_DEBUG, "sizeof(struct vram_op) = %d", sizeof(struct vram_op));
 
@@ -136,6 +138,9 @@ static void MainCB_mainMenu_main(void) {
 			break;
 		case 2:
 			scene_onframe_callback = &MainCB_textPrintProfile_init;
+			break;
+		case 3:
+			scene_onframe_callback = &MainCB_gradient_init;
 			break;
 		default:
 			scene_onframe_callback = &MainCB_brickBreak_init;

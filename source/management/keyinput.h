@@ -16,7 +16,7 @@ keypad_t keyinput_get_new(void);
  * Gets the buttons that are pressed this frame
  * @note like the hw_regs, `true` means not pressed
  */
-keypad_t keyinput_get_pressed(void);
+keypad_t keyinput_get_down(void);
 
 int keyinput_horizontal_new(void);
 int keyinput_horizontal_pressed(void);
