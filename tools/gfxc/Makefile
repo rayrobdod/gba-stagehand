@@ -57,7 +57,6 @@ LDFLAGS += $(LIBS)
 # Intermediates
 
 OBJS	:= \
-	$(BUILDOBJDIR)/object.cpp.o \
 	$(patsubst %.c,$(BUILDOBJDIR)/%.c.o,$(SRCS_C)) \
 	$(patsubst %.cpp,$(BUILDOBJDIR)/%.cpp.o,$(SRCS_CPP)) \
 
@@ -110,11 +109,6 @@ $(TEST_RUNNER_DIR)/% : $(TEST_OBJ_DIR)/%.cpp.o $(TEST_OBJ_DIR)/_shared.cpp.o
 .PHONY: all check clean
 
 all: $(NAME)
-
-$(BUILDOBJDIR)/object.cpp.o : ../gfx2obj/object.cpp
-	@echo "  HOSTCXX $<"
-	@$(MKDIR) -p $(@D)
-	$(V)$(CXX) $(CFLAGS) -MMD -MP -c -o $@ $<
 
 $(NAME): $(OBJS)
 	@echo "  HOSTLD  $@"

@@ -5,7 +5,6 @@
 #include <string.h>
 #include "gba/screen.h"
 #include "management/keyinput.h"
-#include "management/scene_graphics.h"
 #include "management/shadow_oam.h"
 #include "management/vram_op_queue.h"
 #include "scene/brick_break.h"

@@ -7,7 +7,6 @@
 #include "gba/bios.h"
 #include "gba/screen.h"
 #include "management/keyinput.h"
-#include "management/scene_graphics.h"
 #include "management/shadow_oam.h"
 #include "management/shadow_vram.h"
 #include "management/vram_op_queue.h"
