@@ -23,8 +23,32 @@ static uint8_t selection = 0;
 static uint8_t arrow_wiggle_timer = 0xFF;
 static shadow_oam_id_t spriteid_arrow = 0;
 
+#define arraycount(a) (sizeof(a) / sizeof(a[0]))
+
 //
 static const unsigned TILEMAP_BUFFER_COUNT = 32 * 20;
+
+static const struct {
+	char* label;
+	MainCallback cb;
+} menu_options[] = {
+	{
+		.label = "Brick Break",
+		.cb = &MainCB_brickBreak_init,
+	},
+	{
+		.label = "Mode 3",
+		.cb = &MainCB_mode3_init,
+	},
+	{
+		.label = "Text Print Profile",
+		.cb = &MainCB_textPrintProfile_init,
+	},
+	{
+		.label = "Gradient",
+		.cb = &MainCB_gradient_init,
+	},
+};
 
 //
 static void MainCB_mainMenu_main(void);
@@ -103,11 +127,11 @@ void MainCB_mainMenu_init(void) {
 			tilemap_buffer[i] = (bg_tile_t) {' '};
 		}
 
-		print_to_tilemap(tilemap_buffer, 3, 2, "Brick Break");
-		print_to_tilemap(tilemap_buffer, 3, 3, "Mode 3");
-		print_to_tilemap(tilemap_buffer, 3, 4, "Text Print Profile");
-		print_to_tilemap(tilemap_buffer, 3, 5, "Gradient");
-		print_to_tilemap(tilemap_buffer, 3, 6, "Option 4");
+		for (int i = 0; i < arraycount(menu_options); i++) {
+			if (menu_options[i].label) {
+				print_to_tilemap(tilemap_buffer, 3, i + 2, menu_options[i].label);
+			}
+		}
 
 		MgbaPrintf(MGBA_LOG_DEBUG, "sizeof(struct vram_op) = %d", sizeof(struct vram_op));
 
@@ -132,19 +156,10 @@ static void MainCB_mainMenu_main(void) {
 	if (! keyinput_get_new().a) {
 		shadow_oam_free_all();
 
-		switch (selection) {
-		case 1:
-			scene_onframe_callback = &MainCB_mode3_init;
-			break;
-		case 2:
-			scene_onframe_callback = &MainCB_textPrintProfile_init;
-			break;
-		case 3:
-			scene_onframe_callback = &MainCB_gradient_init;
-			break;
-		default:
-			scene_onframe_callback = &MainCB_brickBreak_init;
-			break;
+		if (selection < arraycount(menu_options)) {
+			if (menu_options[selection].cb) {
+				scene_onframe_callback = menu_options[selection].cb;
+			}
 		}
 	}
 
