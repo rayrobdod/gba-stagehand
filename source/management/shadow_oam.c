@@ -5,6 +5,7 @@
 #include "gba/palette.h"
 #include "gba/vram.h"
 #include "utils/arraycount.h"
+#include "graphics.h"
 #include "mgba.h"
 #include "vram_op_queue.h"
 
@@ -99,15 +100,6 @@ static const struct {
 	[HOTSPOT_BOTTOMRIGHT] = {.x = 2, .y = 2},
 };
 
-
-struct shadow_oam_template {
-	const palette16_t* palette;
-	const char* tiles;
-	paltag_t paltag;
-	tiletag_t tiletag;
-	enum oam_shape shape: 2;
-	uint8_t size : 2;
-};
 
 __attribute__((section(".sbss.shadow_oam.palette")))
 static struct shadow_palette {

@@ -33,7 +33,7 @@ TEST_RUNNER_DIR	:= build/test/exe
 # Source files
 
 SRCS_C	:= $(wildcard *.c)
-SRCS_CPP	:= $(wildcard *.cpp) $(wildcard compression/*.cpp)
+SRCS_CPP	:= $(wildcard *.cpp) $(wildcard compression/*.cpp) $(wildcard resource_type/*.cpp)
 SRCS_TEST_C	:= $(wildcard test/*.c)
 SRCS_TEST_CPP	:= $(wildcard test/*.cpp)
 

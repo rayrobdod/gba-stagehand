@@ -1,6 +1,9 @@
 #include <cstdint>
+#include <filesystem>
 #include <ostream>
 #include <string>
+#include "image.hpp"
+#include "object.h"
 
 enum sprite_size {
 	SIZE_8x8 = 0,
@@ -25,4 +28,8 @@ struct sprite {
 	uint16_t paltag;
 	uint16_t tiletag;
 	enum sprite_size size;
+
+	void write(std::ostream& headerstream, struct Object* elf) const;
+
+	static void write_struct(std::ostream& headerstream);
 };

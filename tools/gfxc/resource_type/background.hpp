@@ -1,6 +1,9 @@
 #include <cstdint>
+#include <filesystem>
 #include <string>
 #include <vector>
+#include "image.hpp"
+#include "object.h"
 
 struct bg_tile_t {
 	uint16_t tile : 10;
@@ -16,4 +19,8 @@ struct background {
 	uint16_t paltag;
 	std::vector<uint8_t> tileset;
 	std::vector<bg_tile_t> tilemap;
+
+	void write(std::ostream& headerstream, struct Object* elf) const;
+
+	static void write_struct(std::ostream& headerstream);
 };

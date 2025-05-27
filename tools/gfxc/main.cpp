@@ -15,14 +15,14 @@
 #include "compression/huff.hpp"
 #include "compression/lz.hpp"
 #include "compression/rl.hpp"
-#include "background.hpp"
-#include "font.hpp"
+#include "resource_type/background.hpp"
+#include "resource_type/font.hpp"
+#include "resource_type/sprite.hpp"
 #include "image.hpp"
 #include "indexed_insert_only_set.hpp"
 #include "object.h"
 #include "png_deserialize.hpp"
 #include "resource_type.hpp"
-#include "sprite.hpp"
 #include "subword_output_iterator.hpp"
 #include "variable_name_for_image.hpp"
 
@@ -311,6 +311,7 @@ int main(int argc, char* argv[]) {
 	struct Object* elf = object_start(objfile.c_str());
 	std::ofstream headerstream(headerfile);
 	headerstream << "#include \"gba/palette.h\"" << std::endl;
+	headerstream << "#include \"gba/oam.h\"" << std::endl;
 
 	for (auto pal0 = single_palettes.cbegin(); pal0 != single_palettes.cend(); ++pal0) {
 		size_t i = pal0 - single_palettes.cbegin();
@@ -340,84 +341,14 @@ int main(int argc, char* argv[]) {
 		font.write(headerstream, elf);
 	}
 
+	sprite::write_struct(headerstream);
 	for (sprite sprite : sprites) {
-		std::array<uint32_t, 4> serialized = {
-			0,
-			0,
-			static_cast<uint32_t>(sprite.paltag | (sprite.tiletag << 16)),
-			sprite.size,
-		};
-
-		char pal_name[16];
-		snprintf(pal_name, 16, "plte.%x", sprite.paltag);
-		char tiles_name[16];
-		snprintf(tiles_name, 16, "tile.%x", sprite.tiletag);
-
-		std::array<relocation_template, 2> relocs;
-		relocs[0] = (struct relocation_template){
-			.offset = 0,
-			.type = R_ARM_ABS32,
-			.symbol_name = pal_name,
-		};
-		relocs[1] = (struct relocation_template){
-			.offset = 4,
-			.type = R_ARM_ABS32,
-			.symbol_name = tiles_name,
-		};
-
-		object_push_bytes_section(elf, serialized.data(), sizeof(uint32_t) * serialized.size(), {sprite.var_name.c_str(), STB_GLOBAL});
-		push_relocation_section(elf, sprite.var_name.c_str(), relocs.data(), relocs.size());
-
-		headerstream << "extern const struct shadow_oam_template " << sprite.var_name << ";" << std::endl;
+		sprite.write(headerstream, elf);
 	}
 
-	headerstream << std::endl
-		<< "struct background {" << std::endl
-		<< "	const palette16_t* palette;" << std::endl
-		<< "	const tile_4bpp_t* tileset;" << std::endl
-		<< "	const bg_tile_t* tilemap;" << std::endl
-		<< "	const uint16_t tileset_count;" << std::endl
-		<< "	const uint16_t tilemap_count;" << std::endl
-		<< "};" << std::endl;
+	background::write_struct(headerstream);
 	for (auto const& background : backgrounds) {
-		std::array<uint32_t, 4> serialized = {
-			0,
-			0,
-			0,
-			static_cast<uint32_t>((background.tileset.size() / 32) | ((background.tilemap.size()) << 16)),
-		};
-
-		char pal_name[16];
-		snprintf(pal_name, 16, "plte.%x", background.paltag);
-		char tileset_name[32];
-		snprintf(tileset_name, 32, "%s.tileset", background.var_name.c_str());
-		char tilemap_name[32];
-		snprintf(tilemap_name, 32, "%s.tilemap", background.var_name.c_str());
-
-		std::array<relocation_template, 3> relocs;
-		relocs[0] = (struct relocation_template){
-			.offset = 0,
-			.type = R_ARM_ABS32,
-			.symbol_name = pal_name,
-		};
-		relocs[1] = (struct relocation_template){
-			.offset = 4,
-			.type = R_ARM_ABS32,
-			.symbol_name = tileset_name,
-		};
-		relocs[2] = (struct relocation_template){
-			.offset = 8,
-			.type = R_ARM_ABS32,
-			.symbol_name = tilemap_name,
-		};
-
-		object_push_bytes_section(elf, background.tileset.data(), sizeof(uint8_t) * background.tileset.size(), {tileset_name, STB_LOCAL});
-		object_push_bytes_section(elf, background.tilemap.data(), sizeof(bg_tile_t) * background.tilemap.size(), {tilemap_name, STB_LOCAL});
-
-		object_push_bytes_section(elf, serialized.data(), sizeof(uint32_t) * serialized.size(), {background.var_name.c_str(), STB_GLOBAL});
-		push_relocation_section(elf, background.var_name.c_str(), relocs.data(), relocs.size());
-
-		headerstream << "extern struct background " << background.var_name << ";" << std::endl;
+		background.write(headerstream, elf);
 	}
 
 	for (auto const& image : tileset_imgs) {
@@ -485,6 +416,12 @@ int main(int argc, char* argv[]) {
 		headerstream << "extern const struct tileset_graphics " << name << ";" << std::endl;
 	}
 
+	headerstream << std::endl
+		<< "struct bitpacked_tileset {" << std::endl
+		<< "	uint16_t size;" << std::endl
+		<< "	uint16_t unit_width;" << std::endl
+		<< "	char data[];" << std::endl
+		<< "};" << std::endl;
 	for (auto const& image : monochrome_tileset_imgs) {
 		std::string name = variable_name_for_image(image);
 
@@ -506,9 +443,10 @@ int main(int argc, char* argv[]) {
 
 		object_push_bytes_section(elf, tiledata.data(), sizeof(uint8_t) * tiledata.size(), {name.c_str(), STB_GLOBAL});
 
-		headerstream << "extern const struct {uint16_t size; uint16_t unit_width; char data[];} " << name << ";" << std::endl;
+		headerstream << "extern const struct bitpacked_tileset " << name << ";" << std::endl;
 	}
 
+	headerstream << std::endl;
 	for (auto const& image : background_mode3_imgs) {
 		std::string name = variable_name_for_image(image);
 

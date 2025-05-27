@@ -98,7 +98,7 @@ void MainCB_mainMenu_init(void) {
 			' ',
 			{
 				.src_length = oldschool.size,
-				.src_bitsize = 1,
+				.src_bitsize = oldschool.unit_width,
 				.dest_bitsize = 4,
 			}
 		}

@@ -4,8 +4,6 @@
 #include <stdbool.h>
 #include <stdint.h>
 
-typedef uint16_t paltag_t;
-typedef uint16_t tiletag_t;
 typedef uint8_t shadow_oam_id_t;
 
 enum hotspot {
