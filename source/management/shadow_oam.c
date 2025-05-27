@@ -4,10 +4,10 @@
 #include "gba/oam.h"
 #include "gba/palette.h"
 #include "gba/vram.h"
+#include "utils/arraycount.h"
 #include "mgba.h"
 #include "vram_op_queue.h"
 
-#define arraycount(a) (sizeof(a) / sizeof(a[0]))
 typedef int8_t shadow_oam_palid_t;
 typedef int8_t shadow_oam_tileid_t;
 
@@ -134,8 +134,6 @@ static struct shadow_oam {
 	uint8_t shadow_tile_index;
 	const struct shadow_oam_template* template;
 } shadow_oam[128] = {0};
-
-#define arraycount(a) (sizeof(a) / sizeof(a[0]))
 
 void shadow_oam_init(void) {
 	shadow_oam_free_all();

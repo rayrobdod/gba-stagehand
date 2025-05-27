@@ -11,10 +11,11 @@
 #include "scene/gradient.h"
 #include "scene/mode3.h"
 #include "scene/text_print_profile.h"
+#include "utils/arraycount.h"
+#include "utils/saturating_add.h"
 #include "graphics.h"
 #include "main.h"
 #include "mgba.h"
-#include "saturating_add.h"
 
 // model
 static uint8_t selection = 0;
@@ -22,8 +23,6 @@ static uint8_t selection = 0;
 // viewmodel
 static uint8_t arrow_wiggle_timer = 0xFF;
 static shadow_oam_id_t spriteid_arrow = 0;
-
-#define arraycount(a) (sizeof(a) / sizeof(a[0]))
 
 //
 static const unsigned TILEMAP_BUFFER_COUNT = 32 * 20;

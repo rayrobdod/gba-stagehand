@@ -4,15 +4,14 @@
 #include "gba/bios.h"
 #include "gba/hw_reg.h"
 #include "gba/vram.h"
+#include "utils/arraycount.h"
+#include "utils/minmax.h"
 #include "mgba.h"
 #include "vram_op_queue.h"
 #include "graphics.h"
 
 // The main thing I want is to have "windows" that I can print text to
 // without having to predetermine where in VRAM the needed tiles are.
-
-#define arraycount(a) (sizeof(a) / sizeof(a[0]))
-#define min(a,b) (a < b ? a : b)
 
 static const unsigned TILES_PER_SCREENBLOCK = sizeof(screenblock_t) / sizeof(tile_4bpp_t);
 static const unsigned TILES_PER_CHARBLOCK = sizeof(charblock_t) / sizeof(tile_4bpp_t);

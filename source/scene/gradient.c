@@ -9,10 +9,9 @@
 #include "management/isr.h"
 #include "management/keyinput.h"
 #include "scene/main_menu.h"
+#include "utils/minmax.h"
 #include "main.h"
 
-#define min(a, b) (a < b ? a : b)
-#define max(a, b) (a > b ? a : b)
 static void MainCB_gradient_main(void);
 static void MainCB_gradient_clean(void);
 

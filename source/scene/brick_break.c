@@ -10,13 +10,13 @@
 #include "management/shadow_oam.h"
 #include "management/shadow_vram.h"
 #include "management/vram_op_queue.h"
+#include "utils/arraycount.h"
+#include "utils/saturating_add.h"
 #include "graphics.h"
 #include "main.h"
 #include "mgba.h"
-#include "saturating_add.h"
 #include "text_printer.h"
 
-#define arraycount(a) (sizeof(a) / sizeof(a[0]))
 
 enum {
 	BALLPOS_SCALE = 1 << 6,

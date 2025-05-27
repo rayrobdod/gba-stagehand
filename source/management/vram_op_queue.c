@@ -3,10 +3,10 @@
 #include <stdlib.h>
 #include "decompress/by_header.h"
 #include "gba/bios.h"
+#include "utils/arraycount.h"
 #include "mgba.h"
 
 #define VRAM_OP_QUEUE_CAPACITY (128)
-#define arraycount(a) (sizeof(a) / sizeof(a[0]))
 
 __attribute__((section(".sbss.vram_op_queue_count")))
 static uint8_t vram_op_queue_count = 0;

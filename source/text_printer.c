@@ -1,9 +1,8 @@
 #include "text_printer.h"
 
+#include "utils/minmax.h"
 #include "graphics.h"
 #include "mgba.h"
-
-#define max(a, b) (a > b ? a : b)
 
 _Static_assert(sizeof(uint32_t) == sizeof(font_colors_t));
 union font_colors_2_uint {
