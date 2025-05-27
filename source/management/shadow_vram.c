@@ -253,12 +253,34 @@ bool shadow_tiles_load_tileset_fixed(unsigned bg, unsigned start, unsigned count
 	return true;
 }
 
+bool shadow_tiles_load_tileset_fixed_compressed(unsigned bg, unsigned start, unsigned count, const char* tileset) {
+	start += TILES_PER_CHARBLOCK * shadow_tiles_bgcnt[bg].charblock;
+	for (unsigned i = start; i < start + count; i++) {
+		if (shadow_tiles_used[i])
+			return false;
+	}
+	for (unsigned i = start; i < start + count; i++) {
+		shadow_tiles_used[i] = true;
+	}
+
+	vram_op_queue_enqueue((struct vram_op) {
+		.type = VRAM_QUEUE_OP_BG_TILES_COMPRESSED,
+		.tiles_compressed = {
+			.from = tileset,
+			.to_block = 0,
+			.to_tile = start,
+		},
+	});
+
+	return true;
+}
+
 bool shadow_tiles_load_background(struct background* data, struct shadow_tiles_load_background args) {
 	MgbaPrintf(MGBA_LOG_DEBUG, "ENTER shadow_tiles_load_background");
 	MgbaPrintf(MGBA_LOG_DEBUG, "  data->tilemap_count = %d",  data->tilemap_count);
 	MgbaPrintf(MGBA_LOG_DEBUG, "  data->tileset_count = %d",  data->tileset_count);
 
-	if (! shadow_tiles_load_tileset_fixed(args.bg, 0, data->tileset_count, data->tileset)) {
+	if (! shadow_tiles_load_tileset_fixed_compressed(args.bg, 0, data->tileset_count, data->tileset)) {
 		return false;
 	}
 
@@ -272,12 +294,11 @@ bool shadow_tiles_load_background(struct background* data, struct shadow_tiles_l
 	});
 
 	vram_op_queue_enqueue((struct vram_op) {
-		.type = VRAM_QUEUE_OP_BG_MAP,
-		.map = {
+		.type = VRAM_QUEUE_OP_BG_MAP_COMPRESSED,
+		.map_compressed = {
 			.from = data->tilemap,
 			.to_block = shadow_tiles_bgcnt[args.bg].screenblock,
 			.to_tile = 0,
-			.count = data->tilemap_count,
 		},
 	});
 

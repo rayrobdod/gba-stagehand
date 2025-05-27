@@ -80,6 +80,11 @@ void vram_op_queue_execute(void) {
 				&vram.bg_charblock[entry->tiles_bitunpack.to_block][entry->tiles_bitunpack.to_tile],
 				&entry->tiles_bitunpack.param);
 			break;
+		case VRAM_QUEUE_OP_BG_TILES_COMPRESSED:
+			HeaderUnCompVram(
+				entry->tiles_compressed.from,
+				&vram.bg_charblock[entry->tiles_compressed.to_block][entry->tiles_compressed.to_tile]);
+			break;
 		case VRAM_QUEUE_OP_BG_MAP:
 			CpuSet(
 				entry->map.from,
@@ -89,6 +94,11 @@ void vram_op_queue_execute(void) {
 					.mode = CPU_SET_COPY,
 					.datasize = WORDSIZE_16BIT,
 				});
+			break;
+		case VRAM_QUEUE_OP_BG_MAP_COMPRESSED:
+			HeaderUnCompVram(
+				entry->map_compressed.from,
+				&vram.screenblock[entry->map_compressed.to_block][entry->map_compressed.to_tile]);
 			break;
 		case VRAM_QUEUE_OP_BG_MAP_FREE:
 			CpuSet(

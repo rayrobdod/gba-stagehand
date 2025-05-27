@@ -1,3 +1,4 @@
+#include <array>
 #include <cstdint>
 #include <filesystem>
 #include <string>
@@ -12,6 +13,7 @@ struct bg_tile_t {
 	uint16_t palette : 4;
 
 	bg_tile_t(uint16_t tile);
+	std::array<uint8_t, 2> to_bytes(void);
 };
 
 struct background {

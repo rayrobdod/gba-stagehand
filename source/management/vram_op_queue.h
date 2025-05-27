@@ -16,12 +16,16 @@ enum vram_queue_op_type {
 	VRAM_QUEUE_OP_BG_PALETTES,
 	/** .tiles */
 	VRAM_QUEUE_OP_BG_TILES,
+	/** .tiles_compressed */
+	VRAM_QUEUE_OP_BG_TILES_COMPRESSED,
 	/** .tiles_bitunpack */
 	VRAM_QUEUE_OP_BG_TILES_BITUNPACK,
 	/** .map */
 	VRAM_QUEUE_OP_BG_MAP,
 	/** .map_free ; becomes the owner of `.from` and will free `.from` */
 	VRAM_QUEUE_OP_BG_MAP_FREE,
+	/** .map_compressed */
+	VRAM_QUEUE_OP_BG_MAP_COMPRESSED,
 	/** .map_fill */
 	VRAM_QUEUE_OP_BG_MAP_FILL,
 	/** .palettes */
@@ -83,6 +87,11 @@ struct vram_op {
 			uint16_t to_tile;
 			uint16_t count;
 		} map_fill;
+		struct {
+			const char* from;
+			uint16_t to_block;
+			uint16_t to_tile;
+		} map_compressed;
 		struct {
 			oam_t value;
 			uint16_t to_index;
