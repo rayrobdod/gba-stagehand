@@ -196,6 +196,12 @@ $(BUILDOBJDIR)/graphics.o $(BUILDSRCDIR)/graphics.h: $(GFXC) $(SOURCES_PNG)
 	@$(MKDIR) -p $(BUILDSRCDIR)
 	$(V)$(GFXC) $(GRAPHICSDIR) $(BUILDOBJDIR)/graphics.o $(BUILDSRCDIR)/graphics.h
 
+generated_headers: $(BUILDSRCDIR)/graphics_types.h
+$(BUILDSRCDIR)/graphics_types.h: $(GFXC)
+	@echo "  GFXC    --structs"
+	@$(MKDIR) -p $(BUILDSRCDIR)
+	$(V)$(GFXC) --structs $(BUILDSRCDIR)/graphics_types.h
+
 $(ELF): $(OBJS) source/sys/gba_cart.ld
 	@echo "  LD      $@"
 	$(V)$(CC) -o $@ $(OBJS) $(LDFLAGS)

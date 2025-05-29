@@ -42,16 +42,26 @@ uint16_t find_palette_superset(indexed_insert_only_set<std::vector<rgba16_t>> ha
 	return retval;
 }
 
-int main(int argc, char* argv[]) {
-	if (argc < 4) {
-		printf("TODO \n");
-		return 0;
-	}
+int write_types_header(std::filesystem::path headerfile) {
+	std::ofstream headerstream(headerfile);
+	headerstream << "#include \"gba/palette.h\"" << std::endl;
+	headerstream << "#include \"gba/oam.h\"" << std::endl;
 
-	std::filesystem::path srcdir = argv[1];
-	std::filesystem::path objfile = argv[2];
-	std::filesystem::path headerfile = argv[3];
+	font::write_struct(headerstream);
+	sprite::write_struct(headerstream);
+	background::write_struct(headerstream);
 
+	headerstream << std::endl
+		<< "struct bitpacked_tileset {" << std::endl
+		<< "	uint16_t size;" << std::endl
+		<< "	uint16_t unit_width;" << std::endl
+		<< "	char data[];" << std::endl
+		<< "};" << std::endl;
+
+	return 0;
+}
+
+int compile_object(std::filesystem::path srcdir, std::filesystem::path objfile, std::filesystem::path headerfile) {
 	std::map<std::filesystem::path, struct bufferedimage> sprite_imgs;
 	std::map<std::filesystem::path, struct bufferedimage> tileset_imgs;
 	std::map<std::filesystem::path, struct bufferedimage> monochrome_tileset_imgs;
@@ -230,8 +240,6 @@ int main(int argc, char* argv[]) {
 
 	struct Object* elf = object_start(objfile.c_str());
 	std::ofstream headerstream(headerfile);
-	headerstream << "#include \"gba/palette.h\"" << std::endl;
-	headerstream << "#include \"gba/oam.h\"" << std::endl;
 
 	for (auto pal0 = single_palettes.cbegin(); pal0 != single_palettes.cend(); ++pal0) {
 		size_t i = pal0 - single_palettes.cbegin();
@@ -256,21 +264,22 @@ int main(int argc, char* argv[]) {
 		object_push_bytes_section(elf, compressed.data.data(), sizeof(uint8_t) * compressed.data.size(), {tiles_name, STB_LOCAL});
 	}
 
-	font::write_struct(headerstream);
+	headerstream << std::endl;
 	for (font font : fonts) {
 		font.write(headerstream, elf);
 	}
 
-	sprite::write_struct(headerstream);
+	headerstream << std::endl;
 	for (sprite sprite : sprites) {
 		sprite.write(headerstream, elf);
 	}
 
-	background::write_struct(headerstream);
+	headerstream << std::endl;
 	for (auto const& background : backgrounds) {
 		background.write(headerstream, elf);
 	}
 
+	headerstream << std::endl;
 	for (auto const& image : tileset_imgs) {
 		std::string name = variable_name_for_image(image);
 
@@ -336,12 +345,7 @@ int main(int argc, char* argv[]) {
 		headerstream << "extern const struct tileset_graphics " << name << ";" << std::endl;
 	}
 
-	headerstream << std::endl
-		<< "struct bitpacked_tileset {" << std::endl
-		<< "	uint16_t size;" << std::endl
-		<< "	uint16_t unit_width;" << std::endl
-		<< "	char data[];" << std::endl
-		<< "};" << std::endl;
+	headerstream << std::endl;
 	for (auto const& image : monochrome_tileset_imgs) {
 		std::string name = variable_name_for_image(image);
 
@@ -387,4 +391,23 @@ int main(int argc, char* argv[]) {
 	object_finish(elf);
 
 	return 0;
+}
+
+int main(int argc, char* argv[]) {
+	using namespace std::string_view_literals;
+
+	if (argc == 3 && "--structs"sv == argv[1]) {
+		return write_types_header(argv[2]);
+	} else
+	if (argc == 4) {
+		std::filesystem::path srcdir = argv[1];
+		std::filesystem::path objfile = argv[2];
+		std::filesystem::path headerfile = argv[3];
+
+		return compile_object(srcdir, objfile, headerfile);
+	} else
+	{
+		printf("TODO \n");
+		return 0;
+	}
 }

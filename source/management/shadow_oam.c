@@ -5,7 +5,7 @@
 #include "gba/palette.h"
 #include "gba/vram.h"
 #include "utils/arraycount.h"
-#include "graphics.h"
+#include "graphics_types.h"
 #include "mgba.h"
 #include "vram_op_queue.h"
 

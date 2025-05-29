@@ -10,7 +10,6 @@
 #include "management/keyinput.h"
 #include "management/shadow_oam.h"
 #include "management/vram_op_queue.h"
-#include "scene/main_menu.h"
 #include "mgba.h"
 
 MainCallback scene_onframe_callback;
@@ -23,7 +22,7 @@ int main(int argc, char* argv[]) {
 
 	MgbaOpen();
 
-	scene_onframe_callback = &MainCB_mainMenu_init;
+	scene_onframe_callback = initial_scene_onframe_callback;
 
 	while (1) {
 		if (reg_lcd.VCOUNT < 160 || reg_lcd.VCOUNT > 175) {

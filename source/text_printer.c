@@ -1,7 +1,7 @@
 #include "text_printer.h"
 
 #include "utils/minmax.h"
-#include "graphics.h"
+#include "graphics_types.h"
 #include "mgba.h"
 
 _Static_assert(sizeof(uint32_t) == sizeof(font_colors_t));

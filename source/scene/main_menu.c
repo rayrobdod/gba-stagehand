@@ -14,8 +14,11 @@
 #include "utils/arraycount.h"
 #include "utils/saturating_add.h"
 #include "graphics.h"
+#include "graphics_types.h"
 #include "main.h"
 #include "mgba.h"
+
+const MainCallback initial_scene_onframe_callback = MainCB_mainMenu_init;
 
 // model
 static uint8_t selection = 0;

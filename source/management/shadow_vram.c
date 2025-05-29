@@ -6,9 +6,9 @@
 #include "gba/vram.h"
 #include "utils/arraycount.h"
 #include "utils/minmax.h"
+#include "graphics_types.h"
 #include "mgba.h"
 #include "vram_op_queue.h"
-#include "graphics.h"
 
 // The main thing I want is to have "windows" that I can print text to
 // without having to predetermine where in VRAM the needed tiles are.

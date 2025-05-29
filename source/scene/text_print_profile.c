@@ -5,6 +5,7 @@
 #include <string.h>
 #include "gba/bios.h"
 #include "gba/hw_reg.h"
+#include "gba/palette.h"
 #include "gba/vram.h"
 #include "management/isr.h"
 #include "graphics.h"
