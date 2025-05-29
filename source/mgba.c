@@ -20,7 +20,7 @@ void MgbaClose(void)
     *REG_DEBUG_ENABLE = 0;
 }
 
-void MgbaPrintf(int32_t level, const char* ptr, ...)
+void MgbaPrintf(enum MgbaLogLevel level, const char* ptr, ...)
 {
     va_list args;
 
