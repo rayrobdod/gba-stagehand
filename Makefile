@@ -58,7 +58,6 @@ GRAPHICSDIR	:= graphics
 BUILDDIR	:= build
 BUILDOBJDIR	:= $(BUILDDIR)/objs
 BUILDSRCDIR	:= $(BUILDDIR)/source
-BUILDGRAPHICSDIR	:= $(BUILDDIR)/graphics
 
 # Build artfacts
 # --------------
@@ -70,7 +69,6 @@ MAP		:= $(NAME).map
 SYM		:= $(NAME).sym
 
 GBAFIX		:= tools/gbafix/gbafix
-GFX2OBJ		:= tools/gfx2obj/gfx2obj
 GFXC	:= tools/gfxc/gfxc
 
 # Source files
@@ -115,10 +113,6 @@ LDFLAGS		:= -mthumb -mthumb-interwork $(LIBDIRSFLAGS) \
 		   -Wl,--start-group $(LIBS) -Wl,--end-group \
 		   -Xlinker --print-memory-usage
 
-ICONPALFLAGS	:=
-ICONTILEFLAGS	:=
-ICONMAPFLAGS	:=
-
 # Intermediate build files
 # ------------------------
 
@@ -151,21 +145,6 @@ $(BUILDOBJDIR)/%.cpp.o : $(SOURCEDIR)/%.cpp | generated_headers
 	@echo "  CXX     $<"
 	@$(MKDIR) -p $(@D) # Build target's directory if it doesn't exist
 	$(V)$(CXX) $(CXXFLAGS) -MMD -MP -c -o $@ $<
-
-$(BUILDGRAPHICSDIR)/%.png.gbapal : $(GRAPHICSDIR)/%.png
-	@echo "  FAMICON PALETTE $<"
-	@$(MKDIR) -p $(@D) # Build target's directory if it doesn't exist
-	$(V)$(FAMICONV) palette --mode gba $(ICONPALFLAGS) -d $@ -i $<
-
-$(BUILDGRAPHICSDIR)/%.png.4bpp : $(GRAPHICSDIR)/%.png $(BUILDGRAPHICSDIR)/%.png.gbapal
-	@echo "  FAMICON TILES   $<"
-	@$(MKDIR) -p $(@D) # Build target's directory if it doesn't exist
-	$(V)$(FAMICONV) tiles --mode gba $(ICONTILEFLAGS) -d $@ -i $< -p $(BUILDGRAPHICSDIR)/$*.png.gbapal
-
-$(BUILDGRAPHICSDIR)/%.png.tilemap : $(GRAPHICSDIR)/%.png $(BUILDGRAPHICSDIR)/%.png.gbapal $(BUILDGRAPHICSDIR)/%.png.4bpp
-	@echo "  FAMICON MAP     $<"
-	@$(MKDIR) -p $(@D) # Build target's directory if it doesn't exist
-	$(V)$(FAMICONV) map --mode gba $(ICONMAPFLAGS) -d $@ -i $< -p $(BUILDGRAPHICSDIR)/$*.png.gbapal -t $(BUILDGRAPHICSDIR)/$*.png.4bpp
 
 
 # Targets
