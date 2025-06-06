@@ -26,7 +26,7 @@ void LZ11UnCompVram(const void* src, volatile void* dest) {
 				unsigned width;
 				unsigned distance;
 
-				switch (*src8) {
+				switch (*src8 >> 4) {
 				case 0:
 					width = ((*src8 << 4) | ((*(src8 + 1) >> 4) & 0xF)) + 0x11;
 					distance = (((*(src8 + 1) & 0xF) << 8) | (*(src8 + 2))) + 1;

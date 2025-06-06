@@ -14,8 +14,9 @@ struct choosable_compression {
 };
 
 using namespace std::string_view_literals;
-const static std::array<choosable_compression, 4> compression_algs = {{
+const static std::array<choosable_compression, 5> compression_algs = {{
 	{"LZ"sv,	&compressLz,	&decompressLz,},
+	{"LZ11"sv,	&compressLz11,	&decompressLz11,},
 	{"RL"sv,	&compressRl,	&decompressRl,},
 	{"Huff8"sv,	&compressHuff8,	&decompressHuff8,},
 	{"Huff4"sv,	&compressHuff4,	&decompressHuff4,},

@@ -58,7 +58,6 @@ std::vector<uint8_t> decompressLz(std::vector<uint8_t> src, bool decompile) {
 }
 
 std::vector<uint8_t> decompressLz11(std::vector<uint8_t> src, bool decompile) {
-	decompile = true;
 	unsigned expected_size = src[1] | src[2] << 8 | src[3] << 16;
 	std::vector<uint8_t> dest(expected_size);
 
