@@ -130,18 +130,6 @@ int compile_object(std::filesystem::path srcdir, std::filesystem::path objfile, 
 			single_palettes_0.insert(new_pal);
 		}
 
-		for (auto const& image : background_imgs) {
-			std::set<rgba16_t> new_pal;
-			new_pal.insert(image.second.background().with_alpha(0));
-			new_pal.merge(image.second.palette());
-			if (new_pal.size() > 16) {
-				std::string msg(image.first.string());
-				msg += ": palette larger than 16 colors";
-				throw std::logic_error(msg);
-			}
-			single_palettes_0.insert(new_pal);
-		}
-
 		// TODO: more palette deduplication
 		// E.g. finding subsets
 
@@ -190,47 +178,7 @@ int compile_object(std::filesystem::path srcdir, std::filesystem::path objfile, 
 
 	std::vector<background> backgrounds;
 	for (auto const& image : background_imgs) {
-		uint16_t paltag = find_palette_superset(single_palettes, image.second.palette());
-		const std::vector<rgba16_t> used_pal = single_palettes[paltag];
-		paltag += FIRST_TAG;
-
-		std::vector<std::vector<uint8_t>> tileset;
-		std::vector<bg_tile_t> tilemap;
-
-		for (auto subimg : image.second.subs(8, 8)) {
-			subword_output_iterator<uint8_t, uint4_t, DIRECTION_INC> tile1_builder;
-			for (auto pixel : subimg.pixels()) {
-				auto palptr = std::find(used_pal.begin(), used_pal.end(), pixel);
-				uint4_t palindex(palptr - used_pal.begin());
-
-				*tile1_builder = palindex;
-				++tile1_builder;
-			}
-			std::vector<uint8_t> tile1(tile1_builder.result());
-
-			unsigned i;
-			for (i = 0; i < tileset.size(); i++) {
-				if (tile1 == tileset[i]) {
-					tilemap.push_back(bg_tile_t(i));
-					break;
-				}
-			}
-			if (i >= tileset.size()) {
-				tileset.push_back(tile1);
-				tilemap.push_back(bg_tile_t(i));
-			}
-		}
-
-		std::vector<uint8_t> tileset_flat;
-		for (auto tile1 : tileset) {
-			for (auto item : tile1) {
-				tileset_flat.push_back(item);
-			}
-		}
-
-		std::string name = variable_name_for_image(image);
-
-		backgrounds.push_back({name, paltag, tileset_flat, tilemap});
+		backgrounds.emplace_back(image);
 	}
 
 	std::vector<font> fonts;

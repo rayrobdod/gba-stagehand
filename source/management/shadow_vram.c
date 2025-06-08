@@ -289,7 +289,7 @@ bool shadow_tiles_load_background(struct background* data, struct shadow_tiles_l
 		.palettes = {
 			.from = data->palette,
 			.to_palette = 0,
-			.count = 1,
+			.count = data->palette_count,
 		},
 	});
 

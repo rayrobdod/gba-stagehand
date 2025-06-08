@@ -26,6 +26,8 @@ typedef struct rgba16 {
 	uint16_t a : 1;
 
 	rgb15_t strip_alpha() const;
+
+	static const rgba16 BLACK;
 } rgba16_t;
 
 bool operator<(const rgba16_t&, const rgba16_t&);
