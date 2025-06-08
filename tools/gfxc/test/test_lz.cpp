@@ -5,30 +5,42 @@
 
 void test_compress10_Zeros_32(void) {
 	const std::vector<uint8_t> input(32);
-	std::vector<uint8_t> result = compressLz(input);
+	std::optional<std::vector<uint8_t>> result_opt = compressLz(input);
 
 	const std::vector<uint8_t> expected{
 		0x10, 0x20, 0, 0,
 		0x30, 0, 0, 0xF0, 0x01, 0x90, 0x01, 0
 	};
-	TEST_ASSERT_EQUAL_VECTOR_HEX8(expected, result);
+
+	if (result_opt) {
+		std::vector<uint8_t> result = *result_opt;
+		TEST_ASSERT_EQUAL_VECTOR_HEX8(expected, result);
+	} else {
+		TEST_FAIL("Compression failed");
+	}
 }
 
 void test_compress11_Zeros_32(void) {
 	const std::vector<uint8_t> input(32);
-	std::vector<uint8_t> result = compressLz11(input);
+	std::optional<std::vector<uint8_t>> result_opt = compressLz11(input);
 
 	const std::vector<uint8_t> expected{
 		0x11, 0x20, 0, 0,
 		0x20, 0, 0, 0x00, 0xD0, 0x01, 0, 0
 	};
-	TEST_ASSERT_EQUAL_VECTOR_HEX8(expected, result);
+
+	if (result_opt) {
+		std::vector<uint8_t> result = *result_opt;
+		TEST_ASSERT_EQUAL_VECTOR_HEX8(expected, result);
+	} else {
+		TEST_FAIL("Compression failed");
+	}
 }
 
 void test_compress11_sixteen_loop(void) {
 	const std::string input_s("abcdefghijklmnopabcdefghijklmnop");
 	const std::vector<uint8_t> input(input_s.begin(), input_s.end());
-	std::vector<uint8_t> result = compressLz11(input);
+	std::optional<std::vector<uint8_t>> result_opt = compressLz11(input);
 
 	const std::vector<uint8_t> expected{
 		0x11, 0x20, 0x0, 0x0,
@@ -36,7 +48,13 @@ void test_compress11_sixteen_loop(void) {
 		0x00, 0x69, 0x6A, 0x6B, 0x6C, 0x6D, 0x6E, 0x6F, 0x70,
 		0x80, 0xF0, 0x0F, 0x0, 0x0, 0x0
 	};
-	TEST_ASSERT_EQUAL_VECTOR_HEX8(expected, result);
+
+	if (result_opt) {
+		std::vector<uint8_t> result = *result_opt;
+		TEST_ASSERT_EQUAL_VECTOR_HEX8(expected, result);
+	} else {
+		TEST_FAIL("Compression failed");
+	}
 }
 
 int main(int argc, char** argv) {

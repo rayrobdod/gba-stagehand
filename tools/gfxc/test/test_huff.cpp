@@ -60,28 +60,59 @@ void test_decompress4_Digits(void) {
 
 void test_compress8_Huff(void) {
 	const std::vector<uint8_t> input{'H', 'u', 'f', 'f'};
-	std::vector<uint8_t> result = compressHuff8(input);
+	std::optional<std::vector<uint8_t>> result_opt = compressHuff8(input);
 
 	const std::vector<uint8_t> expected{0x28, 4, 0, 0, 3, 0x80, 'f', 0xC0, 'H', 'u', 0, 0, 0, 0, 0, 0b10110000};
-	TEST_ASSERT_EQUAL_VECTOR_HEX8(expected, result);
+
+	if (result_opt) {
+		std::vector<uint8_t> result = *result_opt;
+		TEST_ASSERT_EQUAL_VECTOR_HEX8(expected, result);
+	} else {
+		TEST_FAIL("Compression failed");
+	}
 }
 
 void test_compress8_Digits(void) {
 	const std::vector<uint8_t> input{0x30, 0x31, 0x32, 0x33, 0x34, 0x35, 0x36, 0x37};
-	std::vector<uint8_t> result = compressHuff8(input);
+	std::optional<std::vector<uint8_t>> result_opt = compressHuff8(input);
 
 	const std::vector<uint8_t> expected{0x28, 8, 0, 0, 7, 0, 0, 1, 0xC1, 0xC2, 0xC2, 0xC3, 0x30, 0x31, 0x32, 0x33, 0x34, 0x35, 0x36, 0x37, 0, 0x77, 0x39, 0x5};
-	TEST_ASSERT_EQUAL_VECTOR_HEX8(expected, result);
+
+	if (result_opt) {
+		std::vector<uint8_t> result = *result_opt;
+		TEST_ASSERT_EQUAL_VECTOR_HEX8(expected, result);
+	} else {
+		TEST_FAIL("Compression failed");
+	}
 }
 
 void test_compress4_Digits(void) {
 	const std::vector<uint8_t> input{0x30, 0x31, 0x32, 0x33, 0x34, 0x35, 0x36, 0x37};
-	std::vector<uint8_t> result = compressHuff4(input);
+	std::optional<std::vector<uint8_t>> result_opt = compressHuff4(input);
 
 	const std::vector<uint8_t> expected{0x24, 8, 0, 0, 7,
 		0x80, 3, 0, 0, 0x41, 0xC1, 0xC2, 0xC2, 7, 6, 5, 2, 4, 0, 1,
 		0x50, 0x5A, 0xA8, 0xC6, 0x0, 0x0, 0x0, 0xE0};
-	TEST_ASSERT_EQUAL_VECTOR_HEX8(expected, result);
+
+	if (result_opt) {
+		std::vector<uint8_t> result = *result_opt;
+		TEST_ASSERT_EQUAL_VECTOR_HEX8(expected, result);
+	} else {
+		TEST_FAIL("Compression failed");
+	}
+}
+
+void test_compress8_256(void) {
+	std::vector<uint8_t> input;
+	for (int i = 0; i < 256; i++)
+		input.push_back(i);
+	std::optional<std::vector<uint8_t>> result_opt = compressHuff8(input);
+
+	if (result_opt) {
+		std::vector<uint8_t> result = *result_opt;
+		TEST_FAIL("Compression succeess");
+	} else {
+	}
 }
 
 void test_make_prefix_tree_Huff(void) {
@@ -112,6 +143,7 @@ int main(int argc, char** argv) {
 
 	RUN_TEST(test_compress8_Huff);
 	RUN_TEST(test_compress8_Digits);
+	RUN_TEST(test_compress8_256);
 
 	RUN_TEST(test_decompress4_Digits);
 	RUN_TEST(test_compress4_Digits);

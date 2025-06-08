@@ -36,6 +36,13 @@ void TEST_ASSERT_EQUAL_UNSIGNED(unsigned expected, unsigned actual) {
 	}
 }
 
+void TEST_FAIL(std::string reason) {
+	currentTestFailed = 1;
+	std::string msg("\033[41mFAIL\033[0m: ");
+	msg += reason;
+	printf("%s", msg.c_str());
+}
+
 void run_test(void (*fn)(void), const char* name) {
 	printf("%s: ", name);
 	currentTestFailed = 0;

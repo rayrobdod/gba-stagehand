@@ -83,6 +83,10 @@ public :
 	std::vector<OUT> result() {
 		return *(this->_backing);
 	}
+
+	std::vector<OUT>::size_type size() {
+		return this->_backing->size();
+	}
 };
 
 template<class OUT, class IN, enum Direction DIR>
