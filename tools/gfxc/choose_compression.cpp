@@ -1,8 +1,10 @@
 #include "choose_compression.hpp"
 
 #include <array>
-#include <string>
+#include <iostream>
 #include <stdexcept>
+#include <string>
+#include "compression/frit.hpp"
 #include "compression/huff.hpp"
 #include "compression/lz.hpp"
 #include "compression/rl.hpp"
@@ -14,10 +16,12 @@ struct choosable_compression {
 };
 
 using namespace std::string_view_literals;
-const static std::array<choosable_compression, 5> compression_algs = {{
+const static std::array<choosable_compression, 7> compression_algs = {{
 	{"LZ"sv,	&compressLz,	&decompressLz,},
 	{"LZ11"sv,	&compressLz11,	&decompressLz11,},
 	{"RL"sv,	&compressRl,	&decompressRl,},
+	{"FRIT16"sv,	&compressFrit16,	&decompressFrit16,},
+	{"FRIT8"sv,	&compressFrit8,	&decompressFrit8,},
 	{"Huff8"sv,	&compressHuff8,	&decompressHuff8,},
 	{"Huff4"sv,	&compressHuff4,	&decompressHuff4,},
 }};
@@ -78,6 +82,8 @@ choosen_compression choose_compression(std::string tiles_name, std::vector<uint8
 			retval.data = compressed;
 		}
 	}
+
+	std::cout << tiles_name << " " << retval.alg_name << " " << retval.data.size() << std::endl;
 
 	return retval;
 }
