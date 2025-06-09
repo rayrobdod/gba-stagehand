@@ -8,6 +8,7 @@ rgb15_t rgba16_t::strip_alpha() const {
 rgba16_t rgb15_t::with_alpha(uint16_t a) const {
 	return {this->r, this->g, this->b, a != 0};
 }
+const rgba16 rgba16_t::BLACK = {0, 0, 0, 1};
 
 bool operator==(const rgba16_t& lhs, const rgba16_t& rhs) {
 	return (lhs.a == 0 && rhs.a == 0) || ((lhs.a == rhs.a) && (lhs.r == rhs.r) && (lhs.g == rhs.g) && (lhs.b == rhs.b));

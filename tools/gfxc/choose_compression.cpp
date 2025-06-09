@@ -1,7 +1,9 @@
 #include "choose_compression.hpp"
 
 #include <array>
+#include <iomanip>
 #include <iostream>
+#include <optional>
 #include <stdexcept>
 #include <string>
 #include "compression/frit.hpp"
@@ -11,7 +13,7 @@
 
 struct choosable_compression {
 	std::string_view alg_name;
-	std::vector<uint8_t> (*compress)(std::vector<uint8_t> src);
+	std::optional<std::vector<uint8_t>> (*compress)(std::vector<uint8_t> src);
 	std::vector<uint8_t> (*decompress)(std::vector<uint8_t> src, bool decompile);
 };
 
@@ -37,7 +39,11 @@ choosen_compression choose_compression(std::string tiles_name, std::vector<uint8
 	std::copy(data.begin(), data.end(), std::back_inserter(retval.data));
 
 	for (auto alg : compression_algs) {
-		std::vector<uint8_t> compressed = alg.compress(data);
+		std::optional<std::vector<uint8_t>> compressedOpt = alg.compress(data);
+		if (! compressedOpt)
+			continue;
+
+		std::vector<uint8_t> compressed = *compressedOpt;
 		std::vector<uint8_t> round = alg.decompress(compressed, false);
 
 		if (data != round) {
@@ -49,13 +55,13 @@ choosen_compression choose_compression(std::string tiles_name, std::vector<uint8
 			msg += " failed to round trip\n";
 			auto diff = std::mismatch(data.begin(), data.end(), round.begin(), round.end());
 			std::vector<unsigned char>::size_type at = diff.first - data.begin();
-			std::vector<unsigned char>::size_type range_start = (at > 3 ? at - 3 : 0);
+			std::vector<unsigned char>::size_type range_start = (at > 2 ? at - 2 : 0);
 			msg += "    at: " + std::to_string(at) + "\n";
 			msg += "    data : {";
 			msg += (range_start != 0 ? "... " : "");
 			for (unsigned i = range_start; i < std::min(range_start + 5, data.size()); i++) {
 				char s[8];
-				sprintf(s, "%02X, ", data[range_start + i]);
+				sprintf(s, "%02X, ", data[i]);
 				msg += s;
 			}
 			msg += "}\n";
@@ -63,7 +69,7 @@ choosen_compression choose_compression(std::string tiles_name, std::vector<uint8
 			msg += (range_start != 0 ? "... " : "");
 			for (unsigned i = range_start; i < std::min(range_start + 5, round.size()); i++) {
 				char s[8];
-				sprintf(s, "%02X, ", round[range_start + i]);
+				sprintf(s, "%02X, ", round[i]);
 				msg += s;
 			}
 			msg += "}\n";
@@ -77,13 +83,16 @@ choosen_compression choose_compression(std::string tiles_name, std::vector<uint8
 
 			throw std::logic_error(msg);
 		}
-		if (compressed.size() < retval.data.size()) {
+		if (data == round && compressed.size() < retval.data.size()) {
 			retval.alg_name = alg.alg_name;
 			retval.data = compressed;
 		}
 	}
 
-	std::cout << tiles_name << " " << retval.alg_name << " " << retval.data.size() << std::endl;
+	if (false)
+		std::cout << "    " << std::left << std::setw(35) << tiles_name
+			<< ": " << std::setw(8) << retval.alg_name
+			<< ": " << std::right << std::setw(6) << retval.data.size() << std::endl;
 
 	return retval;
 }

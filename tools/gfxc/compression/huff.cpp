@@ -85,7 +85,7 @@ static std::vector<uint8_t> decompressHuff(std::vector<uint8_t> src, bool decomp
 			code_pos = (code_pos & ~1) + (src[code_pos] & 0x3F) * 2 + (next_node ? 3 : 2);
 		}
 		if (decompile)
-			printf("%3d [%02x] | LEAF\n", code_pos, src[code_pos]);
+			printf("%3d [%02x] | LEAF (%zd)\n", code_pos, src[code_pos], dest.size());
 
 		*dest = static_cast<DATASIZE>(src[code_pos]);
 		dest++;
@@ -265,8 +265,9 @@ public:
 		return this->_root->code(value).value_or(prefix_code());
 	}
 
-	std::vector<uint8_t> serialize(void) const {
+	std::optional<std::vector<uint8_t>> serialize(void) const {
 		std::vector<uint8_t> retval(_root->count());
+		bool failed = false;
 
 		std::queue<prefix_tree_serialize_queue_elem> nodes;
 		nodes.emplace(_root, 0);
@@ -280,10 +281,14 @@ public:
 				[&retval, &node](const prefix_tree_leaf* leaf) {
 					retval[node.position] = leaf->value();
 				},
-				[&retval, &nodes, &node, &next_position](const prefix_tree_branch* branch) {
+				[&retval, &nodes, &node, &next_position, &failed](const prefix_tree_branch* branch) {
 					unsigned diff = ((next_position - 1) - node.position) / 2;
 					bool left_is_leaf = branch->left().is_leaf();
 					bool right_is_leaf = branch->right().is_leaf();
+
+					if (diff > 0x3f) {
+						failed = true;
+					}
 
 					retval[node.position] = diff | (left_is_leaf ? 0x80 : 0) | (right_is_leaf ? 0x40 : 0);
 
@@ -292,7 +297,10 @@ public:
 				});
 		}
 
-		return retval;
+		if (failed)
+			return std::nullopt;
+		else
+			return std::make_optional(retval);
 	}
 
 	template<typename IT>
@@ -389,7 +397,7 @@ void prefix_tree_ptr::visit(LEAF_FN leaf_fn, BRANCH_FN branch_fn) const {
 	}
 }
 
-std::vector<uint8_t> compressHuff8(std::vector<uint8_t> src) {
+std::optional<std::vector<uint8_t>> compressHuff8(std::vector<uint8_t> src) {
 	std::array<unsigned, 256> frequencies = {0};
 	for (uint8_t i : src) {
 		frequencies[i] += 1;
@@ -412,7 +420,11 @@ std::vector<uint8_t> compressHuff8(std::vector<uint8_t> src) {
 	retval.push_back(src.size() >> 8);
 	retval.push_back(src.size() >> 16);
 
-	std::vector<uint8_t> tree_ser = tree.serialize();
+	std::optional<std::vector<uint8_t>> tree_ser_opt = tree.serialize();
+	if (! tree_ser_opt)
+		return std::nullopt;
+	std::vector<uint8_t> tree_ser = *tree_ser_opt;
+
 	while (tree_ser.size() % 4 != 3) {
 		tree_ser.push_back(0);
 	}
@@ -427,10 +439,10 @@ std::vector<uint8_t> compressHuff8(std::vector<uint8_t> src) {
 		retval.push_back(i >> 24);
 	}
 
-	return retval;
+	return std::make_optional(retval);
 }
 
-std::vector<uint8_t> compressHuff4(std::vector<uint8_t> src) {
+std::optional<std::vector<uint8_t>> compressHuff4(std::vector<uint8_t> src) {
 	std::array<unsigned, 16> frequencies = {0};
 	subword_input_iterator<uint8_t, uint4_t, DIRECTION_INC> src4_begin(src);
 	subword_input_iterator<uint8_t, uint4_t, DIRECTION_INC> src4_end = src4_begin + src.size() * bitsize<uint8_t> / bitsize<uint4_t>;
@@ -456,7 +468,11 @@ std::vector<uint8_t> compressHuff4(std::vector<uint8_t> src) {
 	retval.push_back(src.size() >> 8);
 	retval.push_back(src.size() >> 16);
 
-	std::vector<uint8_t> tree_ser = tree.serialize();
+	std::optional<std::vector<uint8_t>> tree_ser_opt = tree.serialize();
+	if (! tree_ser_opt)
+		return std::nullopt;
+	std::vector<uint8_t> tree_ser = *tree_ser_opt;
+
 	while (tree_ser.size() % 4 != 3) {
 		tree_ser.push_back(0);
 	}
@@ -471,5 +487,5 @@ std::vector<uint8_t> compressHuff4(std::vector<uint8_t> src) {
 		retval.push_back(i >> 24);
 	}
 
-	return retval;
+	return std::make_optional(retval);
 }

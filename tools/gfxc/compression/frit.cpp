@@ -104,7 +104,7 @@ public:
 
 
 template<class WORD>
-std::vector<uint8_t> compressFrit(const std::vector<WORD> src, uint8_t magic) {
+std::optional<std::vector<uint8_t>> compressFrit(const std::vector<WORD> src, uint8_t magic) {
 	std::vector<Run<WORD>> runs;
 
 	size_t srcPos = 0;
@@ -272,7 +272,7 @@ std::vector<uint8_t> compressFrit(const std::vector<WORD> src, uint8_t magic) {
 	while (retval.size() % 4 != 0)
 		retval.push_back(0);
 
-	return retval;
+	return std::make_optional(retval);
 }
 
 
@@ -292,7 +292,7 @@ std::vector<uint8_t> decompressFrit8(std::vector<uint8_t> src, bool decompile) {
 	return decompressFrit<uint8_t>(src, decompile);
 }
 
-std::vector<uint8_t> compressFrit16(std::vector<uint8_t> src) {
+std::optional<std::vector<uint8_t>> compressFrit16(std::vector<uint8_t> src) {
 	subword_output_iterator<uint16_t, uint8_t, DIRECTION_INC> src_to_word;
 	for (uint8_t b : src) {
 		*src_to_word = b;
@@ -302,7 +302,7 @@ std::vector<uint8_t> compressFrit16(std::vector<uint8_t> src) {
 	return compressFrit<uint16_t>(src_to_word.result(), 0x42);
 }
 
-std::vector<uint8_t> compressFrit8(std::vector<uint8_t> src) {
+std::optional<std::vector<uint8_t>> compressFrit8(std::vector<uint8_t> src) {
 	return compressFrit<uint8_t>(src, 0x41);
 }
 

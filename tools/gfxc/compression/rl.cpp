@@ -47,7 +47,7 @@ std::vector<uint8_t> decompressRl(std::vector<uint8_t> src, bool decompile) {
 	return dest;
 }
 
-std::vector<uint8_t> compressRl(std::vector<uint8_t> src) {
+std::optional<std::vector<uint8_t>> compressRl(std::vector<uint8_t> src) {
 	std::vector<uint8_t> result;
 	result.push_back(0x30);
 	result.push_back(src.size());
@@ -89,5 +89,5 @@ std::vector<uint8_t> compressRl(std::vector<uint8_t> src) {
 		result.push_back(0);
 	}
 
-	return result;
+	return std::make_optional(result);
 }

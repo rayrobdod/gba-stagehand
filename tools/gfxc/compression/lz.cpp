@@ -152,7 +152,7 @@ static std::vector<CopyInstruction> instructions(std::vector<uint8_t> src, std::
 	return instrs;
 }
 
-std::vector<uint8_t> compressLz(std::vector<uint8_t> src) {
+std::optional<std::vector<uint8_t>> compressLz(std::vector<uint8_t> src) {
 	auto instrs = instructions(src, 15 + 3);
 
 	std::vector<uint8_t> result;
@@ -183,10 +183,10 @@ std::vector<uint8_t> compressLz(std::vector<uint8_t> src) {
 		result.push_back(0);
 	}
 
-	return result;
+	return std::make_optional(result);
 }
 
-std::vector<uint8_t> compressLz11(std::vector<uint8_t> src) {
+std::optional<std::vector<uint8_t>> compressLz11(std::vector<uint8_t> src) {
 	auto instrs = instructions(src, 0xFFFF + 0x111);
 
 	std::vector<uint8_t> result;
@@ -230,5 +230,5 @@ std::vector<uint8_t> compressLz11(std::vector<uint8_t> src) {
 		result.push_back(0);
 	}
 
-	return result;
+	return std::make_optional(result);
 }

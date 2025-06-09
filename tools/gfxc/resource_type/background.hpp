@@ -12,16 +12,17 @@ struct bg_tile_t {
 	bool vflip : 1;
 	uint16_t palette : 4;
 
-	bg_tile_t(uint16_t tile);
+	bg_tile_t(uint16_t tile, bool hflip, bool vflip, uint16_t palette);
 	std::array<uint8_t, 2> to_bytes(void);
 };
 
 struct background {
 	std::string var_name;
-	uint16_t paltag;
+	std::vector<std::array<rgba16_t, 16>> palette;
 	std::vector<uint8_t> tileset;
 	std::vector<bg_tile_t> tilemap;
 
+	explicit background(const std::pair<std::filesystem::path, bufferedimage>);
 	void write(std::ostream& headerstream, struct Object* elf) const;
 
 	static void write_struct(std::ostream& headerstream);

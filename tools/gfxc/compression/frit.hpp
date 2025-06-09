@@ -1,4 +1,5 @@
 #include <cstdint>
+#include <optional>
 #include <vector>
 
 /// Four Register Increment Tilemap compression?
@@ -31,8 +32,8 @@
 ///     || 0 1 | ... (same as RUN)
 /// length times, write the value in register `reg` to output and decrement the value in `reg`
 
-std::vector<uint8_t> compressFrit16(std::vector<uint8_t> src);
+std::optional<std::vector<uint8_t>> compressFrit16(std::vector<uint8_t> src);
 std::vector<uint8_t> decompressFrit16(std::vector<uint8_t> src, bool decompile);
 
-std::vector<uint8_t> compressFrit8(std::vector<uint8_t> src);
+std::optional<std::vector<uint8_t>> compressFrit8(std::vector<uint8_t> src);
 std::vector<uint8_t> decompressFrit8(std::vector<uint8_t> src, bool decompile);
