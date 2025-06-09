@@ -8,6 +8,9 @@
 #include "subword_output_iterator.hpp"
 #include "variable_name_for_image.hpp"
 
+// may improve frit compression
+static constexpr bool SORT_BY_PALETTE = true;
+
 bg_tile_t::bg_tile_t(uint16_t tile, bool hflip, bool vflip, uint16_t palette) : tile(tile), hflip(hflip), vflip(vflip), palette(palette) {}
 
 std::array<uint8_t, 2> bg_tile_t::to_bytes(void) {
@@ -134,22 +137,52 @@ background::background(const std::pair<std::filesystem::path, bufferedimage> dat
 		this->palette.push_back(newpal);
 	}
 
-	std::vector<std::vector<uint8_t>> tileset;
+	std::vector<std::vector<gbatile_4bpp>> tileset_per_palette;
+	if (SORT_BY_PALETTE) {
+		for (size_t i = 0; i < this->palette.size(); i++)
+			tileset_per_palette.emplace_back();
+
+		for (auto subimg : data.second.subs(8, 8)) {
+			uint16_t pal_i = find_palette_superset(this->palette, subimg.palette());
+			const std::array<rgba16_t, 16> used_pal = this->palette[pal_i];
+
+			gbatile_4bpp tile1(subimg.to_tile_4bpp(used_pal));
+
+			unsigned i;
+			for (i = 0; i < tileset_per_palette[pal_i].size(); i++) {
+				if (tile1 == tileset_per_palette[pal_i][i]) {
+					break;
+				}
+			}
+			if (i >= tileset_per_palette[pal_i].size()) {
+				tileset_per_palette[pal_i].push_back(tile1);
+			}
+		}
+	}
+
+	std::vector<gbatile_4bpp> tileset;
 	std::vector<bg_tile_t> tilemap;
+
+	if (SORT_BY_PALETTE) {
+		for (auto tileset1 : tileset_per_palette)
+		for (auto tile1 : tileset1) {
+			unsigned i;
+			for (i = 0; i < tileset.size(); i++) {
+				if (tile1 == tileset[i]) {
+					break;
+				}
+			}
+			if (i >= tileset.size()) {
+				tileset.push_back(tile1);
+			}
+		}
+	}
 
 	for (auto subimg : data.second.subs(8, 8)) {
 		uint16_t pal_i = find_palette_superset(this->palette, subimg.palette());
 		const std::array<rgba16_t, 16> used_pal = this->palette[pal_i];
 
-		subword_output_iterator<uint8_t, uint4_t, DIRECTION_INC> tile1_builder;
-		for (auto pixel : subimg.pixels()) {
-			auto palptr = std::find(used_pal.begin(), used_pal.end(), pixel);
-			uint4_t palindex(palptr - used_pal.begin());
-
-			*tile1_builder = palindex;
-			++tile1_builder;
-		}
-		std::vector<uint8_t> tile1(tile1_builder.result());
+		gbatile_4bpp tile1(subimg.to_tile_4bpp(used_pal));
 
 		unsigned i;
 		for (i = 0; i < tileset.size(); i++) {
@@ -166,7 +199,7 @@ background::background(const std::pair<std::filesystem::path, bufferedimage> dat
 
 	std::vector<uint8_t> tileset_flat;
 	for (auto tile1 : tileset) {
-		for (auto item : tile1) {
+		for (auto item : tile1.bytes()) {
 			tileset_flat.push_back(item);
 		}
 	}
