@@ -44,7 +44,7 @@ choosen_compression choose_compression(std::string tiles_name, std::vector<uint8
 			continue;
 
 		std::vector<uint8_t> compressed = *compressedOpt;
-		std::vector<uint8_t> round = alg.decompress(compressed, false);
+		std::vector<uint8_t> round = alg.decompress(compressed, false && tiles_name == "tile.1002" && alg.alg_name == "FRIT8"sv);
 
 		if (data != round) {
 			std::string msg;
