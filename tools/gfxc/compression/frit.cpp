@@ -14,7 +14,10 @@ template<class WORD>
 std::vector<WORD> decompressFrit(const std::vector<uint8_t> src, bool decompile) {
 	std::vector<WORD> retval;
 
-	//const unsigned size = ((src[3] << 16) | (src[2] << 8) | src[1]) / sizeof(WORD);
+	if (decompile) {
+		const unsigned size = ((src[3] << 16) | (src[2] << 8) | src[1]) / sizeof(WORD);
+		printf("SIZE: %d\n", size);
+	}
 	std::array<WORD, NUM_REGS> regs = {0};
 
 	unsigned srcPos = 4;
@@ -277,8 +280,6 @@ std::optional<std::vector<uint8_t>> compressFrit(const std::vector<WORD> src, ui
 
 
 std::vector<uint8_t> decompressFrit16(std::vector<uint8_t> src, bool decompile) {
-	decompile = true;
-
 	std::vector<uint16_t> words(decompressFrit<uint16_t>(src, decompile));
 	std::vector<uint8_t> retval;
 	for (uint16_t word : words) {
