@@ -35,11 +35,11 @@ void MgbaAssert(const char *pFile, int32_t nLine, const char *pExpression, bool3
 {
     if (nStopProgram)
     {
-        MgbaPrintf(MGBA_LOG_ERROR, "ASSERTION FAILED  FILE=[%s] LINE=[%d]  EXP=[%s]", pFile, nLine, pExpression);
+        MgbaPrintf(MGBA_LOG_ERROR, "ASSERTION FAILED  FILE=[%s] LINE=[%ld]  EXP=[%s]", pFile, nLine, pExpression);
         asm(".hword 0xEFFF");
     }
     else
     {
-        MgbaPrintf(MGBA_LOG_WARN, "WARING FILE=[%s] LINE=[%d]  EXP=[%s]", pFile, nLine, pExpression);
+        MgbaPrintf(MGBA_LOG_WARN, "WARING FILE=[%s] LINE=[%ld]  EXP=[%s]", pFile, nLine, pExpression);
     }
 }
