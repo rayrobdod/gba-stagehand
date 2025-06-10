@@ -18,7 +18,7 @@ struct choosable_compression {
 };
 
 using namespace std::string_view_literals;
-const static std::array<choosable_compression, 7> compression_algs = {{
+const static std::initializer_list<choosable_compression> compression_algs = {
 	{"LZ"sv,	&compressLz,	&decompressLz,},
 	{"LZ11"sv,	&compressLz11,	&decompressLz11,},
 	{"RL"sv,	&compressRl,	&decompressRl,},
@@ -26,7 +26,7 @@ const static std::array<choosable_compression, 7> compression_algs = {{
 	{"FRIT8"sv,	&compressFrit8,	&decompressFrit8,},
 	{"Huff8"sv,	&compressHuff8,	&decompressHuff8,},
 	{"Huff4"sv,	&compressHuff4,	&decompressHuff4,},
-}};
+};
 
 choosen_compression choose_compression(std::string tiles_name, std::vector<uint8_t> data) {
 	choosen_compression retval;
