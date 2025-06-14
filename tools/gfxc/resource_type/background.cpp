@@ -5,6 +5,7 @@
 #include <iostream>
 #include <stdexcept>
 #include "choose_compression.hpp"
+#include "find_palette_superset.hpp"
 #include "subword_output_iterator.hpp"
 #include "variable_name_for_image.hpp"
 
@@ -18,22 +19,6 @@ std::array<uint8_t, 2> bg_tile_t::to_bytes(void) {
 		static_cast<uint8_t>(this->tile),
 		static_cast<uint8_t>((this->tile >> 8) | (hflip ? 0x4 : 0) | (vflip ? 0x8 : 0) | (palette << 4)),
 	};
-	return retval;
-}
-
-uint16_t find_palette_superset(std::vector<std::array<rgba16_t, 16>> haystack, std::set<rgba16_t> needle) {
-	uint16_t retval;
-	for (retval = 0; retval < haystack.size(); ++retval) {
-		const std::array<rgba16_t, 16> check_pal = haystack[retval];
-
-		if (std::includes(check_pal.begin(), check_pal.end(), needle.begin(), needle.end())) {
-			break;
-		}
-	}
-	if (retval >= haystack.size()) {
-		std::string msg("Lost this tile's palette");
-		throw std::logic_error(msg);
-	}
 	return retval;
 }
 
@@ -143,7 +128,7 @@ background::background(const std::pair<std::filesystem::path, bufferedimage> dat
 			tileset_per_palette.emplace_back();
 
 		for (auto subimg : data.second.subs(8, 8)) {
-			uint16_t pal_i = find_palette_superset(this->palette, subimg.palette());
+			uint16_t pal_i = find_palette_superset<std::vector<std::array<rgba16_t, 16>>>(this->palette, subimg.palette());
 			const std::array<rgba16_t, 16> used_pal = this->palette[pal_i];
 
 			gbatile_4bpp tile1(subimg.to_tile_4bpp(used_pal));
@@ -179,7 +164,7 @@ background::background(const std::pair<std::filesystem::path, bufferedimage> dat
 	}
 
 	for (auto subimg : data.second.subs(8, 8)) {
-		uint16_t pal_i = find_palette_superset(this->palette, subimg.palette());
+		uint16_t pal_i = find_palette_superset<std::vector<std::array<rgba16_t, 16>>>(this->palette, subimg.palette());
 		const std::array<rgba16_t, 16> used_pal = this->palette[pal_i];
 
 		gbatile_4bpp tile1(subimg.to_tile_4bpp(used_pal));

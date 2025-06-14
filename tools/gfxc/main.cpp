@@ -16,6 +16,7 @@
 #include "resource_type/font.hpp"
 #include "resource_type/sprite.hpp"
 #include "choose_compression.hpp"
+#include "find_palette_superset.hpp"
 #include "image.hpp"
 #include "indexed_insert_only_set.hpp"
 #include "object.h"
@@ -25,22 +26,6 @@
 #include "variable_name_for_image.hpp"
 
 static const unsigned FIRST_TAG = 0x1000;
-
-uint16_t find_palette_superset(indexed_insert_only_set<std::vector<rgba16_t>> haystack, std::set<rgba16_t> needle) {
-	uint16_t retval;
-	for (retval = 0; retval < haystack.size(); ++retval) {
-		const std::vector<rgba16_t> check_pal = haystack[retval];
-
-		if (std::includes(check_pal.begin(), check_pal.end(), needle.begin(), needle.end())) {
-			break;
-		}
-	}
-	if (retval >= haystack.size()) {
-		std::string msg("Lost this sprite's palette");
-		throw std::logic_error(msg);
-	}
-	return retval;
-}
 
 int write_types_header(std::filesystem::path headerfile) {
 	std::ofstream headerstream(headerfile);
@@ -143,7 +128,7 @@ int compile_object(std::filesystem::path srcdir, std::filesystem::path objfile, 
 	std::vector<sprite> sprites;
 
 	for (auto const& image : sprite_imgs) {
-		uint16_t paltag = find_palette_superset(single_palettes, image.second.palette());
+		uint16_t paltag = find_palette_superset<indexed_insert_only_set<std::vector<rgba16_t>>>(single_palettes, image.second.palette());
 		const std::vector<rgba16_t> used_pal = single_palettes[paltag];
 		paltag += FIRST_TAG;
 
