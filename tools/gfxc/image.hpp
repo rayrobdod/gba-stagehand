@@ -8,6 +8,7 @@
 #include <set>
 #include <string>
 #include <vector>
+#include <ranges>
 
 struct rgba16;
 
@@ -37,6 +38,18 @@ std::ostream& operator<<(std::ostream& os, const rgba16_t& value);
 
 //
 
+class gbatile_4bpp {
+	std::vector<uint8_t> _bytes;
+public:
+	gbatile_4bpp(std::vector<uint8_t> bytes);
+
+	std::vector<uint8_t> bytes() const;
+
+	bool operator==(const gbatile_4bpp&) const;
+};
+
+//
+
 class image_pixel_range;
 class image_tile_range;
 class subimage;
@@ -52,6 +65,9 @@ public:
 	image_tile_range subs(unsigned width, unsigned height) const;
 
 	std::set<rgba16_t> palette() const;
+
+	template<std::ranges::range R>
+	gbatile_4bpp to_tile_4bpp(R palette) const;
 };
 
 class image_pixel_iterator {
@@ -161,5 +177,22 @@ public:
 
 	std::map<std::string, std::vector<rgba16_t>> alt_palettes(std::vector<rgba16_t> palette) const;
 };
+
+#include <algorithm>
+#include "subword_output_iterator.hpp"
+
+template<std::ranges::range R>
+gbatile_4bpp image::to_tile_4bpp(R palette) const {
+	subword_output_iterator<uint8_t, uint4_t, DIRECTION_INC> builder;
+	for (auto pixel : this->pixels()) {
+		auto palptr = std::find(palette.begin(), palette.end(), pixel);
+		uint4_t palindex(palptr - palette.begin());
+
+		*builder = palindex;
+		++builder;
+	}
+	gbatile_4bpp retval(builder.result());
+	return retval;
+}
 
 #endif //  #ifndef IMAGE_H

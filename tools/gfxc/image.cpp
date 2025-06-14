@@ -32,6 +32,15 @@ std::ostream& operator<<(std::ostream& os, const rgba16_t& value) {
 
 ////
 
+gbatile_4bpp::gbatile_4bpp(std::vector<uint8_t> bytes) : _bytes(bytes) {}
+
+std::vector<uint8_t> gbatile_4bpp::bytes() const {return this->_bytes;}
+
+bool gbatile_4bpp::operator==(const gbatile_4bpp& other) const {return this->_bytes == other._bytes;}
+
+
+////
+
 image_pixel_range image::pixels() const {
 	return image_pixel_range(this);
 }

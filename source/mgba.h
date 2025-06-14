@@ -15,7 +15,7 @@ typedef uint32_t bool32;
 
 bool32 MgbaOpen(void);
 void MgbaClose(void);
-void MgbaPrintf(enum MgbaLogLevel level, const char*, ...);
+void MgbaPrintf(enum MgbaLogLevel level, const char*, ...) __attribute__((format(printf, 2, 3)));
 void MgbaAssert(const char*, int32_t nLine, const char*, bool32 nStopProgram);
 
 

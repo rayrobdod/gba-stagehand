@@ -6,6 +6,7 @@
 #include <optional>
 #include <stdexcept>
 #include <string>
+#include "compression/frit.hpp"
 #include "compression/huff.hpp"
 #include "compression/lz.hpp"
 #include "compression/rl.hpp"
@@ -17,13 +18,15 @@ struct choosable_compression {
 };
 
 using namespace std::string_view_literals;
-const static std::array<choosable_compression, 5> compression_algs = {{
+const static std::initializer_list<choosable_compression> compression_algs = {
 	{"LZ"sv,	&compressLz,	&decompressLz,},
 	{"LZ11"sv,	&compressLz11,	&decompressLz11,},
 	{"RL"sv,	&compressRl,	&decompressRl,},
+	{"FRIT16"sv,	&compressFrit16,	&decompressFrit16,},
+	{"FRIT8"sv,	&compressFrit8,	&decompressFrit8,},
 	{"Huff8"sv,	&compressHuff8,	&decompressHuff8,},
 	{"Huff4"sv,	&compressHuff4,	&decompressHuff4,},
-}};
+};
 
 choosen_compression choose_compression(std::string tiles_name, std::vector<uint8_t> data) {
 	choosen_compression retval;
@@ -41,7 +44,7 @@ choosen_compression choose_compression(std::string tiles_name, std::vector<uint8
 			continue;
 
 		std::vector<uint8_t> compressed = *compressedOpt;
-		std::vector<uint8_t> round = alg.decompress(compressed, false);
+		std::vector<uint8_t> round = alg.decompress(compressed, false && tiles_name == "tile.1002" && alg.alg_name == "FRIT8"sv);
 
 		if (data != round) {
 			std::string msg;
