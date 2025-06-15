@@ -90,7 +90,7 @@ void sprite::write_struct(std::ostream& headerstream) {
 		<< "};" << std::endl;
 }
 
-void sprite::write(std::ostream& headerstream, struct Object* elf) const {
+void sprite::write(std::ostream& headerstream, Object& elf) const {
 	headerstream << "extern const struct shadow_oam_template " << this->var_name << ";" << std::endl;
 
 	std::array<uint32_t, 4> serialized = {
@@ -117,6 +117,6 @@ void sprite::write(std::ostream& headerstream, struct Object* elf) const {
 		.symbol_name = tiles_name,
 	};
 
-	object_push_bytes_section(elf, serialized.data(), sizeof(uint32_t) * serialized.size(), {this->var_name.c_str(), STB_GLOBAL});
-	push_relocation_section(elf, this->var_name.c_str(), relocs.data(), relocs.size());
+	elf.push_bytes_section(serialized, {this->var_name, STB_GLOBAL});
+	elf.push_relocation_section(this->var_name, relocs);
 }

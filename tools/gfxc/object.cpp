@@ -1,12 +1,7 @@
-#include "object.h"
+#include "object.hpp"
 
-#include <stdbool.h>
 #include <stdlib.h>
-#include <stdio.h>
 #include <string.h>
-#include <string>
-#include <vector>
-#include <elf.h>
 
 /** Elf32_Shdr but without the offset or size */
 typedef struct {
@@ -29,17 +24,7 @@ public:
 	}
 
 	/** inserts string into the buffer if it is not already there; returns position of string */
-	Elf32_Word push(const char* value) {
-		Elf32_Word retval = this->_data.size();
-		while ('\0' != *value) {
-			this->_data.push_back(*value);
-			++value;
-		}
-		this->_data.push_back('\0');
-		return retval;
-	}
-
-	Elf32_Word push(std::string value) {
+	Elf32_Word push(std::string_view value) {
 		Elf32_Word retval = this->_data.size();
 		for (auto i = value.begin(); i != value.end(); i++) {
 			this->_data.push_back(*i);
@@ -48,18 +33,18 @@ public:
 		return retval;
 	}
 
-	Elf32_Word find(const char* value) const {
+	Elf32_Word find(std::string_view value) const {
 		const char* data = this->data();
 
 		for (Elf32_Word i = 0; i < this->size(); i++) {
-			if (0 == strcmp(value, &(data[i]))) {
+			if (0 == strcmp(value.data(), &(data[i]))) {
 				return i;
 			}
 		}
 		return 0;
 	}
 
-	Elf32_Word find_or_push(const char* value) {
+	Elf32_Word find_or_push(std::string_view value) {
 		Elf32_Word retval = find(value);
 		if (0 == retval) {
 			retval = push(value);
@@ -199,7 +184,7 @@ private:
 	std::vector<Relocations> relocation_sections;
 	std::vector<Elf32_Shdr> sections;
 public:
-	ObjectImpl(const char* out_file_name) :
+	ObjectImpl(std::filesystem::path out_file_name) :
 		header({
 			.e_ident = {
 				[EI_MAG0] = ELFMAG0,
@@ -229,9 +214,9 @@ public:
 		relocation_sections(),
 		sections()
 	{
-		this->f = fopen(out_file_name, "w");
+		this->f = fopen(out_file_name.c_str(), "w");
 		if (!f) {
-			fprintf(stderr, "Could not open file %s\n", out_file_name);
+			fprintf(stderr, "Could not open file %s\n", out_file_name.c_str());
 			exit(1);
 		}
 		fseek(f, sizeof(Elf32_Ehdr), SEEK_SET);
@@ -390,7 +375,7 @@ public:
 	}
 
 	void push_relocation_section(
-		const char* variable_name,
+		std::string_view variable_name,
 		const struct relocation_template* rels, size_t rel_count
 	) {
 		std::string target_name(".rodata.");
@@ -439,41 +424,20 @@ public:
 	}
 };
 
-struct Object {
-	ObjectImpl* impl;
-};
 
-struct Object* object_start(const char* out_file_name) {
-	struct Object* retval = new struct Object();
-	retval->impl = new ObjectImpl(out_file_name);
-	return retval;
+Object::Object(std::filesystem::path out_file_name) : impl(new ObjectImpl(out_file_name)) {
 }
 
-void object_finish(struct Object* self) {
-	delete self->impl;
-	delete self;
+Object::~Object() {}
+
+void Object::push_bytes_section(
+		const void* data, Elf32_Word size_in_bytes,
+		const variable_template variable) {
+	this->impl->push_bytes_section(data, size_in_bytes, variable);
 }
 
-void object_push_file_copy_section(
-	struct Object* self,
-	const char* src_filename,
-	const struct variable_template variable
-) {
-	self->impl->push_file_copy_section(src_filename, variable);
-}
-
-void object_push_bytes_section(
-	struct Object* self,
-	const void* data, Elf32_Word size,
-	const struct variable_template variable
-) {
-	self->impl->push_bytes_section(data, size, variable);
-}
-
-void push_relocation_section(
-	struct Object* self,
-	const char* target_name,
-	const struct relocation_template* rels, size_t rel_count
-) {
-	self->impl->push_relocation_section(target_name, rels, rel_count);
+void Object::push_relocation_section(
+		std::string_view target_name,
+		const struct relocation_template* rels, size_t rel_count) {
+	this->impl->push_relocation_section(target_name, rels, rel_count);
 }

@@ -94,7 +94,7 @@ void font::write_struct(std::ostream& headerstream) {
 		<< "};" << std::endl;
 }
 
-void font::write(std::ostream& headerstream, struct Object* elf) const {
+void font::write(std::ostream& headerstream, Object& elf) const {
 	headerstream << "extern const struct font " << this->var_name << ";" << std::endl;
 
 	std::vector<uint16_t> pixel_data;
@@ -114,8 +114,8 @@ void font::write(std::ostream& headerstream, struct Object* elf) const {
 	std::string pixeldata_name(this->var_name);
 	pixeldata_name += ".pixeldata";
 
-	object_push_bytes_section(elf, pixel_data.data(), sizeof(uint16_t) * pixel_data.size(), {pixeldata_name.c_str(), STB_LOCAL});
-	object_push_bytes_section(elf, metadata.data(), sizeof(uint16_t) * metadata.size(), {this->var_name.c_str(), STB_GLOBAL});
+	elf.push_bytes_section(pixel_data, {pixeldata_name, STB_LOCAL});
+	elf.push_bytes_section(metadata, {this->var_name, STB_GLOBAL});
 
 	std::array<relocation_template, 1> relocs;
 	relocs[0] = (struct relocation_template){
@@ -123,5 +123,5 @@ void font::write(std::ostream& headerstream, struct Object* elf) const {
 		.type = R_ARM_ABS32,
 		.symbol_name = pixeldata_name.c_str(),
 	};
-	push_relocation_section(elf, this->var_name.c_str(), relocs.data(), relocs.size());
+	elf.push_relocation_section(this->var_name, relocs);
 }

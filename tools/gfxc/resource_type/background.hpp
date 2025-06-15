@@ -4,7 +4,7 @@
 #include <string>
 #include <vector>
 #include "image.hpp"
-#include "object.h"
+#include "object.hpp"
 
 struct bg_tile_t {
 	uint16_t tile : 10;
@@ -23,7 +23,7 @@ struct background {
 	std::vector<bg_tile_t> tilemap;
 
 	explicit background(const std::pair<std::filesystem::path, bufferedimage>);
-	void write(std::ostream& headerstream, struct Object* elf) const;
+	void write(std::ostream& headerstream, Object& elf) const;
 
 	static void write_struct(std::ostream& headerstream);
 };

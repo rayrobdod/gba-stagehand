@@ -205,7 +205,7 @@ void background::write_struct(std::ostream& headerstream) {
 		<< "};" << std::endl;
 }
 
-void background::write(std::ostream& headerstream, struct Object* elf) const {
+void background::write(std::ostream& headerstream, Object& elf) const {
 	headerstream << "extern struct background " << this->var_name << ";" << std::endl;
 
 	std::array<uint16_t, 9> serialized = {
@@ -258,10 +258,10 @@ void background::write(std::ostream& headerstream, struct Object* elf) const {
 	auto tilemap_comp = choose_compression(tilemap_name, tilemap_bytes);
 
 
-	object_push_bytes_section(elf, palettes_flat.data(), sizeof(rgba16_t) * palettes_flat.size(), {pal_name, STB_LOCAL});
-	object_push_bytes_section(elf, tileset_comp.data.data(), sizeof(uint8_t) * tileset_comp.data.size(), {tileset_name, STB_LOCAL});
-	object_push_bytes_section(elf, tilemap_comp.data.data(), sizeof(bg_tile_t) * tilemap_comp.data.size(), {tilemap_name, STB_LOCAL});
+	elf.push_bytes_section(palettes_flat, {pal_name, STB_LOCAL});
+	elf.push_bytes_section(tileset_comp.data, {tileset_name, STB_LOCAL});
+	elf.push_bytes_section(tilemap_comp.data, {tilemap_name, STB_LOCAL});
 
-	object_push_bytes_section(elf, serialized.data(), sizeof(uint16_t) * serialized.size(), {this->var_name.c_str(), STB_GLOBAL});
-	push_relocation_section(elf, this->var_name.c_str(), relocs.data(), relocs.size());
+	elf.push_bytes_section(serialized, {this->var_name, STB_GLOBAL});
+	elf.push_relocation_section(this->var_name, relocs);
 }

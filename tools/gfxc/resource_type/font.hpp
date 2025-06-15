@@ -4,7 +4,7 @@
 #include <utility>
 #include <vector>
 #include "image.hpp"
-#include "object.h"
+#include "object.hpp"
 
 struct font_glyph {
 	uint8_t width;
@@ -17,7 +17,7 @@ struct font {
 	std::vector<font_glyph> glyphs;
 
 	explicit font(const std::pair<std::filesystem::path, bufferedimage>);
-	void write(std::ostream& headerstream, struct Object* elf) const;
+	void write(std::ostream& headerstream, Object& elf) const;
 
 	static void write_struct(std::ostream& headerstream);
 };

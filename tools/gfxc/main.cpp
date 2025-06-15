@@ -19,7 +19,7 @@
 #include "find_palette_superset.hpp"
 #include "image.hpp"
 #include "indexed_insert_only_set.hpp"
-#include "object.h"
+#include "object.hpp"
 #include "png_deserialize.hpp"
 #include "resource_type.hpp"
 #include "subword_output_iterator.hpp"
@@ -171,7 +171,7 @@ int compile_object(std::filesystem::path srcdir, std::filesystem::path objfile, 
 		fonts.emplace_back(image);
 	}
 
-	struct Object* elf = object_start(objfile.c_str());
+	Object elf(objfile);
 	std::ofstream headerstream(headerfile);
 
 	for (auto pal0 = single_palettes.cbegin(); pal0 != single_palettes.cend(); ++pal0) {
@@ -182,7 +182,7 @@ int compile_object(std::filesystem::path srcdir, std::filesystem::path objfile, 
 		for (auto color : *pal0) {
 			pal.push_back(color.strip_alpha());
 		}
-		object_push_bytes_section(elf, pal.data(), sizeof(rgba16_t) * pal.size(), {pal_name, STB_LOCAL});
+		elf.push_bytes_section(pal, {pal_name, STB_LOCAL});
 	}
 
 	for (size_t tiletag = 0; tiletag < tiledatas.size(); ++tiletag) {
@@ -194,7 +194,7 @@ int compile_object(std::filesystem::path srcdir, std::filesystem::path objfile, 
 			std::cout << "  " << tiles_name << ": " << compressed.alg_name << std::endl;
 		}
 
-		object_push_bytes_section(elf, compressed.data.data(), sizeof(uint8_t) * compressed.data.size(), {tiles_name, STB_LOCAL});
+		elf.push_bytes_section(compressed.data, {tiles_name, STB_LOCAL});
 	}
 
 	headerstream << std::endl;
@@ -251,7 +251,7 @@ int compile_object(std::filesystem::path srcdir, std::filesystem::path objfile, 
 		std::string tiles_name("tile.");
 		tiles_name += name;
 
-		object_push_bytes_section(elf, tiledata.data(), sizeof(uint8_t) * tiledata.size(), {tiles_name.c_str(), STB_GLOBAL});
+		elf.push_bytes_section(tiledata, {tiles_name, STB_GLOBAL});
 
 		std::array<uint32_t, 4> serialized = {
 			1,
@@ -272,8 +272,8 @@ int compile_object(std::filesystem::path srcdir, std::filesystem::path objfile, 
 			.symbol_name = tiles_name.c_str(),
 		};
 
-		object_push_bytes_section(elf, serialized.data(), sizeof(uint32_t) * serialized.size(), {name.c_str(), STB_GLOBAL});
-		push_relocation_section(elf, name.c_str(), relocs.data(), relocs.size());
+		elf.push_bytes_section(serialized, {name, STB_GLOBAL});
+		elf.push_relocation_section(name, relocs);
 
 		headerstream << "extern const struct tileset_graphics " << name << ";" << std::endl;
 	}
@@ -298,7 +298,7 @@ int compile_object(std::filesystem::path srcdir, std::filesystem::path objfile, 
 		tiledata.insert(tiledata.begin(), (sizeof(uint8_t) * size) >> 8);
 		tiledata.insert(tiledata.begin(), sizeof(uint8_t) * size);
 
-		object_push_bytes_section(elf, tiledata.data(), sizeof(uint8_t) * tiledata.size(), {name.c_str(), STB_GLOBAL});
+		elf.push_bytes_section(tiledata, {name, STB_GLOBAL});
 
 		headerstream << "extern const struct bitpacked_tileset " << name << ";" << std::endl;
 	}
@@ -315,13 +315,12 @@ int compile_object(std::filesystem::path srcdir, std::filesystem::path objfile, 
 
 		std::vector<rgba16_t> imgdata(image.second.pixels().begin(), image.second.pixels().end());
 
-		object_push_bytes_section(elf, imgdata.data(), sizeof(rgba16_t) * imgdata.size(), {name.c_str(), STB_GLOBAL});
+		elf.push_bytes_section(imgdata, {name, STB_GLOBAL});
 
 		headerstream << "extern const rgb_t " << name << "[160][240];" << std::endl;
 	}
 
 	headerstream.close();
-	object_finish(elf);
 
 	return 0;
 }
