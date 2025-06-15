@@ -105,18 +105,18 @@ void sprite::write(std::ostream& headerstream, Object& elf) const {
 	char tiles_name[16];
 	snprintf(tiles_name, 16, "tile.%x", this->tiletag);
 
-	std::array<relocation_template, 2> relocs;
-	relocs[0] = (struct relocation_template){
-		.offset = 0,
-		.type = R_ARM_ABS32,
-		.symbol_name = pal_name,
-	};
-	relocs[1] = (struct relocation_template){
-		.offset = 4,
-		.type = R_ARM_ABS32,
-		.symbol_name = tiles_name,
+	std::initializer_list<relocation_template> relocs = {
+		{
+			.offset = 0,
+			.type = R_ARM_ABS32,
+			.symbol_name = pal_name,
+		},
+		{
+			.offset = 4,
+			.type = R_ARM_ABS32,
+			.symbol_name = tiles_name,
+		},
 	};
 
-	elf.push_bytes_section(serialized, {this->var_name, STB_GLOBAL});
-	elf.push_relocation_section(this->var_name, relocs);
+	elf.push_single_variable_rodata_sections({this->var_name, STB_GLOBAL}, serialized, relocs);
 }

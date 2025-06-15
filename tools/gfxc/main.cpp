@@ -182,7 +182,7 @@ int compile_object(std::filesystem::path srcdir, std::filesystem::path objfile, 
 		for (auto color : *pal0) {
 			pal.push_back(color.strip_alpha());
 		}
-		elf.push_bytes_section(pal, {pal_name, STB_LOCAL});
+		elf.push_single_variable_rodata_sections({pal_name, STB_LOCAL}, pal);
 	}
 
 	for (size_t tiletag = 0; tiletag < tiledatas.size(); ++tiletag) {
@@ -194,7 +194,7 @@ int compile_object(std::filesystem::path srcdir, std::filesystem::path objfile, 
 			std::cout << "  " << tiles_name << ": " << compressed.alg_name << std::endl;
 		}
 
-		elf.push_bytes_section(compressed.data, {tiles_name, STB_LOCAL});
+		elf.push_single_variable_rodata_sections({tiles_name, STB_LOCAL}, compressed.data);
 	}
 
 	headerstream << std::endl;
@@ -251,7 +251,7 @@ int compile_object(std::filesystem::path srcdir, std::filesystem::path objfile, 
 		std::string tiles_name("tile.");
 		tiles_name += name;
 
-		elf.push_bytes_section(tiledata, {tiles_name, STB_GLOBAL});
+		elf.push_single_variable_rodata_sections({tiles_name, STB_GLOBAL}, tiledata);
 
 		std::array<uint32_t, 4> serialized = {
 			1,
@@ -260,20 +260,20 @@ int compile_object(std::filesystem::path srcdir, std::filesystem::path objfile, 
 			0,
 		};
 
-		std::array<relocation_template, 2> relocs;
-		relocs[0] = (struct relocation_template){
-			.offset = 4,
-			.type = R_ARM_ABS32,
-			.symbol_name = pal_name,
-		};
-		relocs[1] = (struct relocation_template){
-			.offset = 12,
-			.type = R_ARM_ABS32,
-			.symbol_name = tiles_name.c_str(),
+		std::initializer_list<relocation_template> relocs = {
+			{
+				.offset = 4,
+				.type = R_ARM_ABS32,
+				.symbol_name = pal_name,
+			},
+			{
+				.offset = 12,
+				.type = R_ARM_ABS32,
+				.symbol_name = tiles_name.c_str(),
+			},
 		};
 
-		elf.push_bytes_section(serialized, {name, STB_GLOBAL});
-		elf.push_relocation_section(name, relocs);
+		elf.push_single_variable_rodata_sections({name, STB_GLOBAL}, serialized, relocs);
 
 		headerstream << "extern const struct tileset_graphics " << name << ";" << std::endl;
 	}
@@ -298,7 +298,7 @@ int compile_object(std::filesystem::path srcdir, std::filesystem::path objfile, 
 		tiledata.insert(tiledata.begin(), (sizeof(uint8_t) * size) >> 8);
 		tiledata.insert(tiledata.begin(), sizeof(uint8_t) * size);
 
-		elf.push_bytes_section(tiledata, {name, STB_GLOBAL});
+		elf.push_single_variable_rodata_sections({name, STB_GLOBAL}, tiledata);
 
 		headerstream << "extern const struct bitpacked_tileset " << name << ";" << std::endl;
 	}
@@ -315,7 +315,7 @@ int compile_object(std::filesystem::path srcdir, std::filesystem::path objfile, 
 
 		std::vector<rgba16_t> imgdata(image.second.pixels().begin(), image.second.pixels().end());
 
-		elf.push_bytes_section(imgdata, {name, STB_GLOBAL});
+		elf.push_single_variable_rodata_sections({name, STB_GLOBAL}, imgdata);
 
 		headerstream << "extern const rgb_t " << name << "[160][240];" << std::endl;
 	}

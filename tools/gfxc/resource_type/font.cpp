@@ -114,14 +114,15 @@ void font::write(std::ostream& headerstream, Object& elf) const {
 	std::string pixeldata_name(this->var_name);
 	pixeldata_name += ".pixeldata";
 
-	elf.push_bytes_section(pixel_data, {pixeldata_name, STB_LOCAL});
-	elf.push_bytes_section(metadata, {this->var_name, STB_GLOBAL});
+	elf.push_single_variable_rodata_sections({pixeldata_name, STB_LOCAL}, pixel_data);
 
-	std::array<relocation_template, 1> relocs;
-	relocs[0] = (struct relocation_template){
-		.offset = 0,
-		.type = R_ARM_ABS32,
-		.symbol_name = pixeldata_name.c_str(),
+	std::initializer_list<relocation_template> relocs = {
+		{
+			.offset = 0,
+			.type = R_ARM_ABS32,
+			.symbol_name = pixeldata_name.c_str(),
+		}
 	};
-	elf.push_relocation_section(this->var_name, relocs);
+
+	elf.push_single_variable_rodata_sections({this->var_name, STB_GLOBAL}, metadata, relocs);
 }

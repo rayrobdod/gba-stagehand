@@ -224,21 +224,22 @@ void background::write(std::ostream& headerstream, Object& elf) const {
 	char tilemap_name[32];
 	snprintf(tilemap_name, 32, "%s.tilemap", this->var_name.c_str());
 
-	std::array<relocation_template, 3> relocs;
-	relocs[0] = (struct relocation_template){
-		.offset = 0,
-		.type = R_ARM_ABS32,
-		.symbol_name = pal_name,
-	};
-	relocs[1] = (struct relocation_template){
-		.offset = 4,
-		.type = R_ARM_ABS32,
-		.symbol_name = tileset_name,
-	};
-	relocs[2] = (struct relocation_template){
-		.offset = 8,
-		.type = R_ARM_ABS32,
-		.symbol_name = tilemap_name,
+	std::initializer_list<relocation_template> relocs {
+		{
+			.offset = 0,
+			.type = R_ARM_ABS32,
+			.symbol_name = pal_name,
+		},
+		{
+			.offset = 4,
+			.type = R_ARM_ABS32,
+			.symbol_name = tileset_name,
+		},
+		{
+			.offset = 8,
+			.type = R_ARM_ABS32,
+			.symbol_name = tilemap_name,
+		},
 	};
 
 	std::vector<rgba16_t> palettes_flat;
@@ -258,10 +259,9 @@ void background::write(std::ostream& headerstream, Object& elf) const {
 	auto tilemap_comp = choose_compression(tilemap_name, tilemap_bytes);
 
 
-	elf.push_bytes_section(palettes_flat, {pal_name, STB_LOCAL});
-	elf.push_bytes_section(tileset_comp.data, {tileset_name, STB_LOCAL});
-	elf.push_bytes_section(tilemap_comp.data, {tilemap_name, STB_LOCAL});
+	elf.push_single_variable_rodata_sections({pal_name, STB_LOCAL}, palettes_flat);
+	elf.push_single_variable_rodata_sections({tileset_name, STB_LOCAL}, tileset_comp.data);
+	elf.push_single_variable_rodata_sections({tilemap_name, STB_LOCAL}, tilemap_comp.data);
 
-	elf.push_bytes_section(serialized, {this->var_name, STB_GLOBAL});
-	elf.push_relocation_section(this->var_name, relocs);
+	elf.push_single_variable_rodata_sections({this->var_name, STB_GLOBAL}, serialized, relocs);
 }
