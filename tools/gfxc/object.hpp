@@ -2,7 +2,6 @@
 #define OBJECT_HPP
 
 #include <filesystem>
-#include <memory>
 #include <ranges>
 #include <string>
 #include <vector>
@@ -72,8 +71,8 @@ private:
 	std::vector<Relocations> relocation_sections;
 	std::vector<Elf32_Shdr> sections;
 
-	Elf32_Section index_of_section(const char* name) const;
-	uint32_t id_of_symbol(const char* name) const;
+	Elf32_Section index_of_section(const std::string_view name) const;
+	uint32_t id_of_symbol(const std::string_view name) const;
 
 public:
 	Object(std::filesystem::path out_file_name);

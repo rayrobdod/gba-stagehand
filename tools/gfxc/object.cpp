@@ -1,9 +1,5 @@
 #include "object.hpp"
 
-#include <stdlib.h>
-#include <string.h>
-
-
 StringTableBuilder::StringTableBuilder(void) {
 	this->_data.push_back('\0');
 }
@@ -21,7 +17,7 @@ Elf32_Word StringTableBuilder::find(std::string_view value) const {
 	const char* data = this->_data.data();
 
 	for (Elf32_Word i = 0; i < this->_data.size(); i++) {
-		if (0 == strcmp(value.data(), &(data[i]))) {
+		if (value == &data[i]) {
 			return i;
 		}
 	}
@@ -178,25 +174,25 @@ void Object::push_bytes_section(
 
 }
 
-Elf32_Section Object::index_of_section(const char* name) const {
+Elf32_Section Object::index_of_section(const std::string_view name) const {
 	Elf32_Section i = 0;
 	for (auto s = sections.begin(); s != sections.end(); s++, i++) {
-		if (0 == strcmp(section_strings[s->sh_name], name)) {
+		if (name == section_strings[s->sh_name]) {
 			return i;
 		}
 	}
 	return 0;
 }
 
-uint32_t Object::id_of_symbol(const char* name) const {
+uint32_t Object::id_of_symbol(const std::string_view name) const {
 	uint32_t i = 0;
 	for (auto s = private_symbols.begin(); s != private_symbols.end(); s++, i++) {
-		if (0 == strcmp(symbol_strings[s->st_name], name)) {
+		if (name == symbol_strings[s->st_name]) {
 			return i;
 		}
 	}
 	for (auto s = public_symbols.begin(); s != public_symbols.end(); s++, i++) {
-		if (0 == strcmp(symbol_strings[s->st_name], name)) {
+		if (name == symbol_strings[s->st_name]) {
 			return i;
 		}
 	}
