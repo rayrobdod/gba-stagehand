@@ -1,0 +1,110 @@
+#include "build_compress_suite.hpp"
+
+#include <filesystem>
+#include "image.hpp"
+#include "png_deserialize.hpp"
+#include "resource_type.hpp"
+#include "object.hpp"
+#include "choose_compression.hpp"
+#include "variable_name_for_image.hpp"
+
+struct compression_suite {
+	std::string data_name;
+	uint32_t size;
+};
+
+void suite_1(std::string_view name, std::span<const std::byte> raw, Object& elf) {
+	std::vector<struct compression_suite> choices;
+
+	std::vector<uint8_t> raw2;
+	for (std::byte b : raw) {
+		raw2.push_back(uint8_t(b));
+	}
+
+	{
+		std::vector<std::byte> ident;
+		ident.clear();
+		ident.push_back(std::byte(0));
+		ident.push_back(std::byte(raw.size()));
+		ident.push_back(std::byte(raw.size() >> 8));
+		ident.push_back(std::byte(raw.size() >> 16));
+		std::copy(raw.begin(), raw.end(), std::back_inserter(ident));
+
+		std::string ident_name(name);
+		ident_name += ".IDENT";
+		elf.push_single_variable_rodata_sections({ident_name, STB_LOCAL}, ident);
+		choices.emplace_back(ident_name, ident.size());
+	}
+
+	for (choosable_compression compression_alg : compression_algs) {
+		auto compressedOpt = compression_alg.compress(raw2);
+		if (! compressedOpt)
+			continue;
+
+		std::vector<uint8_t> compressed = *compressedOpt;
+		std::string choice_name(name);
+		choice_name += ".";
+		choice_name += compression_alg.alg_name;
+		elf.push_single_variable_rodata_sections({choice_name, STB_LOCAL}, compressed);
+		choices.emplace_back(choice_name, compressed.size());
+	}
+
+	std::vector<uint32_t> bytes;
+	std::vector<relocation_template> relocs;
+	for (size_t i = 0; i < choices.size(); i++) {
+		bytes.push_back(0);
+		bytes.push_back(choices[i].size);
+		relocs.push_back((relocation_template) {
+			.offset = static_cast<Elf32_Addr>(8 * i),
+			.type = R_ARM_ABS32,
+			.symbol_name = choices[i].data_name.c_str(),
+		});
+	}
+	bytes.push_back(0);
+	bytes.push_back(0);
+
+	elf.push_single_variable_rodata_sections({name, STB_GLOBAL}, bytes, relocs);
+}
+
+int build_compression_suite(std::filesystem::path srcfile, std::filesystem::path objfile) {
+	bufferedimage parsed = png_deserialize(srcfile);
+	std::string name("compression_suite_");
+	name += variable_name_for_image(std::make_pair(srcfile.filename(), parsed));
+
+	Object elf(objfile);
+
+	switch (resource_type(parsed)) {
+	case TYPE_BACKGROUND_MODE3:
+		{
+			std::vector<rgba16_t> imgdata0(parsed.pixels().begin(), parsed.pixels().end());
+			std::span<rgba16_t> imgdata1(imgdata0);
+			std::span<const std::byte> imgdata = std::as_bytes(imgdata1);
+
+			suite_1(name, imgdata, elf);
+		}
+		break;
+	case TYPE_SPRITE:
+		{
+			// This won't be exactly the same as retail, but it should have the same frequencies
+			std::set<rgba16_t> pal0 = parsed.palette();
+			std::vector<rgba16_t> pal(pal0.begin(), pal0.end());
+
+			std::vector<uint8_t> tiledata_builder;
+			for (auto subimg : parsed.subs(8, 8)) {
+				for (auto b : subimg.to_tile_4bpp(pal).bytes()) {
+					tiledata_builder.push_back(b);
+				}
+			}
+
+			std::span<uint8_t> imgdata1(tiledata_builder);
+			std::span<const std::byte> imgdata = std::as_bytes(imgdata1);
+
+			suite_1(name, imgdata, elf);
+		}
+		break;
+	default:
+		break;
+	}
+
+	return 0;
+}

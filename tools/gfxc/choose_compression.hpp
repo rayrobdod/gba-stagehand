@@ -2,8 +2,17 @@
 #define CHOOSE_COMPRESSION_HPP
 
 #include <cstdint>
+#include <optional>
 #include <string_view>
 #include <vector>
+
+struct choosable_compression {
+	std::string_view alg_name;
+	std::optional<std::vector<uint8_t>> (*compress)(std::vector<uint8_t> src);
+	std::vector<uint8_t> (*decompress)(std::vector<uint8_t> src, bool decompile);
+};
+
+extern const std::initializer_list<choosable_compression> compression_algs;
 
 struct choosen_compression {
 	std::string_view alg_name;

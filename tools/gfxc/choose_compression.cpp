@@ -11,14 +11,8 @@
 #include "compression/lz.hpp"
 #include "compression/rl.hpp"
 
-struct choosable_compression {
-	std::string_view alg_name;
-	std::optional<std::vector<uint8_t>> (*compress)(std::vector<uint8_t> src);
-	std::vector<uint8_t> (*decompress)(std::vector<uint8_t> src, bool decompile);
-};
-
 using namespace std::string_view_literals;
-const static std::initializer_list<choosable_compression> compression_algs = {
+const std::initializer_list<choosable_compression> compression_algs = {
 	{"LZ"sv,	&compressLz,	&decompressLz,},
 	{"LZ11"sv,	&compressLz11,	&decompressLz11,},
 	{"RL"sv,	&compressRl,	&decompressRl,},

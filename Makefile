@@ -65,7 +65,7 @@ HOSTOBJDIR_SRC	:= $(BUILDDIR)/host/objs/src
 HOSTOBJDIR_HOST	:= $(BUILDDIR)/host/objs/host
 HOSTOBJDIR_TEST	:= $(BUILDDIR)/host/objs/test
 HOSTEXEDIR	:= $(BUILDDIR)/host/exe
-TESTOBJDIR_TEST	:= $(BUILDDIR)/test/objs/test
+TESTOBJDIR	:= $(BUILDDIR)/test/objs
 TESTEXEDIR	:= $(BUILDDIR)/test/exe
 
 INCLUDES	+= $(BUILDSRCDIR)
@@ -123,7 +123,8 @@ CXXFLAGS	+= -std=gnu++14 $(WARNFLAGS) $(DEFINES) $(ARCH) \
 		   -fno-exceptions -fno-rtti
 
 LDFLAGS		:= -mthumb -mthumb-interwork $(LIBDIRSFLAGS) \
-		   -Wl,-Map,$(MAP) -Wl,--gc-sections \
+		   -Wl,-Map,$(MAP) \
+		   -Wl,--gc-sections \
 		   -specs=nano.specs -T source/sys/gba_cart.ld \
 		   -Wl,--start-group $(LIBS) -Wl,--end-group \
 		   -Xlinker --print-memory-usage
@@ -138,7 +139,7 @@ HOSTCFLAGS += -fdata-sections
 HOSTCFLAGS += -fanalyzer
 
 HOSTLDFLAGS	+= $(LIBDIRSFLAGS) \
-                  -Wl,-Map,$(MAP) -Wl,--gc-sections \
+                  -Wl,--gc-sections \
                   -Wl,--start-group -lm $(LIBS) -Wl,--end-group \
 
 TESTLDFLAGS		:= -mthumb -mthumb-interwork $(LIBDIRSFLAGS) \
@@ -159,7 +160,7 @@ TEST_OBJS := \
 	$(patsubst $(SOURCEDIR)/%.c,$(HOSTOBJDIR_SRC)/%.c.o,$(SOURCES_C)) \
 	$(patsubst $(SOURCEDIR_TEST)/%.c,$(HOSTOBJDIR_TEST)/%.c.o,$(TESTSRCS_C)) \
 	$(patsubst $(SOURCEDIR_HOST)/%.c,$(HOSTOBJDIR_HOST)/%.c.o,$(HOSTSRCS_C)) \
-	$(patsubst $(SOURCEDIR_TEST)/%.c,$(TESTOBJDIR_TEST)/%.c.o,$(TESTSRCS_C)) \
+	$(patsubst $(SOURCEDIR_TEST)/%.c,$(TESTOBJDIR)/%.c.o,$(TESTSRCS_C)) \
 
 HOST_RUNNERS := \
 	$(filter \
@@ -170,6 +171,7 @@ HOST_RUNNERS := \
 TEST_RUNNERS := \
 	$(filter \
 		$(TESTEXEDIR)/test_% \
+		$(TESTEXEDIR)/bench_% \
 		, \
 		$(patsubst $(SOURCEDIR_TEST)/%.c,$(TESTEXEDIR)/%.elf,$(TESTSRCS_C)) \
 	)
@@ -219,15 +221,20 @@ $(HOSTEXEDIR)/% : $(HOSTOBJDIR_TEST)/%.c.o $(HOSTOBJDIR_HOST)/bios.c.o $(HOSTOBJ
 	@$(MKDIR) -p $(@D)
 	$(V)$(HOSTCC) -o $@ $^ $(HOSTLDFLAGS)
 
-$(TESTOBJDIR_TEST)/%.c.o : $(SOURCEDIR_TEST)/%.c | generated_headers
+$(TESTOBJDIR)/%.c.o : $(SOURCEDIR_TEST)/%.c | generated_headers
 	@echo "  CC      $<"
 	@$(MKDIR) -p $(@D) # Build target's directory if it doesn't exist
 	$(V)$(CC) $(CFLAGS) -MMD -MP -c -o $@ $<
 
-$(TESTEXEDIR)/%.elf : $(TESTOBJDIR_TEST)/%.c.o $(TESTOBJDIR_TEST)/harness.c.o $(filter-out $(BUILDOBJDIR)/main.c.o, $(OBJS)) source/sys/gba_cart.ld
+$(TESTOBJDIR)/%.png.o : $(GRAPHICSDIR)/%.png $(GFXC)
+	@echo "  GFXC    --compression_suite $<"
+	@$(MKDIR) -p $(@D)
+	$(V)$(GFXC) --compression_suite $< $@
+
+$(TESTEXEDIR)/%.elf : $(TESTOBJDIR)/%.c.o $(TESTOBJDIR)/harness.c.o $(TESTOBJDIR)/benchmarks.c.o $(filter-out $(BUILDOBJDIR)/main.c.o, $(OBJS)) source/sys/gba_cart.ld
 	@echo "  LD      $@"
 	@$(MKDIR) -p $(@D)
-	$(V)$(CC) -o $@ $(filter-out %.ld,$^) $(TESTLDFLAGS)
+	$(V)$(CC) -o $@ $(filter-out %.ld,$^) $(TESTLDFLAGS) -Wl,-Map,$(@:.elf=.map)
 
 # Targets
 # -------
@@ -274,6 +281,8 @@ $(ROM): $(ELF) $(GBAFIX)
 	$(V)$(GBAFIX) $@ -t$(GAME_TITLE) -c$(GAME_CODE)
 
 $(HOSTEXEDIR)/test_vram_op_queue : $(HOSTOBJDIR_SRC)/management/vram_op_queue.c.o $(HOSTOBJDIR_SRC)/gba/palette.c.o $(HOSTOBJDIR_SRC)/gba/vram.c.o $(HOSTOBJDIR_SRC)/gba/oam.c.o $(HOSTOBJDIR_SRC)/gba/hw_reg.c.o
+$(TESTEXEDIR)/bench_text_printer.elf : $(BUILDOBJDIR)/graphics.o
+$(TESTEXEDIR)/bench_decompress.elf : $(TESTOBJDIR)/snow-mountain-under-stars.png.o $(TESTOBJDIR)/arrow_left.png.o $(TESTOBJDIR)/breakout_set/ball.png.o
 
 check_host: $(HOST_RUNNERS)
 	$(V)for r in $(HOST_RUNNERS); do $$r ; done
