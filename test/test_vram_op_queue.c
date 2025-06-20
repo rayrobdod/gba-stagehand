@@ -2,6 +2,7 @@
 
 #include <stdio.h>
 #include <string.h>
+#include "mgba.h"
 #include "harness.h"
 #include "utils/arraycount.h"
 
@@ -35,8 +36,10 @@ int main(int argc, char** argv) {
 	total = 0;
 	failed = 0;
 
+	MgbaOpen();
+
 	RUN_TEST(test_vram_op_queue_enqueue_bg_palette);
 
-	printf("Total: %d; Failing: %d\n", total, failed);
+	MgbaPrintf(MGBA_LOG_INFO, "Total: %d; Failing: %d", total, failed);
 	return 0 != failed;
 }

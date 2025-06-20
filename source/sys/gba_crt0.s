@@ -95,9 +95,16 @@ start_vector:
     ldr     r2, =main
     bl      blx_r2_trampoline
 
+    // preserve main return value, so that r0 has that value at SoftReset,
+    // for a headless mgba call that will exit with r0 on SoftReset,
+    // as used by test runs
+    push {r0}
+
     // Global destructors
     ldr     r2, =__libc_fini_array
     bl      blx_r2_trampoline
+
+    pop {r0}
 
     // If main() returns, reboot the GBA using SoftReset
     swi     #0x00

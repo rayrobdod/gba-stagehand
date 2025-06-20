@@ -113,13 +113,17 @@ void HeaderUnCompVram(const void* src, volatile void* dest) {
 #include <stdarg.h>
 #include <stdio.h>
 
-void MgbaPrintf(enum MgbaLogLevel level, const char* ptr, ...)
-{
+bool32 MgbaOpen(void) {
+	return true;
+}
+
+void MgbaPrintf(enum MgbaLogLevel level, const char* ptr, ...) {
 	va_list args;
 
 	level &= 0x7;
 	va_start(args, ptr);
 	vprintf(ptr, args);
 	va_end(args);
+	printf("\n");
 }
 

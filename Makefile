@@ -65,6 +65,8 @@ HOSTOBJDIR_SRC	:= $(BUILDDIR)/host/objs/src
 HOSTOBJDIR_HOST	:= $(BUILDDIR)/host/objs/host
 HOSTOBJDIR_TEST	:= $(BUILDDIR)/host/objs/test
 HOSTEXEDIR	:= $(BUILDDIR)/host/exe
+TESTOBJDIR_TEST	:= $(BUILDDIR)/test/objs/test
+TESTEXEDIR	:= $(BUILDDIR)/test/exe
 
 INCLUDES	+= $(BUILDSRCDIR)
 
@@ -79,6 +81,7 @@ SYM		:= $(NAME).sym
 
 GBAFIX	:= tools/gbafix/gbafix
 GFXC	:= tools/gfxc/gfxc
+ROMTEST	?= ../icwic/tools/mgba/mgba-rom-test
 
 # Source files
 # ------------
@@ -138,6 +141,11 @@ HOSTLDFLAGS	+= $(LIBDIRSFLAGS) \
                   -Wl,-Map,$(MAP) -Wl,--gc-sections \
                   -Wl,--start-group -lm $(LIBS) -Wl,--end-group \
 
+TESTLDFLAGS		:= -mthumb -mthumb-interwork $(LIBDIRSFLAGS) \
+		   -Wl,--gc-sections \
+		   -specs=nano.specs \
+		   -T source/sys/gba_cart.ld \
+		   -Wl,--start-group $(LIBS) -Wl,--end-group \
 
 # Intermediate build files
 # ------------------------
@@ -151,11 +159,19 @@ TEST_OBJS := \
 	$(patsubst $(SOURCEDIR)/%.c,$(HOSTOBJDIR_SRC)/%.c.o,$(SOURCES_C)) \
 	$(patsubst $(SOURCEDIR_TEST)/%.c,$(HOSTOBJDIR_TEST)/%.c.o,$(TESTSRCS_C)) \
 	$(patsubst $(SOURCEDIR_HOST)/%.c,$(HOSTOBJDIR_HOST)/%.c.o,$(HOSTSRCS_C)) \
+	$(patsubst $(SOURCEDIR_TEST)/%.c,$(TESTOBJDIR_TEST)/%.c.o,$(TESTSRCS_C)) \
 
 HOST_RUNNERS := \
 	$(filter \
 		$(HOSTEXEDIR)/test_%, \
 		$(patsubst $(SOURCEDIR_TEST)/%.c,$(HOSTEXEDIR)/%,$(TESTSRCS_C)) \
+	)
+
+TEST_RUNNERS := \
+	$(filter \
+		$(TESTEXEDIR)/test_% \
+		, \
+		$(patsubst $(SOURCEDIR_TEST)/%.c,$(TESTEXEDIR)/%.elf,$(TESTSRCS_C)) \
 	)
 
 DEPS	:= $(OBJS:.o=.d) $(TEST_OBJS:.o=.d)
@@ -203,6 +219,16 @@ $(HOSTEXEDIR)/% : $(HOSTOBJDIR_TEST)/%.c.o $(HOSTOBJDIR_HOST)/bios.c.o $(HOSTOBJ
 	@$(MKDIR) -p $(@D)
 	$(V)$(HOSTCC) -o $@ $^ $(HOSTLDFLAGS)
 
+$(TESTOBJDIR_TEST)/%.c.o : $(SOURCEDIR_TEST)/%.c | generated_headers
+	@echo "  CC      $<"
+	@$(MKDIR) -p $(@D) # Build target's directory if it doesn't exist
+	$(V)$(CC) $(CFLAGS) -MMD -MP -c -o $@ $<
+
+$(TESTEXEDIR)/%.elf : $(TESTOBJDIR_TEST)/%.c.o $(TESTOBJDIR_TEST)/harness.c.o $(filter-out $(BUILDOBJDIR)/main.c.o, $(OBJS)) source/sys/gba_cart.ld
+	@echo "  LD      $@"
+	@$(MKDIR) -p $(@D)
+	$(V)$(CC) -o $@ $(filter-out %.ld,$^) $(TESTLDFLAGS)
+
 # Targets
 # -------
 
@@ -249,10 +275,13 @@ $(ROM): $(ELF) $(GBAFIX)
 
 $(HOSTEXEDIR)/test_vram_op_queue : $(HOSTOBJDIR_SRC)/management/vram_op_queue.c.o $(HOSTOBJDIR_SRC)/gba/palette.c.o $(HOSTOBJDIR_SRC)/gba/vram.c.o $(HOSTOBJDIR_SRC)/gba/oam.c.o $(HOSTOBJDIR_SRC)/gba/hw_reg.c.o
 
-check: $(HOST_RUNNERS)
+check_host: $(HOST_RUNNERS)
 	$(V)for r in $(HOST_RUNNERS); do $$r ; done
 
-check_all: check
+check_mgba: $(TEST_RUNNERS)
+	$(V)for r in $(TEST_RUNNERS); do stdbuf -oL $(ROMTEST) -ClogLevel.gba.dma=16 -l15 -S0 -Rr0 $$r ; done
+
+check_all: check_host check_mgba
 	$(V)cd tools/gfxc && $(MAKE) check
 
 $(DUMP): $(ELF)
