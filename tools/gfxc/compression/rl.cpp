@@ -5,7 +5,7 @@
 static const unsigned max_repeat_run = 0x7F + 3;
 static const unsigned max_raw_run = 0x7F + 1;
 
-std::vector<uint8_t> decompressRl(std::vector<uint8_t> src, bool decompile) {
+std::vector<uint8_t> decompressRl(std::vector<uint8_t> src, bool disassemble) {
 	unsigned expected_size = src[1] | src[2] << 8 | src[3] << 16;
 	std::vector<uint8_t> dest(expected_size);
 
@@ -18,7 +18,7 @@ std::vector<uint8_t> decompressRl(std::vector<uint8_t> src, bool decompile) {
 		if (0x80 & flags) {
 			unsigned width = (flags & 0x7F) + 3;
 			uint8_t value = src[srcPos++];
-			if (decompile)
+			if (disassemble)
 				printf("  %8d %8d | RUN %d %d\n\n", srcPos, destPos, width, value);
 
 			if (destPos + width <= expected_size) {
@@ -30,7 +30,7 @@ std::vector<uint8_t> decompressRl(std::vector<uint8_t> src, bool decompile) {
 			}
 		} else {
 			unsigned width = (flags & 0x7F) + 1;
-			if (decompile)
+			if (disassemble)
 				printf("  %8d %8d | LEN %d \n\n", srcPos, destPos, width);
 
 			if (destPos + width <= expected_size) {
@@ -42,7 +42,7 @@ std::vector<uint8_t> decompressRl(std::vector<uint8_t> src, bool decompile) {
 			}
 		}
 	}
-	if (decompile)
+	if (disassemble)
 		printf("  %8d %8d | END\n\n", srcPos, destPos);
 	return dest;
 }

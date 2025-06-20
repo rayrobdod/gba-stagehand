@@ -11,10 +11,10 @@
 
 
 template<class WORD>
-std::vector<WORD> decompressFrit(const std::vector<uint8_t> src, bool decompile) {
+std::vector<WORD> decompressFrit(const std::vector<uint8_t> src, bool disassemble) {
 	std::vector<WORD> retval;
 
-	if (decompile) {
+	if (disassemble) {
 		const unsigned size = ((src[3] << 16) | (src[2] << 8) | src[1]) / sizeof(WORD);
 		printf("SIZE: %d\n", size);
 	}
@@ -36,7 +36,7 @@ std::vector<WORD> decompressFrit(const std::vector<uint8_t> src, bool decompile)
 			unsigned lowValue = (low ? src[srcPos++] : 0);
 			unsigned operand = hiValue | lowValue;
 
-			if (decompile) {
+			if (disassemble) {
 				char hiStr[8] = "N/A";
 				char lowStr[8] = "N/A";
 				if (hi)
@@ -60,7 +60,7 @@ std::vector<WORD> decompressFrit(const std::vector<uint8_t> src, bool decompile)
 				length = src[srcPos++] + 31;
 			}
 
-			if (decompile) {
+			if (disassemble) {
 				char deltaStr = (delta == 0 ? '0' : delta == 1 ? '+' : '-');
 
 				printf("  %04x %04x %04x %04x  %8d %8zd | RUN%c  %d    %3d\n",
@@ -74,7 +74,7 @@ std::vector<WORD> decompressFrit(const std::vector<uint8_t> src, bool decompile)
 		}
 	}
 
-	if (decompile)
+	if (disassemble)
 		printf("  %04x %04x %04x %04x  %8d %8zd | END\n\n",
 			regs[0], regs[1], regs[2], regs[3], srcPos, retval.size());
 
@@ -279,8 +279,8 @@ std::optional<std::vector<uint8_t>> compressFrit(const std::vector<WORD> src, ui
 }
 
 
-std::vector<uint8_t> decompressFrit16(std::vector<uint8_t> src, bool decompile) {
-	std::vector<uint16_t> words(decompressFrit<uint16_t>(src, decompile));
+std::vector<uint8_t> decompressFrit16(std::vector<uint8_t> src, bool disassemble) {
+	std::vector<uint16_t> words(decompressFrit<uint16_t>(src, disassemble));
 	std::vector<uint8_t> retval;
 	for (uint16_t word : words) {
 		retval.push_back(word);
@@ -289,8 +289,8 @@ std::vector<uint8_t> decompressFrit16(std::vector<uint8_t> src, bool decompile) 
 	return retval;
 }
 
-std::vector<uint8_t> decompressFrit8(std::vector<uint8_t> src, bool decompile) {
-	return decompressFrit<uint8_t>(src, decompile);
+std::vector<uint8_t> decompressFrit8(std::vector<uint8_t> src, bool disassemble) {
+	return decompressFrit<uint8_t>(src, disassemble);
 }
 
 std::optional<std::vector<uint8_t>> compressFrit16(std::vector<uint8_t> src) {

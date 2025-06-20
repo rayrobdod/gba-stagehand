@@ -20,12 +20,12 @@ public:
 };
 
 template<typename DATASIZE>
-static std::vector<uint8_t> decompressHuff(std::vector<uint8_t> src, bool decompile) {
+static std::vector<uint8_t> decompressHuff(std::vector<uint8_t> src, bool disassemble) {
 	unsigned expected_size = src[1] | src[2] << 8 | src[3] << 16;
 	subword_output_iterator<uint8_t, DATASIZE, DIRECTION_INC> dest;
 	const auto dest_end = dest + expected_size * bitsize<uint8_t> / bitsize<DATASIZE>;
 
-	if (decompile) {
+	if (disassemble) {
 		std::cout << std::endl;
 		std::stack<prefix_tree_print_stack_elem> nodes;
 		nodes.emplace(5, 0, false);
@@ -79,12 +79,12 @@ static std::vector<uint8_t> decompressHuff(std::vector<uint8_t> src, bool decomp
 
 		while (! is_leaf) {
 			unsigned next_node = *(src1++);
-			if (decompile)
+			if (disassemble)
 				printf("%3d [%02x] | %d\n", code_pos, src[code_pos], next_node);
 			is_leaf = (next_node ? src[code_pos] & 0x40 : src[code_pos] & 0x80);
 			code_pos = (code_pos & ~1) + (src[code_pos] & 0x3F) * 2 + (next_node ? 3 : 2);
 		}
-		if (decompile)
+		if (disassemble)
 			printf("%3d [%02x] | LEAF (%zd)\n", code_pos, src[code_pos], dest.size());
 
 		*dest = static_cast<DATASIZE>(src[code_pos]);
@@ -94,12 +94,12 @@ static std::vector<uint8_t> decompressHuff(std::vector<uint8_t> src, bool decomp
 	return dest.result();
 }
 
-std::vector<uint8_t> decompressHuff8(std::vector<uint8_t> src, bool decompile) {
-	return decompressHuff<uint8_t>(src, decompile);
+std::vector<uint8_t> decompressHuff8(std::vector<uint8_t> src, bool disassemble) {
+	return decompressHuff<uint8_t>(src, disassemble);
 }
 
-std::vector<uint8_t> decompressHuff4(std::vector<uint8_t> src, bool decompile) {
-	return decompressHuff<uint4_t>(src, decompile);
+std::vector<uint8_t> decompressHuff4(std::vector<uint8_t> src, bool disassemble) {
+	return decompressHuff<uint4_t>(src, disassemble);
 }
 
 ///////

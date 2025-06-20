@@ -9,7 +9,7 @@
 struct choosable_compression {
 	std::string_view alg_name;
 	std::optional<std::vector<uint8_t>> (*compress)(std::vector<uint8_t> src);
-	std::vector<uint8_t> (*decompress)(std::vector<uint8_t> src, bool decompile);
+	std::vector<uint8_t> (*decompress)(std::vector<uint8_t> src, bool disassemble);
 };
 
 extern const std::initializer_list<choosable_compression> compression_algs;

@@ -12,7 +12,7 @@ struct CopyInstruction {
 
 static const std::vector<uint8_t>::size_type flags_per_byte = 8;
 
-std::vector<uint8_t> decompressLz(std::vector<uint8_t> src, bool decompile) {
+std::vector<uint8_t> decompressLz(std::vector<uint8_t> src, bool disassemble) {
 	unsigned expected_size = src[1] | src[2] << 8 | src[3] << 16;
 	std::vector<uint8_t> dest(expected_size);
 
@@ -28,13 +28,13 @@ std::vector<uint8_t> decompressLz(std::vector<uint8_t> src, bool decompile) {
 		}
 
 		if (flag & (1 << (flags_per_byte - 1 - flagPos))) {
-			if (decompile)
+			if (disassemble)
 				printf("  %8d %8d | ", srcPos, destPos);
 			unsigned opcode = src[srcPos + 1] | (src[srcPos] << 8);
 			srcPos += 2;
 			unsigned width = (opcode >> 12) + 3;
 			unsigned distance = (opcode & 0xFFF) + 1;
-			if (decompile)
+			if (disassemble)
 				printf("COPY: %2d %d\n", width, distance);
 
 			if (destPos + width <= expected_size) {
@@ -46,18 +46,18 @@ std::vector<uint8_t> decompressLz(std::vector<uint8_t> src, bool decompile) {
 				destPos += width;
 			}
 		} else {
-			if (decompile)
+			if (disassemble)
 				printf("  %8d %8d | IMM : %02X\n", srcPos, destPos, src[srcPos]);
 			dest[destPos++] = src[srcPos++];
 		}
 		flagPos++;
 	}
-	if (decompile)
+	if (disassemble)
 		printf("  %8d %8d | END\n\n", srcPos, destPos);
 	return dest;
 }
 
-std::vector<uint8_t> decompressLz11(std::vector<uint8_t> src, bool decompile) {
+std::vector<uint8_t> decompressLz11(std::vector<uint8_t> src, bool disassemble) {
 	unsigned expected_size = src[1] | src[2] << 8 | src[3] << 16;
 	std::vector<uint8_t> dest(expected_size);
 
@@ -73,7 +73,7 @@ std::vector<uint8_t> decompressLz11(std::vector<uint8_t> src, bool decompile) {
 		}
 
 		if (flag & (1 << (flags_per_byte - 1 - flagPos))) {
-			if (decompile)
+			if (disassemble)
 				printf("  %8d %8d | ", srcPos, destPos);
 
 			unsigned width;
@@ -97,7 +97,7 @@ std::vector<uint8_t> decompressLz11(std::vector<uint8_t> src, bool decompile) {
 				break;
 			}
 
-			if (decompile)
+			if (disassemble)
 				printf("COPY: %2d %d\n", width, distance);
 
 			if (destPos + width <= expected_size) {
@@ -109,13 +109,13 @@ std::vector<uint8_t> decompressLz11(std::vector<uint8_t> src, bool decompile) {
 				destPos += width;
 			}
 		} else {
-			if (decompile)
+			if (disassemble)
 				printf("  %8d %8d | IMM : %02X\n", srcPos, destPos, src[srcPos]);
 			dest[destPos++] = src[srcPos++];
 		}
 		flagPos++;
 	}
-	if (decompile)
+	if (disassemble)
 		printf("  %8d %8d | END\n\n", srcPos, destPos);
 	return dest;
 }
