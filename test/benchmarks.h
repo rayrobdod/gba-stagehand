@@ -1,5 +1,7 @@
 #include <stdint.h>
 
+static const unsigned CYCLES_PER_FRAME = 280896;
+
 void setUp(void);
 void tearDown(void);
 

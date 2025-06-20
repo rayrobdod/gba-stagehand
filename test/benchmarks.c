@@ -33,5 +33,6 @@ void run_benchmark(void (*fn)(void), const char* name) {
 	fn();
 	uint32_t time = benchmark_stop();
 	tearDown();
-	MgbaPrintf(MGBA_LOG_INFO, "%s: \033[44mBENCH\033[0m: %ld", name, time);
+	MgbaPrintf(MGBA_LOG_INFO, "%s: \033[44mBENCH\033[0m: %ld cycles = %ld.%03ld frames",
+		name, time, time / CYCLES_PER_FRAME, (time * 1000 / CYCLES_PER_FRAME) % 1000);
 }

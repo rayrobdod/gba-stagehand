@@ -58,7 +58,8 @@ void run_decompress_benchmark_suite(const struct compression_suite * suite, cons
 		HeaderUnCompVram(suite->data, vram.screenblock[0]);
 		uint32_t time = benchmark_stop();
 		tearDown();
-		MgbaPrintf(MGBA_LOG_INFO, "%s %6s: \033[44mBENCH\033[0m: %8ld (%ld)", name, UnCompFnName(suite->data[0]), time, suite->size);
+		MgbaPrintf(MGBA_LOG_INFO, "%s %6s: \033[44mBENCH\033[0m: %8ld cycles = %2ld.%03ld frames (%6ld bytes)",
+			name, UnCompFnName(suite->data[0]), time, time / CYCLES_PER_FRAME, (time * 1000 / CYCLES_PER_FRAME) % 1000, suite->size);
 
 		++suite;
 	}
