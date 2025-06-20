@@ -27,6 +27,7 @@ typedef struct rgba16 {
 	uint16_t a : 1;
 
 	rgb15_t strip_alpha() const;
+	std::array<uint8_t, 2> to_bytes(void);
 
 	static const rgba16 BLACK;
 } rgba16_t;

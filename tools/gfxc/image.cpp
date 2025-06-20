@@ -26,6 +26,15 @@ bool operator<(const rgba16_t& lhs, const rgba16_t& rhs) {
 	return lhs.b < rhs.b;
 }
 
+std::array<uint8_t, 2> rgba16_t::to_bytes(void) {
+	uint16_t as_int = reinterpret_cast<uint16_t*>(this)[0];
+	std::array<uint8_t, 2> retval = {
+		static_cast<uint8_t>(as_int),
+		static_cast<uint8_t>(as_int >> 8),
+	};
+	return retval;
+}
+
 std::ostream& operator<<(std::ostream& os, const rgba16_t& value) {
 	return os << "rgba16(" << value.r << "," << value.g << "," << value.b << "," << value.a << ")";
 }

@@ -13,21 +13,16 @@ struct compression_suite {
 	uint32_t size;
 };
 
-void suite_1(std::string_view name, std::span<const std::byte> raw, Object& elf) {
+void suite_1(std::string_view name, std::vector<uint8_t> raw, Object& elf) {
 	std::vector<struct compression_suite> choices;
 
-	std::vector<uint8_t> raw2;
-	for (std::byte b : raw) {
-		raw2.push_back(uint8_t(b));
-	}
-
 	{
-		std::vector<std::byte> ident;
+		std::vector<uint8_t> ident;
 		ident.clear();
-		ident.push_back(std::byte(0));
-		ident.push_back(std::byte(raw.size()));
-		ident.push_back(std::byte(raw.size() >> 8));
-		ident.push_back(std::byte(raw.size() >> 16));
+		ident.push_back(0);
+		ident.push_back(raw.size());
+		ident.push_back(raw.size() >> 8);
+		ident.push_back(raw.size() >> 16);
 		std::copy(raw.begin(), raw.end(), std::back_inserter(ident));
 
 		std::string ident_name(name);
@@ -37,7 +32,7 @@ void suite_1(std::string_view name, std::span<const std::byte> raw, Object& elf)
 	}
 
 	for (choosable_compression compression_alg : compression_algs) {
-		auto compressedOpt = compression_alg.compress(raw2);
+		auto compressedOpt = compression_alg.compress(raw);
 		if (! compressedOpt)
 			continue;
 
@@ -76,9 +71,12 @@ int build_compression_suite(std::filesystem::path srcfile, std::filesystem::path
 	switch (resource_type(parsed)) {
 	case TYPE_BACKGROUND_MODE3:
 		{
-			std::vector<rgba16_t> imgdata0(parsed.pixels().begin(), parsed.pixels().end());
-			std::span<rgba16_t> imgdata1(imgdata0);
-			std::span<const std::byte> imgdata = std::as_bytes(imgdata1);
+			std::vector<uint8_t> imgdata;
+			for (auto pixel : parsed.pixels()) {
+				for (uint8_t byte : pixel.to_bytes()) {
+					imgdata.push_back(byte);
+				}
+			}
 
 			suite_1(name, imgdata, elf);
 		}
@@ -89,17 +87,14 @@ int build_compression_suite(std::filesystem::path srcfile, std::filesystem::path
 			std::set<rgba16_t> pal0 = parsed.palette();
 			std::vector<rgba16_t> pal(pal0.begin(), pal0.end());
 
-			std::vector<uint8_t> tiledata_builder;
+			std::vector<uint8_t> tiledata;
 			for (auto subimg : parsed.subs(8, 8)) {
 				for (auto b : subimg.to_tile_4bpp(pal).bytes()) {
-					tiledata_builder.push_back(b);
+					tiledata.push_back(b);
 				}
 			}
 
-			std::span<uint8_t> imgdata1(tiledata_builder);
-			std::span<const std::byte> imgdata = std::as_bytes(imgdata1);
-
-			suite_1(name, imgdata, elf);
+			suite_1(name, tiledata, elf);
 		}
 		break;
 	default:
