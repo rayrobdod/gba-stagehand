@@ -27,7 +27,6 @@ LIBDIRS		:= # A list of paths
 # Include paths
 # -------------
 
-INCLUDES	+= build/source
 INCLUDES	+= source
 
 # Tools
@@ -43,6 +42,7 @@ MKDIR		:= mkdir
 RM		:= rm -rf
 FAMICONV	:= superfamiconv
 PERL	:= perl
+HOSTCC	:= gcc
 
 # Verbose flag
 # ------------
@@ -55,9 +55,18 @@ V		:= @
 
 SOURCEDIR	:= source
 GRAPHICSDIR	:= graphics
+SOURCEDIR_HOST	:= host
+SOURCEDIR_TEST	:= test
+
 BUILDDIR	:= build
-BUILDOBJDIR	:= $(BUILDDIR)/objs
-BUILDSRCDIR	:= $(BUILDDIR)/source
+BUILDOBJDIR	:= $(BUILDDIR)/main/objs
+BUILDSRCDIR	:= $(BUILDDIR)/main/source
+HOSTOBJDIR_SRC	:= $(BUILDDIR)/host/objs/src
+HOSTOBJDIR_HOST	:= $(BUILDDIR)/host/objs/host
+HOSTOBJDIR_TEST	:= $(BUILDDIR)/host/objs/test
+HOSTEXEDIR	:= $(BUILDDIR)/host/exe
+
+INCLUDES	+= $(BUILDSRCDIR)
 
 # Build artfacts
 # --------------
@@ -68,7 +77,7 @@ ROM		:= $(NAME).gba
 MAP		:= $(NAME).map
 SYM		:= $(NAME).sym
 
-GBAFIX		:= tools/gbafix/gbafix
+GBAFIX	:= tools/gbafix/gbafix
 GFXC	:= tools/gfxc/gfxc
 
 # Source files
@@ -78,6 +87,9 @@ SOURCES_S	:= $(wildcard $(SOURCEDIR)/*.s $(SOURCEDIR)/**/*.s)
 SOURCES_C	:= $(wildcard $(SOURCEDIR)/*.c $(SOURCEDIR)/**/*.c)
 SOURCES_CPP	:= $(wildcard $(SOURCEDIR)/*.cpp $(SOURCEDIR)/**/*.cpp)
 SOURCES_PNG	:= $(wildcard $(GRAPHICSDIR)/*.png $(GRAPHICSDIR)/**/*.png)
+
+HOSTSRCS_C	:= $(wildcard $(SOURCEDIR_HOST)/*.c) $(wildcard $(SOURCEDIR_HOST)/**/*.c)
+TESTSRCS_C	:= $(wildcard $(SOURCEDIR_TEST)/*.c) $(wildcard $(SOURCEDIR_TEST)/**/*.c)
 
 # Compiler and linker flags
 # -------------------------
@@ -113,6 +125,20 @@ LDFLAGS		:= -mthumb -mthumb-interwork $(LIBDIRSFLAGS) \
 		   -Wl,--start-group $(LIBS) -Wl,--end-group \
 		   -Xlinker --print-memory-usage
 
+HOSTCFLAGS += -std=gnu11
+HOSTCFLAGS += $(WARNFLAGS)
+HOSTCFLAGS += $(INCLUDEFLAGS)
+HOSTCFLAGS += -Itest
+HOSTCFLAGS += -O3
+HOSTCFLAGS += -ffunction-sections
+HOSTCFLAGS += -fdata-sections
+HOSTCFLAGS += -fanalyzer
+
+HOSTLDFLAGS	+= $(LIBDIRSFLAGS) \
+                  -Wl,-Map,$(MAP) -Wl,--gc-sections \
+                  -Wl,--start-group -lm $(LIBS) -Wl,--end-group \
+
+
 # Intermediate build files
 # ------------------------
 
@@ -121,7 +147,18 @@ OBJS		:= \
 	$(patsubst $(SOURCEDIR)/%.c,$(BUILDOBJDIR)/%.c.o,$(SOURCES_C)) \
 	$(patsubst $(SOURCEDIR)/%.cpp,$(BUILDOBJDIR)/%.cpp.o,$(SOURCES_CPP))
 
-DEPS		:= $(OBJS:.o=.d)
+TEST_OBJS := \
+	$(patsubst $(SOURCEDIR)/%.c,$(HOSTOBJDIR_SRC)/%.c.o,$(SOURCES_C)) \
+	$(patsubst $(SOURCEDIR_TEST)/%.c,$(HOSTOBJDIR_TEST)/%.c.o,$(TESTSRCS_C)) \
+	$(patsubst $(SOURCEDIR_HOST)/%.c,$(HOSTOBJDIR_HOST)/%.c.o,$(HOSTSRCS_C)) \
+
+HOST_RUNNERS := \
+	$(filter \
+		$(HOSTEXEDIR)/test_%, \
+		$(patsubst $(SOURCEDIR_TEST)/%.c,$(HOSTEXEDIR)/%,$(TESTSRCS_C)) \
+	)
+
+DEPS	:= $(OBJS:.o=.d) $(TEST_OBJS:.o=.d)
 
 # Default target
 # -------
@@ -146,6 +183,25 @@ $(BUILDOBJDIR)/%.cpp.o : $(SOURCEDIR)/%.cpp | generated_headers
 	@$(MKDIR) -p $(@D) # Build target's directory if it doesn't exist
 	$(V)$(CXX) $(CXXFLAGS) -MMD -MP -c -o $@ $<
 
+$(HOSTOBJDIR_HOST)/%.c.o : $(SOURCEDIR_HOST)/%.c | generated_headers
+	@echo "  HOSTCC  $<"
+	@$(MKDIR) -p $(@D) # Build target's directory if it doesn't exist
+	$(V)$(HOSTCC) $(HOSTCFLAGS) -MMD -MP -c -o $@ $<
+
+$(HOSTOBJDIR_TEST)/%.c.o : $(SOURCEDIR_TEST)/%.c | generated_headers
+	@echo "  HOSTCC  $<"
+	@$(MKDIR) -p $(@D) # Build target's directory if it doesn't exist
+	$(V)$(HOSTCC) $(HOSTCFLAGS) -MMD -MP -c -o $@ $<
+
+$(HOSTOBJDIR_SRC)/%.c.o : $(SOURCEDIR)/%.c | generated_headers
+	@echo "  HOSTCC  $<"
+	@$(MKDIR) -p $(@D) # Build target's directory if it doesn't exist
+	$(V)$(HOSTCC) $(HOSTCFLAGS) -MMD -MP -c -o $@ $<
+
+$(HOSTEXEDIR)/% : $(HOSTOBJDIR_TEST)/%.c.o $(HOSTOBJDIR_HOST)/bios.c.o $(HOSTOBJDIR_TEST)/harness.c.o
+	@echo "  HOSTLD  $@"
+	@$(MKDIR) -p $(@D)
+	$(V)$(HOSTCC) -o $@ $^ $(HOSTLDFLAGS)
 
 # Targets
 # -------
@@ -190,6 +246,14 @@ $(ROM): $(ELF) $(GBAFIX)
 	$(V)$(OBJCOPY) -O binary $< $@
 	@echo "  GBAFIX  $@"
 	$(V)$(GBAFIX) $@ -t$(GAME_TITLE) -c$(GAME_CODE)
+
+$(HOSTEXEDIR)/test_vram_op_queue : $(HOSTOBJDIR_SRC)/management/vram_op_queue.c.o $(HOSTOBJDIR_SRC)/gba/palette.c.o $(HOSTOBJDIR_SRC)/gba/vram.c.o $(HOSTOBJDIR_SRC)/gba/oam.c.o $(HOSTOBJDIR_SRC)/gba/hw_reg.c.o
+
+check: $(HOST_RUNNERS)
+	$(V)for r in $(HOST_RUNNERS); do $$r ; done
+
+check_all: check
+	$(V)cd tools/gfxc && $(MAKE) check
 
 $(DUMP): $(ELF)
 	@echo "  OBJDUMP $@"
