@@ -1,6 +1,7 @@
 #include "gba/palette.h"
 
 void TEST_ASSERT_EQUAL_UNSIGNED(unsigned expected, unsigned actual);
+void TEST_ASSERT_EQUAL_BYTE_ARRAY(const char* expected, const char* actual, unsigned length);
 void TEST_ASSERT_EQUAL_RGB(rgb_t expected, rgb_t actual);
 void TEST_FAIL(const char* reason);
 

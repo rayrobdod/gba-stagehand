@@ -17,6 +17,16 @@ void TEST_ASSERT_EQUAL_UNSIGNED(unsigned expected, unsigned actual) {
 	}
 }
 
+void TEST_ASSERT_EQUAL_BYTE_ARRAY(const char* expected, const char* actual, unsigned length) {
+	for (unsigned i = 0; i < length; i++) {
+		if (expected[i] != actual[i]) {
+			currentTestFailed = 1;
+			snprintf(fail_detail, arraycount(fail_detail), "At %d: Expected %d; was %d", i, expected[i], actual[i]);
+			break;
+		}
+	}
+}
+
 static int snprint_rgb(char* buf, size_t size, rgb_t value) {
 	return snprintf(buf, size, "{.r = %d, .g = %d, .b = %d}", value.r, value.g, value.b);
 }

@@ -2,9 +2,9 @@
 
 #include <stdio.h>
 #include <string.h>
-#include "mgba.h"
-#include "harness.h"
 #include "utils/arraycount.h"
+#include "harness.h"
+#include "mgba.h"
 
 static const rgb_t black = {0,0,0};
 static const palette16_t rainbow = {{0,0,0}, {31,0,0}, {31,16,0}, {31,31,0}, {0,31,0}, {0,31,31}, {0,0,31}, {31,0,31}};
