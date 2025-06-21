@@ -1,11 +1,12 @@
 #include "build_compress_suite.hpp"
 
 #include <filesystem>
+#include "resource_type/background.hpp"
+#include "choose_compression.hpp"
 #include "image.hpp"
+#include "object.hpp"
 #include "png_deserialize.hpp"
 #include "resource_type.hpp"
-#include "object.hpp"
-#include "choose_compression.hpp"
 #include "variable_name_for_image.hpp"
 
 struct compression_suite {
@@ -63,8 +64,9 @@ void suite_1(std::string_view name, std::vector<uint8_t> raw, Object& elf) {
 
 int build_compression_suite(std::filesystem::path srcfile, std::filesystem::path objfile) {
 	bufferedimage parsed = png_deserialize(srcfile);
+	std::pair<std::filesystem::path, bufferedimage> name_and_parsed = std::make_pair(srcfile.filename(), parsed);
 	std::string name("compression_suite_");
-	name += variable_name_for_image(std::make_pair(srcfile.filename(), parsed));
+	name += variable_name_for_image(name_and_parsed);
 
 	Object elf(objfile);
 
@@ -95,6 +97,23 @@ int build_compression_suite(std::filesystem::path srcfile, std::filesystem::path
 			}
 
 			suite_1(name, tiledata, elf);
+		}
+		break;
+	case TYPE_BACKGROUND:
+		{
+			background bg(name_and_parsed);
+
+			std::string tileset_name = name + "_tiles";
+			suite_1(tileset_name, bg.tileset, elf);
+
+			std::string tilemap_name = name + "_map";
+			std::vector<uint8_t> tilemap_bytes;
+			for (auto entry : bg.tilemap) {
+				for (uint8_t byte : entry.to_bytes()) {
+					tilemap_bytes.push_back(byte);
+				}
+			}
+			suite_1(tilemap_name, tilemap_bytes, elf);
 		}
 		break;
 	default:

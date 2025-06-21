@@ -15,6 +15,8 @@ struct compression_suite {
 const extern struct compression_suite compression_suite_snow_mountain_under_stars[];
 const extern struct compression_suite compression_suite_arrow_left[];
 const extern struct compression_suite compression_suite_ball[];
+const extern struct compression_suite compression_suite_brickbreak_background_tiles[];
+const extern struct compression_suite compression_suite_brickbreak_background_map[];
 
 static const uint32_t zero_uint32 = 0;
 
@@ -75,6 +77,8 @@ int main(int argc, char** argv) {
 	RUN_DECOMPRESS_BENCHMARK_SUITE(compression_suite_snow_mountain_under_stars);
 	RUN_DECOMPRESS_BENCHMARK_SUITE(compression_suite_arrow_left);
 	RUN_DECOMPRESS_BENCHMARK_SUITE(compression_suite_ball);
+	RUN_DECOMPRESS_BENCHMARK_SUITE(compression_suite_brickbreak_background_tiles);
+	RUN_DECOMPRESS_BENCHMARK_SUITE(compression_suite_brickbreak_background_map);
 
 	return 0;
 }
