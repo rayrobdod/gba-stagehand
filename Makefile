@@ -299,6 +299,9 @@ $(TESTEXEDIR)/bench_decompress.elf : $(TESTOBJDIR)/brickbreak_background.png.o
 check_host: $(HOST_RUNNERS)
 	$(V)for r in $(HOST_RUNNERS); do $$r ; done
 
+check_bench_decompress: build/test/exe/bench_decompress.elf
+	$(V)stdbuf -oL $(ROMTEST) -ClogLevel.gba.dma=16 -l15 -S0 -Rr0 $<
+
 check_mgba: $(TEST_RUNNERS)
 	$(V)for r in $(TEST_RUNNERS); do stdbuf -oL $(ROMTEST) -ClogLevel.gba.dma=16 -l15 -S0 -Rr0 $$r ; done
 
