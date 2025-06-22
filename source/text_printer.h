@@ -23,7 +23,7 @@ typedef struct {
 } font_colors_t;
 
 void text_print(
-	tile_4bpp_t* buffer,
+	volatile tile_4bpp_t* buffer,
 	const struct shadow_tiles_window_allocate* window_args,
 	const struct font* font,
 	coord16_t start_point,
