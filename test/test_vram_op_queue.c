@@ -6,6 +6,9 @@
 #include "harness.h"
 #include "mgba.h"
 
+void setUp(void){}
+void tearDown(void){}
+
 static const rgb_t black = {0,0,0};
 static const palette16_t rainbow = {{0,0,0}, {31,0,0}, {31,16,0}, {31,31,0}, {0,31,0}, {0,31,31}, {0,0,31}, {31,0,31}};
 

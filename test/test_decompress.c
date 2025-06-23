@@ -19,10 +19,10 @@ const extern struct compression_suite compression_suite_ball[];
 const extern struct compression_suite compression_suite_brickbreak_background_tiles[];
 const extern struct compression_suite compression_suite_brickbreak_background_map[];
 
-static const uint32_t zero_uint32 = 0;
+static const uint32_t initial_memory_fill = 0x12345678;
 
 void setUp(void){
-	CpuFastSet(&zero_uint32, &vram, (struct CpuFastSet) {.word_count = sizeof(vram) / sizeof(uint32_t), .mode = CPU_SET_FILL});
+	CpuFastSet(&initial_memory_fill, vram.screenblock[0], (struct CpuFastSet) {.word_count = sizeof(vram) / sizeof(uint32_t), .mode = CPU_SET_FILL});
 }
 void tearDown(void){}
 
@@ -61,6 +61,7 @@ unsigned length_0;
 void run_decompress_test_suite0(void) {
 	HeaderUnCompVram(compressed_0, vram.screenblock[0]);
 	TEST_ASSERT_EQUAL_BYTE_ARRAY(raw_0, (char*) vram.screenblock[0], length_0);
+	TEST_ASSERT_EQUAL_HEX8(initial_memory_fill >> (8 * (length_0 % 4)), ((char*) vram.screenblock[0])[length_0]);
 }
 
 void run_decompress_test_suite(const struct compression_suite * suite, const char* name) {

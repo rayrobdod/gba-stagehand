@@ -17,6 +17,13 @@ void TEST_ASSERT_EQUAL_UNSIGNED(unsigned expected, unsigned actual) {
 	}
 }
 
+void TEST_ASSERT_EQUAL_HEX8(uint8_t expected, uint8_t actual) {
+	if (expected != actual) {
+		currentTestFailed = 1;
+		snprintf(fail_detail, arraycount(fail_detail), "Expected %02x; was %02x", expected, actual);
+	}
+}
+
 void TEST_ASSERT_EQUAL_BYTE_ARRAY(const char* expected, const char* actual, unsigned length) {
 	for (unsigned i = 0; i < length; i++) {
 		if (expected[i] != actual[i]) {
@@ -48,7 +55,9 @@ void TEST_FAIL(const char* reason) {
 
 void run_test(void (*fn)(void), const char* name) {
 	currentTestFailed = 0;
+	setUp();
 	fn();
+	tearDown();
 	if (currentTestFailed) {
 		++failed;
 		MgbaPrintf(MGBA_LOG_INFO, "%s: \033[41mFAIL\033[0m: %s", name, fail_detail);
