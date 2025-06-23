@@ -31,7 +31,7 @@ void setUp(void){}
 void tearDown(void){}
 
 void bench_text_printer_lorem_ipsum(void) {
-	text_print(
+	text_print_immediate(
 		vram.bg_charblock[0],
 		&whole_screen_window,
 		&bitmapfont,

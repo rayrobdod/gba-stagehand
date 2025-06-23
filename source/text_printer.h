@@ -22,7 +22,8 @@ typedef struct {
 	uint16_t _padding : 15;
 } font_colors_t;
 
-void text_print(
+/// Print the `message` onto the `buffer` using the other args
+void text_print_immediate(
 	volatile tile_4bpp_t* buffer,
 	const struct shadow_tiles_window_allocate* window_args,
 	const struct font* font,
@@ -31,6 +32,7 @@ void text_print(
 	font_colors_t colors,
 	const char* message);
 
+/// The width in pixels of `message` when using the other args
 __attribute__((pure, nonnull))
 unsigned text_width(
 	const struct font* font,

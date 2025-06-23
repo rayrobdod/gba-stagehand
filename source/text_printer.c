@@ -10,7 +10,7 @@ union font_colors_2_uint {
 	uint32_t uint;
 };
 
-void text_print(
+void text_print_immediate(
 	volatile tile_4bpp_t* buffer,
 	const struct shadow_tiles_window_allocate* window_args,
 	const struct font* font,

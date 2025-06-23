@@ -169,7 +169,7 @@ static void redraw_score_window() {
 		(coord16_t) {.x = 0, .y = 0},
 		scorestr);
 
-	text_print(
+	text_print_immediate(
 		score_window_shadow_tiles,
 		&score_window_template,
 		&breakout_set_font,

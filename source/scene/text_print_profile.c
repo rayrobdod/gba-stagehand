@@ -91,7 +91,7 @@ void MainCB_textPrintProfile_init(void) {
 
 	profile_start();
 
-	text_print(
+	text_print_immediate(
 		vram.bg_charblock[0],
 		&whole_screen_window,
 		&bitmapfont,
@@ -113,7 +113,7 @@ void MainCB_textPrintProfile_init(void) {
 	const unsigned LABEL_Y = TOTAL_Y - 12;
 	const unsigned CYCLES_PER_FRAME = 280896;
 
-	text_print(
+	text_print_immediate(
 		vram.bg_charblock[0],
 		&whole_screen_window,
 		&bitmapfont,
@@ -121,7 +121,7 @@ void MainCB_textPrintProfile_init(void) {
 		(coord16_t) {1,1},
 		(font_colors_t) {4,1,2,3, true},
 		"Total:");
-	text_print(
+	text_print_immediate(
 		vram.bg_charblock[0],
 		&whole_screen_window,
 		&bitmapfont,
@@ -131,7 +131,7 @@ void MainCB_textPrintProfile_init(void) {
 		"Per Char:");
 
 	start_x = text_width(&bitmapfont, (coord16_t) {1,1}, "Cycles");
-	text_print(
+	text_print_immediate(
 		vram.bg_charblock[0],
 		&whole_screen_window,
 		&bitmapfont,
@@ -140,7 +140,7 @@ void MainCB_textPrintProfile_init(void) {
 		(font_colors_t) {0,5,2,3, true},
 		"Cycles");
 	start_x = text_width(&bitmapfont, (coord16_t) {1,1}, "Frames");
-	text_print(
+	text_print_immediate(
 		vram.bg_charblock[0],
 		&whole_screen_window,
 		&bitmapfont,
@@ -151,7 +151,7 @@ void MainCB_textPrintProfile_init(void) {
 
 	snprintf(buffer, 32, "%ld", time);
 	start_x = text_width(&bitmapfont, (coord16_t) {1,1}, buffer);
-	text_print(
+	text_print_immediate(
 		vram.bg_charblock[0],
 		&whole_screen_window,
 		&bitmapfont,
@@ -162,7 +162,7 @@ void MainCB_textPrintProfile_init(void) {
 
 	snprintf(buffer, 32, "%ld.%03ld", time / CYCLES_PER_FRAME, ((time * 1000) / CYCLES_PER_FRAME) % 1000);
 	start_x = text_width(&bitmapfont, (coord16_t) {1,1}, buffer);
-	text_print(
+	text_print_immediate(
 		vram.bg_charblock[0],
 		&whole_screen_window,
 		&bitmapfont,
@@ -174,7 +174,7 @@ void MainCB_textPrintProfile_init(void) {
 	if (strlen(lorem_ipsum)) {
 		snprintf(buffer, 32, "%ld", time / strlen(lorem_ipsum));
 		start_x = text_width(&bitmapfont, (coord16_t) {1,1}, buffer);
-		text_print(
+		text_print_immediate(
 			vram.bg_charblock[0],
 			&whole_screen_window,
 			&bitmapfont,
@@ -187,7 +187,7 @@ void MainCB_textPrintProfile_init(void) {
 
 		snprintf(buffer, 32, "%ld.%03ld", time / CYCLES_PER_FRAME / strlen(lorem_ipsum), (((time / strlen(lorem_ipsum)) * 1000) / CYCLES_PER_FRAME) % 1000);
 		start_x = text_width(&bitmapfont, (coord16_t) {1,1}, buffer);
-		text_print(
+		text_print_immediate(
 			vram.bg_charblock[0],
 			&whole_screen_window,
 			&bitmapfont,
