@@ -11,6 +11,7 @@
 #include "scene/gradient.h"
 #include "scene/mode3.h"
 #include "scene/text_print_profile.h"
+#include "scene/text_print_step.h"
 #include "utils/arraycount.h"
 #include "utils/saturating_add.h"
 #include "graphics.h"
@@ -45,6 +46,10 @@ static const struct {
 	{
 		.label = "Text Print Profile",
 		.cb = &MainCB_textPrintProfile_init,
+	},
+	{
+		.label = "Text Print Step",
+		.cb = &MainCB_textPrintStep_init,
 	},
 	{
 		.label = "Gradient",

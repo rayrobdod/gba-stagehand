@@ -13,6 +13,7 @@
 #include "utils/arraycount.h"
 #include "utils/saturating_add.h"
 #include "graphics.h"
+#include "graphics_types.h"
 #include "main.h"
 #include "mgba.h"
 #include "text_printer.h"
@@ -39,7 +40,12 @@ static const char ballpos_scale_frac[BALLPOS_SCALE][4] = {
 	"875", "891", "906", "922", "938", "953", "969", "984",
 };
 
-static const tile_4bpp_t tile_zero = {0};
+static const char zero_tile[sizeof(tile_4bpp_t) + 4] = {0, sizeof(tile_4bpp_t), 0};
+static const struct tileset one_zero_tileset = {
+	.palette = NULL,
+	.tileset = zero_tile,
+	.tileset_count = 1,
+};
 
 inline static void MgbaPrintBallposFixpoint(char* var_name, int value) {
 	MgbaPrintf(MGBA_LOG_INFO, "%s: %d (%d.%s)", var_name, value, value / BALLPOS_SCALE, ballpos_scale_frac[abs(value % BALLPOS_SCALE)]);
@@ -206,7 +212,7 @@ void MainCB_brickBreak_init(void) {
 		},
 	});
 
-	zero_tile_ref = (bg_tile_t) {.tile = shadow_tiles_load_tileset(3, 1, &tile_zero)};
+	zero_tile_ref = (bg_tile_t) {.tile = shadow_tiles_load_tileset(&one_zero_tileset, (struct shadow_tiles_load_tileset) {3})};
 
 	vram_op_queue_enqueue((struct vram_op) {
 		.type = VRAM_QUEUE_OP_BG_MAP_FILL,
