@@ -1,4 +1,6 @@
 #define DISPLAY_HEIGHT 160
 #define DISPLAY_WIDTH 240
 
+#define TILE_PIXEL_SIDE (8)
+
 #define VCOUNT_MAX 227

@@ -9,6 +9,8 @@
 #include "graphics.h"
 #include "graphics_types.h"
 #include "main.h"
+#include "mgba.h"
+#include "text_printer.h"
 
 static void MainCB_textPrintStep_main(void);
 static void MainCB_textPrintStep_cleanup(void);
@@ -24,14 +26,52 @@ static struct {
 	bg_tile_t zero_tile_ref;
 	uint32_t border_tile_id;
 	window_id_t dialog_window_id;
-
+	struct text_print_step_state printer_state;
+	enum text_print_step_retval printer_retval;
+	tile_4bpp_t* dialog_window_shadow_tiles;
 }* view_model = NULL;
+
+static const char lorem_ipsum[] =
+	"Lorem ipsum dolor sit amet,\n"
+	"consectetur adipiscing elit, sed\n"
+	"do eiusmod tempor incididunt ut\n"
+	"labore et dolore magna aliqua.\f"
+	"Ut enim ad minim veniam, quis\n"
+	"nostrud exercitation ullamco\n"
+	"laboris nisi ut aliquip ex ea\n"
+	"commodo consequat. Duis aute\n"
+	"irure dolor in reprehenderit in\n"
+	"voluptate velit esse cillum\n"
+	"dolore eu fugiat nulla pariatur.\f"
+	"Excepteur sint occaecat\n"
+	"cupidatat non proident, sunt\n"
+	"in culpa qui officia deserunt\n"
+	"mollit anim id est laborum.";
 
 static const char zero_tile[sizeof(tile_4bpp_t) + 4] = {0, sizeof(tile_4bpp_t), 0};
 static const struct tileset one_zero_tileset = {
 	.palette = NULL,
 	.tileset = zero_tile,
 	.tileset_count = 1,
+};
+
+static const palette16_t text_pal = {
+	{10, 10, 10},
+	{30, 10, 10},
+	{10, 30, 10},
+	{30, 30, 0},
+	{10, 10, 30},
+	{30, 10, 30},
+	{10, 30, 30},
+	{31, 31, 31},
+	{0, 0, 0},
+	{20, 0, 0},
+	{0, 20, 0},
+	{15, 15, 0},
+	{0, 0, 20},
+	{20, 0, 20},
+	{0, 20, 20},
+	{20, 20, 20},
 };
 
 static const struct shadow_vram_init text_print_shadow_vram_init = {
@@ -112,7 +152,10 @@ static void gen_window_border(void) {
 }
 
 void MainCB_textPrintStep_init(void) {
-	view_model = calloc(sizeof(view_model), 1);
+	view_model = calloc(sizeof(view_model[0]), 1);
+	if (false) {
+		MgbaPrintf(MGBA_LOG_DEBUG, "  view_model: %p, %d", view_model, sizeof(view_model[0]));
+	}
 	shadow_vram_init(&text_print_shadow_vram_init);
 
 	background_palette[0][0] = rgb(0,16,31);
@@ -142,16 +185,66 @@ void MainCB_textPrintStep_init(void) {
 		},
 	});
 
+	vram_op_queue_enqueue((struct vram_op) {
+		.type = VRAM_QUEUE_OP_BG_PALETTES,
+		.palettes = {
+			.from = &text_pal,
+			.to_palette = 15,
+			.count = 1,
+		},
+	});
+
+	view_model->dialog_window_shadow_tiles = calloc(sizeof(tile_4bpp_t), dialog_window_template.width * dialog_window_template.height);
+
+	text_print_step_init(
+		&view_model->printer_state,
+		view_model->dialog_window_shadow_tiles,
+		&dialog_window_template,
+		&bitmapfont,
+		(coord16_t) {2,3},
+		(coord16_t) {1,2},
+		(font_colors_t) {0, 7, 15, 8, false},
+		lorem_ipsum);
+
+	view_model->printer_retval = TEXT_PRINT_STEP_CONTINUE;
+
+	shadow_tiles_window_queue_tiles(view_model->dialog_window_id, view_model->dialog_window_shadow_tiles);
+	shadow_tiles_window_queue_map(view_model->dialog_window_id);
+
 	scene_onframe_callback = &MainCB_textPrintStep_main;
 }
 
 static void MainCB_textPrintStep_main(void) {
-
+	switch (view_model->printer_retval) {
+	case TEXT_PRINT_STEP_CONTINUE:
+		{
+			view_model->printer_retval = text_print_step(&view_model->printer_state);
+			shadow_tiles_window_queue_tiles(view_model->dialog_window_id, view_model->dialog_window_shadow_tiles);
+		}
+		break;
+	case TEXT_PRINT_STEP_WAIT:
+		if (! keyinput_get_new().a || ! keyinput_get_down().r) {
+			view_model->printer_retval = TEXT_PRINT_STEP_CONTINUE;
+			MainCB_textPrintStep_main();
+		}
+		break;
+	case TEXT_PRINT_STEP_STOP:
+		if (! keyinput_get_new().a) {
+			scene_onframe_callback = &MainCB_textPrintStep_cleanup;
+		}
+		break;
+	}
 }
 
 static void MainCB_textPrintStep_cleanup(void) {
-	free(view_model);
-	view_model = NULL;
+	if (view_model->dialog_window_shadow_tiles) {
+		free(view_model->dialog_window_shadow_tiles);
+		view_model->dialog_window_shadow_tiles = NULL;
+	}
+	if (view_model) {
+		free(view_model);
+		view_model = NULL;
+	}
 
 	scene_onframe_callback = &MainCB_mainMenu_init;
 }
