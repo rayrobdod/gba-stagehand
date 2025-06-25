@@ -8,16 +8,15 @@
 #include "harness.h"
 #include "mgba.h"
 
-struct compression_suite {
+struct dedecompression_suite {
+	const char* label;
+	const char* raw;
 	const char* data;
 	uint32_t size;
 };
 
-const extern struct compression_suite compression_suite_snow_mountain_under_stars[];
-const extern struct compression_suite compression_suite_arrow_left[];
-const extern struct compression_suite compression_suite_ball[];
-const extern struct compression_suite compression_suite_brickbreak_background_tiles[];
-const extern struct compression_suite compression_suite_brickbreak_background_map[];
+const extern struct dedecompression_suite __decompression_suite_array_start[];
+const extern struct dedecompression_suite __decompression_suite_array_end[];
 
 static const uint32_t initial_memory_fill = 0x12345678;
 
@@ -64,27 +63,16 @@ void run_decompress_test_suite0(void) {
 	TEST_ASSERT_EQUAL_HEX8(initial_memory_fill >> (8 * (length_0 % 4)), ((char*) vram.screenblock[0])[length_0]);
 }
 
-void run_decompress_test_suite(const struct compression_suite * suite, const char* name) {
-	if (0x00 == suite->data[0]) {
-		raw_0 = (suite->data + 4);
-		length_0 = *((uint32_t*) suite->data) >> 8;
+void run_decompress_test(const struct dedecompression_suite * suite) {
+	raw_0 = suite->raw;
+	length_0 = *((uint32_t*) suite->data) >> 8;
+	compressed_0 = suite->data;
 
-		char name_0[120];
+	char name_0[120];
+	snprintf(name_0, 119, "Decompress %s %6s", suite->label, UnCompFnName(suite->data[0]));
 
-		while (suite->data != NULL) {
-			compressed_0 = suite->data;
-
-			snprintf(name_0, 119, "%s %6s", name, UnCompFnName(suite->data[0]));
-
-			run_test(run_decompress_test_suite0, name_0);
-			++suite;
-		}
-	} else {
-		MgbaPrintf(MGBA_LOG_INFO, "%s: \033[43mWARN\033[0m: no identity to compare to", name);
-	}
+	run_test(run_decompress_test_suite0, name_0);
 }
-#define RUN_DECOMPRESS_TEST_SUITE(func) run_decompress_test_suite(func, #func);
-
 
 int main(int argc, char** argv) {
 	total = 0;
@@ -92,11 +80,11 @@ int main(int argc, char** argv) {
 
 	MgbaOpen();
 
-	RUN_DECOMPRESS_TEST_SUITE(compression_suite_snow_mountain_under_stars);
-	RUN_DECOMPRESS_TEST_SUITE(compression_suite_arrow_left);
-	RUN_DECOMPRESS_TEST_SUITE(compression_suite_ball);
-	RUN_DECOMPRESS_TEST_SUITE(compression_suite_brickbreak_background_tiles);
-	RUN_DECOMPRESS_TEST_SUITE(compression_suite_brickbreak_background_map);
+	const struct dedecompression_suite* it = __decompression_suite_array_start;
+	while (it < __decompression_suite_array_end) {
+		run_decompress_test(it);
+		it++;
+	}
 
 	MgbaPrintf(MGBA_LOG_INFO, "Total: %d; Failing: %d", total, failed);
 	return 0 != failed;

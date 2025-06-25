@@ -9,14 +9,26 @@
 #include "resource_type.hpp"
 #include "variable_name_for_image.hpp"
 
-struct compression_suite {
+using namespace std::string_literals;
+
+struct decompression_suite {
 	std::string data_name;
 	uint32_t size;
 };
 
-void suite_1(std::string_view name, std::vector<uint8_t> raw, Object& elf) {
-	std::vector<struct compression_suite> choices;
+void suite_1(std::string_view variable_name, std::string_view label, std::vector<uint8_t> raw, Object& elf) {
+	std::vector<struct decompression_suite> choices;
 
+	std::string label_name(variable_name);
+	label_name += ".Label";
+	{
+		std::vector<uint8_t> label2(label.begin(), label.end());
+		label2.push_back(0);
+		elf.push_single_variable_rodata_sections({label_name, STB_LOCAL}, label2);
+	}
+
+	std::string raw_name(variable_name);
+	raw_name += ".RAW";
 	{
 		std::vector<uint8_t> ident;
 		ident.clear();
@@ -26,10 +38,20 @@ void suite_1(std::string_view name, std::vector<uint8_t> raw, Object& elf) {
 		ident.push_back(raw.size() >> 16);
 		std::copy(raw.begin(), raw.end(), std::back_inserter(ident));
 
-		std::string ident_name(name);
+		std::string ident_name(variable_name);
 		ident_name += ".IDENT";
 		elf.push_single_variable_rodata_sections({ident_name, STB_LOCAL}, ident);
 		choices.emplace_back(ident_name, ident.size());
+
+		elf.push_symbol({
+			.name = raw_name,
+			.st_value = 4,
+			.st_size = static_cast<uint32_t>(raw.size()),
+			.binding = STB_LOCAL,
+			.type = STT_OBJECT,
+			.section = ".rodata."s + ident_name,
+		});
+
 	}
 
 	for (choosable_compression compression_alg : compression_algs) {
@@ -38,7 +60,7 @@ void suite_1(std::string_view name, std::vector<uint8_t> raw, Object& elf) {
 			continue;
 
 		std::vector<uint8_t> compressed = *compressedOpt;
-		std::string choice_name(name);
+		std::string choice_name(variable_name);
 		choice_name += ".";
 		choice_name += compression_alg.alg_name;
 		elf.push_single_variable_rodata_sections({choice_name, STB_LOCAL}, compressed);
@@ -49,24 +71,48 @@ void suite_1(std::string_view name, std::vector<uint8_t> raw, Object& elf) {
 	std::vector<relocation_template> relocs;
 	for (size_t i = 0; i < choices.size(); i++) {
 		bytes.push_back(0);
+		bytes.push_back(0);
+		bytes.push_back(0);
 		bytes.push_back(choices[i].size);
 		relocs.push_back((relocation_template) {
-			.offset = static_cast<Elf32_Addr>(8 * i),
+			.offset = static_cast<Elf32_Addr>(16 * i),
+			.type = R_ARM_ABS32,
+			.symbol_name = label_name.c_str(),
+		});
+		relocs.push_back((relocation_template) {
+			.offset = static_cast<Elf32_Addr>(16 * i + 4),
+			.type = R_ARM_ABS32,
+			.symbol_name = raw_name.c_str(),
+		});
+		relocs.push_back((relocation_template) {
+			.offset = static_cast<Elf32_Addr>(16 * i + 8),
 			.type = R_ARM_ABS32,
 			.symbol_name = choices[i].data_name.c_str(),
 		});
 	}
-	bytes.push_back(0);
-	bytes.push_back(0);
 
-	elf.push_single_variable_rodata_sections({name, STB_GLOBAL}, bytes, relocs);
+	{
+		std::string data_section_name(".decompression_suite_array.");
+		data_section_name += variable_name;
+
+		elf.push_bytes_section(
+			{
+				.sh_name = data_section_name,
+				.sh_type = SHT_PROGBITS,
+				.sh_flags = SHF_ALLOC,
+				.sh_addralign = 4,
+			},
+			bytes
+		);
+
+		elf.push_relocation_section(data_section_name, relocs);
+	}
 }
 
-int build_compression_suite(std::filesystem::path srcfile, std::filesystem::path objfile) {
+int build_decompression_suite(std::filesystem::path srcfile, std::filesystem::path objfile) {
 	bufferedimage parsed = png_deserialize(srcfile);
 	std::pair<std::filesystem::path, bufferedimage> name_and_parsed = std::make_pair(srcfile.filename(), parsed);
-	std::string name("compression_suite_");
-	name += variable_name_for_image(name_and_parsed);
+	std::string variable_name = variable_name_for_image(name_and_parsed);
 
 	Object elf(objfile);
 
@@ -80,7 +126,7 @@ int build_compression_suite(std::filesystem::path srcfile, std::filesystem::path
 				}
 			}
 
-			suite_1(name, imgdata, elf);
+			suite_1("decompression_suite_"s + variable_name, variable_name, imgdata, elf);
 		}
 		break;
 	case TYPE_SPRITE:
@@ -96,24 +142,26 @@ int build_compression_suite(std::filesystem::path srcfile, std::filesystem::path
 				}
 			}
 
-			suite_1(name, tiledata, elf);
+			suite_1("decompression_suite_"s + variable_name, variable_name, tiledata, elf);
 		}
 		break;
 	case TYPE_BACKGROUND:
 		{
 			background bg(name_and_parsed);
 
-			std::string tileset_name = name + "_tiles";
-			suite_1(tileset_name, bg.tileset, elf);
+			std::string tileset_name = "decompression_suite_"s + variable_name + "_tiles";
+			std::string tileset_label = variable_name + " (tiles)";
+			suite_1(tileset_name, tileset_label, bg.tileset, elf);
 
-			std::string tilemap_name = name + "_map";
+			std::string tilemap_variable_name = "decompression_suite_"s + variable_name + "_map";
+			std::string tilemap_label = variable_name + " (map)";
 			std::vector<uint8_t> tilemap_bytes;
 			for (auto entry : bg.tilemap) {
 				for (uint8_t byte : entry.to_bytes()) {
 					tilemap_bytes.push_back(byte);
 				}
 			}
-			suite_1(tilemap_name, tilemap_bytes, elf);
+			suite_1(tilemap_variable_name, tilemap_label, tilemap_bytes, elf);
 		}
 		break;
 	default:

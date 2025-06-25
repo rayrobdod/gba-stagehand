@@ -141,6 +141,15 @@ SECTIONS
         __fini_array_end = .;
     } > ROM
 
+    /* Array of decompression tests */
+
+    .decompression_suite_array : ALIGN(4)
+    {
+        __decompression_suite_array_start = .;
+        KEEP(*(.decompression_suite_array*))
+        __decompression_suite_array_end = .;
+    } > ROM
+
     /*
      * IWRAM sections
      * ==============

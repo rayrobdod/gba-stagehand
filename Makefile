@@ -232,9 +232,9 @@ $(TESTOBJDIR)/%.c.o : $(SOURCEDIR_TEST)/%.c | generated_headers
 	$(V)$(CC) $(CFLAGS) -MMD -MP -c -o $@ $<
 
 $(TESTOBJDIR)/%.png.o : $(GRAPHICSDIR)/%.png $(GFXC)
-	@echo "  GFXC    --compression_suite $<"
+	@echo "  GFXC    --decompression_suite $<"
 	@$(MKDIR) -p $(@D)
-	$(V)$(GFXC) --compression_suite $< $@
+	$(V)$(GFXC) --decompression_suite $< $@
 
 $(TESTEXEDIR)/%.elf : $(TESTOBJDIR)/%.c.o $(TESTOBJDIR)/harness.c.o $(TESTOBJDIR)/benchmarks.c.o $(filter-out $(BUILDOBJDIR)/main.c.o, $(OBJS)) source/sys/gba_cart.ld
 	@echo "  LD      $@"

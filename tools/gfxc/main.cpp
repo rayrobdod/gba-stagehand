@@ -332,8 +332,8 @@ int main(int argc, char* argv[]) {
 	if (argc == 3 && "--structs"sv == argv[1]) {
 		return write_types_header(argv[2]);
 	} else
-	if (argc == 4 && "--compression_suite"sv == argv[1]) {
-		return build_compression_suite(argv[2], argv[3]);
+	if (argc == 4 && "--decompression_suite"sv == argv[1]) {
+		return build_decompression_suite(argv[2], argv[3]);
 	} else
 	if (argc == 4) {
 		std::filesystem::path srcdir = argv[1];

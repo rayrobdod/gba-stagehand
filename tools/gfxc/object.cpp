@@ -174,6 +174,26 @@ void Object::push_bytes_section(
 
 }
 
+void Object::push_symbol(Elf32_Sym_Template hdr) {
+
+	uint32_t st_name = symbol_strings.push(hdr.name);
+	Elf32_Section shndx = index_of_section(hdr.section);
+	if (0 == shndx || shndx > 0xFFFF) {
+		fprintf(stderr, "symbol %s pushed before section %s\n", hdr.name.c_str(), hdr.section.c_str());
+		exit(1);
+	}
+	uint16_t st_shndx = static_cast<uint16_t>(shndx);
+
+	(hdr.binding == STB_LOCAL ? private_symbols : public_symbols).push_back({
+		.st_name = st_name,
+		.st_value = hdr.st_value,
+		.st_size = hdr.st_size,
+		.st_info = ELF32_ST_INFO(hdr.binding, hdr.type),
+		.st_other = hdr.st_other,
+		.st_shndx = st_shndx,
+	});
+}
+
 Elf32_Section Object::index_of_section(const std::string_view name) const {
 	Elf32_Section i = 0;
 	for (auto s = sections.begin(); s != sections.end(); s++, i++) {

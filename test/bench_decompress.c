@@ -7,16 +7,15 @@
 #include "benchmarks.h"
 #include "mgba.h"
 
-struct compression_suite {
+struct decompression_suite {
+	const char* label;
+	const char* raw;
 	const char* data;
 	uint32_t size;
 };
 
-const extern struct compression_suite compression_suite_snow_mountain_under_stars[];
-const extern struct compression_suite compression_suite_arrow_left[];
-const extern struct compression_suite compression_suite_ball[];
-const extern struct compression_suite compression_suite_brickbreak_background_tiles[];
-const extern struct compression_suite compression_suite_brickbreak_background_map[];
+const extern struct decompression_suite __decompression_suite_array_start[];
+const extern struct decompression_suite __decompression_suite_array_end[];
 
 static const uint32_t zero_uint32 = 0;
 
@@ -52,21 +51,16 @@ static const char* UnCompFnName(unsigned magic) {
 	}
 }
 
-void run_decompress_benchmark_suite(const struct compression_suite * suite, const char* name) {
-	while (suite->data != NULL) {
-		setUp();
-		VBlankIntrWait();
-		benchmark_start();
-		HeaderUnCompVram(suite->data, vram.screenblock[0]);
-		uint32_t time = benchmark_stop();
-		tearDown();
-		MgbaPrintf(MGBA_LOG_INFO, "%s %6s: \033[44mBENCH\033[0m: %8ld cycles = %2ld.%03ld frames (%6ld bytes)",
-			name, UnCompFnName(suite->data[0]), time, time / CYCLES_PER_FRAME, (time * 1000 / CYCLES_PER_FRAME) % 1000, suite->size);
-
-		++suite;
-	}
+void run_decompress_benchmark(const struct decompression_suite * suite) {
+	setUp();
+	VBlankIntrWait();
+	benchmark_start();
+	HeaderUnCompVram(suite->data, vram.screenblock[0]);
+	uint32_t time = benchmark_stop();
+	tearDown();
+	MgbaPrintf(MGBA_LOG_INFO, "Decompress: %s %6s: \033[44mBENCH\033[0m: %8ld cycles = %2ld.%03ld frames (%6ld bytes)",
+		suite->label, UnCompFnName(suite->data[0]), time, time / CYCLES_PER_FRAME, (time * 1000 / CYCLES_PER_FRAME) % 1000, suite->size);
 }
-#define RUN_DECOMPRESS_BENCHMARK_SUITE(func) run_decompress_benchmark_suite(func, #func);
 
 
 int main(int argc, char** argv) {
@@ -74,11 +68,11 @@ int main(int argc, char** argv) {
 	isr_enable(II_VBLANK);
 	MgbaOpen();
 
-	RUN_DECOMPRESS_BENCHMARK_SUITE(compression_suite_snow_mountain_under_stars);
-	RUN_DECOMPRESS_BENCHMARK_SUITE(compression_suite_arrow_left);
-	RUN_DECOMPRESS_BENCHMARK_SUITE(compression_suite_ball);
-	RUN_DECOMPRESS_BENCHMARK_SUITE(compression_suite_brickbreak_background_tiles);
-	RUN_DECOMPRESS_BENCHMARK_SUITE(compression_suite_brickbreak_background_map);
+	const struct decompression_suite* it = __decompression_suite_array_start;
+	while (it < __decompression_suite_array_end) {
+		run_decompress_benchmark(it);
+		it++;
+	}
 
 	return 0;
 }

@@ -18,6 +18,16 @@ typedef struct {
 	Elf32_Word	sh_addralign;
 } Elf32_Shdr_Template;
 
+typedef struct {
+	std::string	name;
+	Elf32_Addr	st_value;
+	uint32_t	st_size;
+	unsigned	binding;
+	unsigned	type;
+	unsigned char	st_other;
+	std::string	section;
+} Elf32_Sym_Template;
+
 struct variable_template {
 	std::string_view name;
 	uint8_t binding;
@@ -82,6 +92,8 @@ public:
 		const Elf32_Shdr_Template header,
 		const std::span<const std::byte> data);
 
+	void push_symbol(Elf32_Sym_Template);
+
 	template<std::ranges::contiguous_range DATAS>
 	void push_bytes_section(
 			const Elf32_Shdr_Template header,
@@ -109,6 +121,32 @@ public:
 			.sh_info = header.sh_info,
 			.sh_addralign = header.sh_addralign,
 			.sh_entsize = sizeof(typename DATAS::value_type),
+		});
+	}
+
+	template<std::ranges::contiguous_range RELS>
+	void push_relocation_section(
+			std::string_view data_section_name,
+			RELS rels) {
+		std::string rel_section_name(".rel");
+		rel_section_name += data_section_name;
+
+		std::vector<Elf32_Rel> rel_data;
+
+		Elf32_Section data_section_index = index_of_section(data_section_name);
+
+		for (auto rel : rels) {
+			uint32_t symbol = id_of_symbol(rel.symbol_name);
+
+			rel_data.push_back({
+				.r_offset = rel.offset,
+				.r_info = ELF32_R_INFO(symbol, rel.type),
+			});
+		}
+
+		relocation_sections.push_back({
+			.target = data_section_index,
+			.data = rel_data,
 		});
 	}
 
