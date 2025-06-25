@@ -178,7 +178,7 @@ static void MainCB_mainMenu_main(void) {
 	int dselection = keyinput_vertical_new();
 	if (dselection) {
 		redraw_arrow = true;
-		selection = saturating_add(selection, 0, 3, dselection);
+		selection = saturating_add(selection, 0, arraycount(menu_options) - 1, dselection);
 	}
 
 	if (redraw_arrow) {
