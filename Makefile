@@ -286,15 +286,9 @@ $(ROM): $(ELF) $(GBAFIX)
 	$(V)$(GBAFIX) $@ -t$(GAME_TITLE) -c$(GAME_CODE)
 
 $(HOSTEXEDIR)/test_vram_op_queue : $(HOSTOBJDIR_SRC)/management/vram_op_queue.c.o $(HOSTOBJDIR_SRC)/gba/palette.c.o $(HOSTOBJDIR_SRC)/gba/vram.c.o $(HOSTOBJDIR_SRC)/gba/oam.c.o $(HOSTOBJDIR_SRC)/gba/hw_reg.c.o
-$(TESTEXEDIR)/test_decompress.elf : $(TESTOBJDIR)/snow-mountain-under-stars.png.o
-$(TESTEXEDIR)/test_decompress.elf : $(TESTOBJDIR)/arrow_left.png.o
-$(TESTEXEDIR)/test_decompress.elf : $(TESTOBJDIR)/breakout_set/ball.png.o
-$(TESTEXEDIR)/test_decompress.elf : $(TESTOBJDIR)/brickbreak_background.png.o
+$(TESTEXEDIR)/test_decompress.elf : $(patsubst $(GRAPHICSDIR)/%.png,$(TESTOBJDIR)/%.png.o,$(SOURCES_PNG))
 $(TESTEXEDIR)/bench_text_printer.elf : $(BUILDOBJDIR)/graphics.o
-$(TESTEXEDIR)/bench_decompress.elf : $(TESTOBJDIR)/snow-mountain-under-stars.png.o
-$(TESTEXEDIR)/bench_decompress.elf : $(TESTOBJDIR)/arrow_left.png.o
-$(TESTEXEDIR)/bench_decompress.elf : $(TESTOBJDIR)/breakout_set/ball.png.o
-$(TESTEXEDIR)/bench_decompress.elf : $(TESTOBJDIR)/brickbreak_background.png.o
+$(TESTEXEDIR)/bench_decompress.elf : $(patsubst $(GRAPHICSDIR)/%.png,$(TESTOBJDIR)/%.png.o,$(SOURCES_PNG))
 
 check_host: $(HOST_RUNNERS)
 	$(V)for r in $(HOST_RUNNERS); do $$r ; done
