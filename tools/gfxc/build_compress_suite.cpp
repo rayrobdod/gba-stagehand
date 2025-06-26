@@ -109,6 +109,61 @@ void suite_1(std::string_view variable_name, std::string_view label, std::vector
 	}
 }
 
+int build_trivial_decompression_suite(std::filesystem::path objfile) {
+	Object elf(objfile);
+
+	std::vector<uint8_t> data;
+	suite_1("empty", "empty", data, elf);
+
+	for (unsigned i = 1; i <= 4; i++) {
+		data.push_back(0);
+		std::string var("zeros_");
+		std::string label(" zeros");
+		char count0[] = {'0', static_cast<char>('0' + i), '\0'};
+		std::string count(count0);
+
+		suite_1(var + count, count + label, data, elf);
+	}
+
+	{
+		for (unsigned i = 4; i < 32; i++) {
+			data.push_back(0);
+		}
+		std::string var("zeros_");
+		std::string label(" zeros");
+		std::string count("32");
+
+		suite_1(var + count, count + label, data, elf);
+	}
+
+	{
+		data.clear();
+		for (unsigned i = 0; i < 256; i++) {
+			data.push_back(i);
+		}
+		std::string var("increment8_");
+		std::string label(" increment8");
+		std::string count("256");
+
+		suite_1(var + count, count + label, data, elf);
+	}
+
+	{
+		data.clear();
+		for (unsigned i = 0; i < 256; i++) {
+			data.push_back(i);
+			data.push_back(20);
+		}
+		std::string var("increment16_");
+		std::string label(" increment16");
+		std::string count("256");
+
+		suite_1(var + count, count + label, data, elf);
+	}
+
+	return 0;
+}
+
 int build_decompression_suite(std::filesystem::path srcfile, std::filesystem::path objfile) {
 	bufferedimage parsed = png_deserialize(srcfile);
 	std::pair<std::filesystem::path, bufferedimage> name_and_parsed = std::make_pair(srcfile.filename(), parsed);

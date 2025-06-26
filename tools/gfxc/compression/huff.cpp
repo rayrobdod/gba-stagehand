@@ -398,6 +398,10 @@ void prefix_tree_ptr::visit(LEAF_FN leaf_fn, BRANCH_FN branch_fn) const {
 }
 
 std::optional<std::vector<uint8_t>> compressHuff8(std::vector<uint8_t> src) {
+	// gba bios decompressor seems to write in 32-bit segments
+	if (0 != src.size() % 4)
+		return std::nullopt;
+
 	std::array<unsigned, 256> frequencies = {0};
 	for (uint8_t i : src) {
 		frequencies[i] += 1;
@@ -443,6 +447,10 @@ std::optional<std::vector<uint8_t>> compressHuff8(std::vector<uint8_t> src) {
 }
 
 std::optional<std::vector<uint8_t>> compressHuff4(std::vector<uint8_t> src) {
+	// gba bios decompressor seems to write in 32-bit segments
+	if (0 != src.size() % 4)
+		return std::nullopt;
+
 	std::array<unsigned, 16> frequencies = {0};
 	subword_input_iterator<uint8_t, uint4_t, DIRECTION_INC> src4_begin(src);
 	subword_input_iterator<uint8_t, uint4_t, DIRECTION_INC> src4_end = src4_begin + src.size() * bitsize<uint8_t> / bitsize<uint4_t>;

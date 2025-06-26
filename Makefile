@@ -236,6 +236,11 @@ $(TESTOBJDIR)/%.png.o : $(GRAPHICSDIR)/%.png $(GFXC)
 	@$(MKDIR) -p $(@D)
 	$(V)$(GFXC) --decompression_suite $< $@
 
+$(TESTOBJDIR)/trivial_decompression.o: $(GFXC)
+	@echo "  GFXC    --decompression_suite --trivial"
+	@$(MKDIR) -p $(@D)
+	$(V)$(GFXC) --decompression_suite --trivial $@
+
 $(TESTEXEDIR)/%.elf : $(TESTOBJDIR)/%.c.o $(TESTOBJDIR)/harness.c.o $(TESTOBJDIR)/benchmarks.c.o $(filter-out $(BUILDOBJDIR)/main.c.o, $(OBJS)) source/sys/gba_cart.ld
 	@echo "  LD      $@"
 	@$(MKDIR) -p $(@D)
@@ -287,8 +292,10 @@ $(ROM): $(ELF) $(GBAFIX)
 
 $(HOSTEXEDIR)/test_vram_op_queue : $(HOSTOBJDIR_SRC)/management/vram_op_queue.c.o $(HOSTOBJDIR_SRC)/gba/palette.c.o $(HOSTOBJDIR_SRC)/gba/vram.c.o $(HOSTOBJDIR_SRC)/gba/oam.c.o $(HOSTOBJDIR_SRC)/gba/hw_reg.c.o
 $(TESTEXEDIR)/test_decompress.elf : $(patsubst $(GRAPHICSDIR)/%.png,$(TESTOBJDIR)/%.png.o,$(SOURCES_PNG))
+$(TESTEXEDIR)/test_decompress.elf : $(TESTOBJDIR)/trivial_decompression.o
 $(TESTEXEDIR)/bench_text_printer.elf : $(BUILDOBJDIR)/graphics.o
 $(TESTEXEDIR)/bench_decompress.elf : $(patsubst $(GRAPHICSDIR)/%.png,$(TESTOBJDIR)/%.png.o,$(SOURCES_PNG))
+$(TESTEXEDIR)/bench_decompress.elf : $(TESTOBJDIR)/trivial_decompression.o
 
 check_host: $(HOST_RUNNERS)
 	$(V)for r in $(HOST_RUNNERS); do $$r ; done

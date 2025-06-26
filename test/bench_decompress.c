@@ -19,8 +19,12 @@ const extern struct decompression_suite __decompression_suite_array_end[];
 
 static const uint32_t zero_uint32 = 0;
 
+__attribute__((section(".bss")))
+static char wram_buffer[1024 * 24];
+
 void setUp(void){
-	CpuFastSet(&zero_uint32, &vram, (struct CpuFastSet) {.word_count = sizeof(vram) / sizeof(uint32_t), .mode = CPU_SET_FILL});
+	CpuFastSet(&zero_uint32, vram.screenblock[0], (struct CpuFastSet) {.word_count = sizeof(vram) / sizeof(uint32_t), .mode = CPU_SET_FILL});
+	CpuFastSet(&zero_uint32, wram_buffer, (struct CpuFastSet) {.word_count = sizeof(wram_buffer) / sizeof(uint32_t), .mode = CPU_SET_FILL});
 }
 void tearDown(void){}
 
@@ -52,14 +56,29 @@ static const char* UnCompFnName(unsigned magic) {
 }
 
 void run_decompress_benchmark(const struct decompression_suite * suite) {
-	setUp();
-	VBlankIntrWait();
-	benchmark_start();
-	HeaderUnCompVram(suite->data, vram.screenblock[0]);
-	uint32_t time = benchmark_stop();
-	tearDown();
-	MgbaPrintf(MGBA_LOG_INFO, "Decompress: %s %6s: \033[44mBENCH\033[0m: %8ld cycles = %2ld.%03ld frames (%6ld bytes)",
-		suite->label, UnCompFnName(suite->data[0]), time, time / CYCLES_PER_FRAME, (time * 1000 / CYCLES_PER_FRAME) % 1000, suite->size);
+	uint32_t raw_length = *((uint32_t*) suite->data) >> 8;
+
+	if (0 == raw_length % 2) {
+		setUp();
+		VBlankIntrWait();
+		benchmark_start();
+		HeaderUnCompVram(suite->data, vram.screenblock[0]);
+		uint32_t time = benchmark_stop();
+		tearDown();
+		MgbaPrintf(MGBA_LOG_INFO, "Decompress Vram: %s %6s: \033[44mBENCH\033[0m: %8ld cycles = %2ld.%03ld frames (%6ld bytes)",
+			suite->label, UnCompFnName(suite->data[0]), time, time / CYCLES_PER_FRAME, (time * 1000 / CYCLES_PER_FRAME) % 1000, suite->size);
+	}
+
+	if (raw_length <= sizeof(wram_buffer)) {
+		setUp();
+		VBlankIntrWait();
+		benchmark_start();
+		HeaderUnCompWram(suite->data, wram_buffer);
+		uint32_t time = benchmark_stop();
+		tearDown();
+		MgbaPrintf(MGBA_LOG_INFO, "Decompress Wram: %s %6s: \033[44mBENCH\033[0m: %8ld cycles = %2ld.%03ld frames (%6ld bytes)",
+			suite->label, UnCompFnName(suite->data[0]), time, time / CYCLES_PER_FRAME, (time * 1000 / CYCLES_PER_FRAME) % 1000, suite->size);
+	}
 }
 
 

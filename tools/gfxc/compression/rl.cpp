@@ -48,6 +48,10 @@ std::vector<uint8_t> decompressRl(std::vector<uint8_t> src, bool disassemble) {
 }
 
 std::optional<std::vector<uint8_t>> compressRl(std::vector<uint8_t> src) {
+	// gba bios decompressor seems to write in 32-bit segments
+	if (0 != src.size() % 4)
+		return std::nullopt;
+
 	std::vector<uint8_t> result;
 	result.push_back(0x30);
 	result.push_back(src.size());

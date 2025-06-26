@@ -125,6 +125,10 @@ static std::vector<CopyInstruction> instructions(std::vector<uint8_t> src, std::
 	static const std::vector<uint8_t>::size_type min_length = 3;
 
 	std::vector<CopyInstruction> instrs;
+
+	if (src.size() == 0)
+		return instrs;
+
 	unsigned src_pos = 1;
 
 	instrs.push_back((CopyInstruction){.length = 1, .value = src[0]});
@@ -187,6 +191,10 @@ std::optional<std::vector<uint8_t>> compressLz(std::vector<uint8_t> src) {
 }
 
 std::optional<std::vector<uint8_t>> compressLz11(std::vector<uint8_t> src) {
+	// Not inherently impossible. However LZ11UnCompWram is not yet implemented
+	if (0 != src.size() % 2)
+		return std::nullopt;
+
 	auto instrs = instructions(src, 0xFFFF + 0x111);
 
 	std::vector<uint8_t> result;

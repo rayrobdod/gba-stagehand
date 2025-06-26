@@ -31,12 +31,12 @@ IdentityUnComp:
 	// and maps which are likely to have a width of 32 and thus be a multiple of 32 bytes.
 	// Exit early in this common case
 	cmp r2, #0
-	bne .EQ0_1
+	bne .NEQ0_1
 	bx	lr
-.EQ0_1:
+.NEQ0_1:
 
 	cmp r2, #3
-	bls  .LTEQ3
+	ble  .LTEQ3
 .GT3:
 	ldmia r0!, {r3}
 	stmia r1!, {r3}
@@ -45,7 +45,7 @@ IdentityUnComp:
 	bgt  .GT3
 .LTEQ3:
 	cmp r2, #1
-	bls  .LTEQ1
+	ble  .LTEQ1
 	ldrh	r3, [r0]
 	strh	r3, [r1]
 	adds r0, r0, #2
@@ -53,11 +53,10 @@ IdentityUnComp:
 	subs r2, r2, #2
 .LTEQ1:
 	cmp r2, #0
-	beq  .EQ0
+	bne  .NEQ0
 	bx	lr
 .NEQ0:
 	ldrb	r3, [r0]
 	strb	r3, [r1]
-.EQ0:
 	bx	lr
 	.size	IdentityUnComp, .-IdentityUnComp

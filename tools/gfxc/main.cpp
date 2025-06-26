@@ -333,7 +333,11 @@ int main(int argc, char* argv[]) {
 		return write_types_header(argv[2]);
 	} else
 	if (argc == 4 && "--decompression_suite"sv == argv[1]) {
-		return build_decompression_suite(argv[2], argv[3]);
+		if ("--trivial"sv == argv[2]) {
+			return build_trivial_decompression_suite(argv[3]);
+		} else {
+			return build_decompression_suite(argv[2], argv[3]);
+		}
 	} else
 	if (argc == 4) {
 		std::filesystem::path srcdir = argv[1];

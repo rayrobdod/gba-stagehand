@@ -294,6 +294,9 @@ std::vector<uint8_t> decompressFrit8(std::vector<uint8_t> src, bool disassemble)
 }
 
 std::optional<std::vector<uint8_t>> compressFrit16(std::vector<uint8_t> src) {
+	if (0 != src.size() % 2)
+		return std::nullopt;
+
 	subword_output_iterator<uint16_t, uint8_t, DIRECTION_INC> src_to_word;
 	for (uint8_t b : src) {
 		*src_to_word = b;
@@ -304,6 +307,10 @@ std::optional<std::vector<uint8_t>> compressFrit16(std::vector<uint8_t> src) {
 }
 
 std::optional<std::vector<uint8_t>> compressFrit8(std::vector<uint8_t> src) {
+	// Not inherently impossible. However Frit8UnCompWram is not yet implemented
+	if (0 != src.size() % 2)
+		return std::nullopt;
+
 	return compressFrit<uint8_t>(src, 0x41);
 }
 
