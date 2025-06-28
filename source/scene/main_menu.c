@@ -11,6 +11,7 @@
 #include "scene/gradient.h"
 #include "scene/mode3.h"
 #include "scene/text_print_profile.h"
+#include "scene/text_print_step.h"
 #include "utils/arraycount.h"
 #include "utils/saturating_add.h"
 #include "graphics.h"
@@ -45,6 +46,10 @@ static const struct {
 	{
 		.label = "Text Print Profile",
 		.cb = &MainCB_textPrintProfile_init,
+	},
+	{
+		.label = "Text Print Step",
+		.cb = &MainCB_textPrintStep_init,
 	},
 	{
 		.label = "Gradient",
@@ -173,7 +178,7 @@ static void MainCB_mainMenu_main(void) {
 	int dselection = keyinput_vertical_new();
 	if (dselection) {
 		redraw_arrow = true;
-		selection = saturating_add(selection, 0, 3, dselection);
+		selection = saturating_add(selection, 0, arraycount(menu_options) - 1, dselection);
 	}
 
 	if (redraw_arrow) {

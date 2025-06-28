@@ -7,6 +7,7 @@
 #include "gba/vram.h"
 
 struct background;
+struct tileset;
 
 typedef uint8_t window_id_t;
 
@@ -31,11 +32,14 @@ window_id_t shadow_tiles_window_allocate(const struct shadow_tiles_window_alloca
 void shadow_tiles_window_queue_map(window_id_t id);
 void shadow_tiles_window_queue_tiles(window_id_t id, const tile_4bpp_t*);
 
-int shadow_tiles_load_tileset(unsigned bg, unsigned count, const tile_4bpp_t*);
+struct shadow_tiles_load_tileset {
+	unsigned bg;
+};
+int shadow_tiles_load_tileset(const struct tileset*, struct shadow_tiles_load_tileset);
 
 struct shadow_tiles_load_background {
 	unsigned bg;
 };
-bool shadow_tiles_load_background(struct background*, struct shadow_tiles_load_background);
+bool shadow_tiles_load_background(const struct background*, struct shadow_tiles_load_background);
 
 #endif        //  #ifndef SHADOW_VRAM_H

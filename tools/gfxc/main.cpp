@@ -15,6 +15,7 @@
 #include "resource_type/background.hpp"
 #include "resource_type/font.hpp"
 #include "resource_type/sprite.hpp"
+#include "resource_type/tileset.hpp"
 #include "build_compress_suite.hpp"
 #include "choose_compression.hpp"
 #include "find_palette_superset.hpp"
@@ -33,9 +34,10 @@ int write_types_header(std::filesystem::path headerfile) {
 	headerstream << "#include \"gba/palette.h\"" << std::endl;
 	headerstream << "#include \"gba/oam.h\"" << std::endl;
 
+	background::write_struct(headerstream);
 	font::write_struct(headerstream);
 	sprite::write_struct(headerstream);
-	background::write_struct(headerstream);
+	tileset::write_struct(headerstream);
 
 	headerstream << std::endl
 		<< "struct bitpacked_tileset {" << std::endl
@@ -172,6 +174,11 @@ int compile_object(std::filesystem::path srcdir, std::filesystem::path objfile, 
 		fonts.emplace_back(image);
 	}
 
+	std::vector<tileset> tilesets;
+	for (auto const& image : tileset_imgs) {
+		tilesets.emplace_back(image);
+	}
+
 	Object elf(objfile);
 	std::ofstream headerstream(headerfile);
 
@@ -214,69 +221,8 @@ int compile_object(std::filesystem::path srcdir, std::filesystem::path objfile, 
 	}
 
 	headerstream << std::endl;
-	for (auto const& image : tileset_imgs) {
-		std::string name = variable_name_for_image(image);
-
-		const std::set<rgba16_t> innate_pal = image.second.palette();
-		uint16_t paltag;
-		for (paltag = 0; paltag < single_palettes.size(); ++paltag) {
-			const std::vector<rgba16_t> check_pal = single_palettes[paltag];
-
-			if (std::includes(check_pal.begin(), check_pal.end(), innate_pal.begin(), innate_pal.end())) {
-				break;
-			}
-		}
-		if (paltag >= single_palettes.size()) {
-			std::string msg("Lost this sprite's palette");
-			throw std::logic_error(msg);
-		}
-		const std::vector<rgba16_t> used_pal = single_palettes[paltag];
-		paltag += FIRST_TAG;
-		char pal_name[16];
-		snprintf(pal_name, 16, "plte.%x", paltag);
-
-		uint16_t tile_count = 0;
-		subword_output_iterator<uint8_t, uint4_t, DIRECTION_INC> tiledata_builder;
-		for (auto subimg : image.second.subs(8, 8)) {
-			for (auto pixel : subimg.pixels()) {
-				auto palptr = std::find(used_pal.begin(), used_pal.end(), pixel);
-				uint4_t palindex(palptr - used_pal.begin());
-
-				*tiledata_builder = palindex;
-				++tiledata_builder;
-			}
-			++tile_count;
-		}
-		std::vector tiledata = tiledata_builder.result();
-
-		std::string tiles_name("tile.");
-		tiles_name += name;
-
-		elf.push_single_variable_rodata_sections({tiles_name, STB_GLOBAL}, tiledata);
-
-		std::array<uint32_t, 4> serialized = {
-			1,
-			0,
-			tile_count,
-			0,
-		};
-
-		std::initializer_list<relocation_template> relocs = {
-			{
-				.offset = 4,
-				.type = R_ARM_ABS32,
-				.symbol_name = pal_name,
-			},
-			{
-				.offset = 12,
-				.type = R_ARM_ABS32,
-				.symbol_name = tiles_name.c_str(),
-			},
-		};
-
-		elf.push_single_variable_rodata_sections({name, STB_GLOBAL}, serialized, relocs);
-
-		headerstream << "extern const struct tileset_graphics " << name << ";" << std::endl;
+	for (auto const& tileset : tilesets) {
+		tileset.write(headerstream, elf);
 	}
 
 	headerstream << std::endl;
