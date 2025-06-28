@@ -106,18 +106,6 @@ int compile_object(std::filesystem::path srcdir, std::filesystem::path objfile, 
 			single_palettes_0.insert(new_pal);
 		}
 
-		for (auto const& image : tileset_imgs) {
-			std::set<rgba16_t> new_pal;
-			new_pal.insert(image.second.background().with_alpha(0));
-			new_pal.merge(image.second.palette());
-			if (new_pal.size() > 16) {
-				std::string msg(image.first.string());
-				msg += ": palette larger than 16 colors";
-				throw std::logic_error(msg);
-			}
-			single_palettes_0.insert(new_pal);
-		}
-
 		// TODO: more palette deduplication
 		// E.g. finding subsets
 
