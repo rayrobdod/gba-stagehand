@@ -116,11 +116,11 @@ void font::write(std::ostream& headerstream, Object& elf) const {
 
 	elf.push_single_variable_rodata_sections({pixeldata_name, STB_LOCAL}, pixel_data);
 
-	std::initializer_list<relocation_template> relocs = {
+	std::initializer_list<relocation_template> relocs {
 		{
 			.offset = 0,
 			.type = R_ARM_ABS32,
-			.symbol_name = pixeldata_name.c_str(),
+			.symbol_name = pixeldata_name,
 		}
 	};
 

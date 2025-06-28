@@ -105,7 +105,7 @@ void sprite::write(std::ostream& headerstream, Object& elf) const {
 	char tiles_name[16];
 	snprintf(tiles_name, 16, "tile.%x", this->tiletag);
 
-	std::initializer_list<relocation_template> relocs = {
+	std::initializer_list<relocation_template> relocs {
 		{
 			.offset = 0,
 			.type = R_ARM_ABS32,

@@ -77,17 +77,17 @@ void suite_1(std::string_view variable_name, std::string_view label, std::vector
 		relocs.push_back((relocation_template) {
 			.offset = static_cast<Elf32_Addr>(16 * i),
 			.type = R_ARM_ABS32,
-			.symbol_name = label_name.c_str(),
+			.symbol_name = label_name,
 		});
 		relocs.push_back((relocation_template) {
 			.offset = static_cast<Elf32_Addr>(16 * i + 4),
 			.type = R_ARM_ABS32,
-			.symbol_name = raw_name.c_str(),
+			.symbol_name = raw_name,
 		});
 		relocs.push_back((relocation_template) {
 			.offset = static_cast<Elf32_Addr>(16 * i + 8),
 			.type = R_ARM_ABS32,
-			.symbol_name = choices[i].data_name.c_str(),
+			.symbol_name = choices[i].data_name,
 		});
 	}
 

@@ -54,10 +54,10 @@ void tileset::write(std::ostream& headerstream, Object& elf) const {
 		0,
 	};
 
-	char pal_name[32];
-	snprintf(pal_name, 32, "%s.pal", this->var_name.c_str());
-	char tileset_name[32];
-	snprintf(tileset_name, 32, "%s.tileset", this->var_name.c_str());
+	std::string pal_name(this->var_name);
+	pal_name += ".pal";
+	std::string tileset_name(this->var_name);
+	tileset_name += ".tileset";
 
 	std::initializer_list<relocation_template> relocs {
 		{

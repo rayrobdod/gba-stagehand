@@ -217,12 +217,12 @@ void background::write(std::ostream& headerstream, Object& elf) const {
 		static_cast<uint16_t>(this->tilemap.size()),
 	};
 
-	char pal_name[32];
-	snprintf(pal_name, 32, "%s.pal", this->var_name.c_str());
-	char tileset_name[32];
-	snprintf(tileset_name, 32, "%s.tileset", this->var_name.c_str());
-	char tilemap_name[32];
-	snprintf(tilemap_name, 32, "%s.tilemap", this->var_name.c_str());
+	std::string pal_name(this->var_name);
+	pal_name += ".pal";
+	std::string tileset_name(this->var_name);
+	tileset_name += ".tileset";
+	std::string tilemap_name(this->var_name);
+	tilemap_name += ".tilemap";
 
 	std::initializer_list<relocation_template> relocs {
 		{
