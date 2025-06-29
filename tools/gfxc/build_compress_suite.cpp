@@ -137,13 +137,21 @@ int build_trivial_decompression_suite(std::filesystem::path objfile) {
 	}
 
 	{
+		unsigned i;
 		data.clear();
-		for (unsigned i = 0; i < 256; i++) {
+		for (i = 0; i < 7; i++) {
 			data.push_back(i);
 		}
 		std::string var("increment8_");
 		std::string label(" increment8");
-		std::string count("256");
+		std::string count("7");
+
+		suite_1(var + count, count + label, data, elf);
+
+		for (; i < 256; i++) {
+			data.push_back(i);
+		}
+		count = "256";
 
 		suite_1(var + count, count + label, data, elf);
 	}
