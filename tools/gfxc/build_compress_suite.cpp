@@ -2,6 +2,7 @@
 
 #include <filesystem>
 #include "resource_type/background.hpp"
+#include "resource_type/tileset.hpp"
 #include "choose_compression.hpp"
 #include "image.hpp"
 #include "object.hpp"
@@ -225,6 +226,15 @@ int build_decompression_suite(std::filesystem::path srcfile, std::filesystem::pa
 				}
 			}
 			suite_1(tilemap_variable_name, tilemap_label, tilemap_bytes, elf);
+		}
+		break;
+	case TYPE_TILESET:
+		{
+			tileset data(name_and_parsed);
+
+			std::string tileset_name = "decompression_suite_"s + variable_name;
+			std::string tileset_label = variable_name;
+			suite_1(tileset_name, tileset_label, data.tiles, elf);
 		}
 		break;
 	default:
