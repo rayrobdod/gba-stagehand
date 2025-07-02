@@ -29,6 +29,7 @@ BUILDDIR	:= build
 BUILDOBJDIR	:= build/objs
 TEST_OBJ_DIR	:= build/test/objs
 TEST_RUNNER_DIR	:= build/test/exe
+TEST_REPORT_DIR	:= build/test/report
 
 # Source files
 
@@ -67,6 +68,9 @@ TEST_RUNNERS := \
 		$(patsubst test/%.cpp,$(TEST_RUNNER_DIR)/%,$(SRCS_TEST_CPP)) \
 	)
 
+TEST_REPORTS := \
+	$(patsubst $(TEST_RUNNER_DIR)/%,$(TEST_REPORT_DIR)/%.txt,$(TEST_RUNNERS))
+
 DEPS	:= $(OBJS:.o=.d) $(TEST_OBJS:.o=.d)
 
 # Rules
@@ -90,6 +94,11 @@ $(TEST_RUNNER_DIR)/% : $(TEST_OBJ_DIR)/%.cpp.o $(TEST_OBJ_DIR)/_shared.cpp.o
 	@echo "  HOSTLD  $@"
 	@$(MKDIR) -p $(@D)
 	$(V)$(CXX) -o $@ $^ $(LDFLAGS)
+
+$(TEST_REPORT_DIR)/%.txt : $(TEST_RUNNER_DIR)/%
+	@echo "  CALL    $<"
+	@$(MKDIR) -p $(@D)
+	$(V)bash -c "set -o pipefail; $< | tee $@"
 
 # Targets
 
@@ -115,8 +124,8 @@ $(TEST_RUNNER_DIR)/test_subword_output_iterator: $(BUILDOBJDIR)/ints.cpp.o
 $(TEST_RUNNER_DIR)/test_lz: $(BUILDOBJDIR)/ints.cpp.o $(BUILDOBJDIR)/compression/lz.cpp.o
 $(TEST_RUNNER_DIR)/test_frit: $(BUILDOBJDIR)/ints.cpp.o $(BUILDOBJDIR)/compression/frit.cpp.o
 
-check: $(TEST_RUNNERS)
-	$(V)for r in $(TEST_RUNNERS); do $$r ; done
+check: $(TEST_REPORTS)
+	@:
 
 clean:
 	@echo "  CLEAN"

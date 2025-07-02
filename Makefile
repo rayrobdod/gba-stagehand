@@ -65,8 +65,10 @@ HOSTOBJDIR_SRC	:= $(BUILDDIR)/host/objs/src
 HOSTOBJDIR_HOST	:= $(BUILDDIR)/host/objs/host
 HOSTOBJDIR_TEST	:= $(BUILDDIR)/host/objs/test
 HOSTEXEDIR	:= $(BUILDDIR)/host/exe
+HOSTREPORTDIR	:= $(BUILDDIR)/host/report
 TESTOBJDIR	:= $(BUILDDIR)/test/objs
 TESTEXEDIR	:= $(BUILDDIR)/test/exe
+TESTREPORTDIR	:= $(BUILDDIR)/test/report
 
 INCLUDES	+= $(BUILDSRCDIR)
 
@@ -173,6 +175,9 @@ HOST_RUNNERS := \
 		) \
 	)
 
+TEST_REPORTS := \
+	$(patsubst $(HOSTEXEDIR)/%,$(HOSTREPORTDIR)/%.txt,$(HOST_RUNNERS))
+
 TEST_RUNNERS := \
 	$(filter \
 		$(TESTEXEDIR)/test_% \
@@ -180,6 +185,9 @@ TEST_RUNNERS := \
 		, \
 		$(patsubst $(SOURCEDIR_TEST)/%.c,$(TESTEXEDIR)/%.elf,$(TESTSRCS_C)) \
 	)
+
+TEST_REPORTS := \
+	$(patsubst $(TESTEXEDIR)/%.elf,$(TESTREPORTDIR)/%.txt,$(TEST_RUNNERS))
 
 DEPS	:= $(OBJS:.o=.d) $(TEST_OBJS:.o=.d)
 
@@ -226,6 +234,11 @@ $(HOSTEXEDIR)/% : $(HOSTOBJDIR_TEST)/%.c.o $(HOSTOBJDIR_HOST)/bios.c.o $(HOSTOBJ
 	@$(MKDIR) -p $(@D)
 	$(V)$(HOSTCC) -o $@ $^ $(HOSTLDFLAGS)
 
+$(HOSTREPORTDIR)/%.txt : $(HOSTEXEDIR)/%
+	@echo "  CALL    $<"
+	@$(MKDIR) -p $(@D)
+	$(V)bash -c "set -o pipefail; $< | tee $@"
+
 $(TESTOBJDIR)/%.c.o : $(SOURCEDIR_TEST)/%.c | generated_headers
 	@echo "  CC      $<"
 	@$(MKDIR) -p $(@D) # Build target's directory if it doesn't exist
@@ -245,6 +258,11 @@ $(TESTEXEDIR)/%.elf : $(TESTOBJDIR)/%.c.o $(TESTOBJDIR)/harness.c.o $(TESTOBJDIR
 	@echo "  LD      $@"
 	@$(MKDIR) -p $(@D)
 	$(V)$(CC) -o $@ $(filter-out %.ld,$^) $(TESTLDFLAGS) -Wl,-Map,$(@:.elf=.map)
+
+$(TESTREPORTDIR)/%.txt : $(TESTEXEDIR)/%.elf
+	@echo "  MGBA    $<"
+	@$(MKDIR) -p $(@D)
+	$(V)bash -c "set -o pipefail; $(ROMTEST) -ClogLevel.gba.dma=16 -l15 -S0 -Rr0 $< | tee $@"
 
 # Targets
 # -------
@@ -297,14 +315,14 @@ $(TESTEXEDIR)/bench_text_printer.elf : $(BUILDOBJDIR)/graphics.o
 $(TESTEXEDIR)/bench_decompress.elf : $(patsubst $(GRAPHICSDIR)/%.png,$(TESTOBJDIR)/%.png.o,$(SOURCES_PNG))
 $(TESTEXEDIR)/bench_decompress.elf : $(TESTOBJDIR)/trivial_decompression.o
 
-check_host: $(HOST_RUNNERS)
-	$(V)for r in $(HOST_RUNNERS); do $$r ; done
+check_host: $(patsubst $(HOSTEXEDIR)/%,$(HOSTREPORTDIR)/%.txt,$(HOST_RUNNERS))
+	@:
 
 check_bench_decompress: build/test/exe/bench_decompress.elf
 	$(V)$(ROMTEST) -ClogLevel.gba.dma=16 -l15 -S0 -Rr0 $<
 
-check_mgba: $(TEST_RUNNERS)
-	$(V)for r in $(TEST_RUNNERS); do $(ROMTEST) -ClogLevel.gba.dma=16 -l15 -S0 -Rr0 $$r ; done
+check_mgba: $(patsubst $(TESTEXEDIR)/%.elf,$(TESTREPORTDIR)/%.txt,$(TEST_RUNNERS))
+	@:
 
 check_all: check_host check_mgba
 	$(V)cd tools/gfxc && $(MAKE) check
