@@ -3,6 +3,12 @@
 #include <stdbool.h>
 #include <stdint.h>
 
+static inline unsigned bit_mask_and_shift(unsigned value, unsigned keep, unsigned shift) {
+	unsigned retval = value;
+	retval <<= (32 - (shift + keep));
+	retval >>= (32 - keep);
+	return retval;
+}
 
 #define FUNCTION_NAME Frit16UnComp
 #define WORD uint16_t
@@ -35,8 +41,8 @@ void Frit8UnCompVram(const void* src, volatile void* dest) {
 		unsigned op_code = op >> 6;
 
 		if (0 == op_code) {
-			unsigned from = (op & 0x30) >> 4;
-			unsigned to = (op & 0xC) >> 2;
+			unsigned from = op >> 4;
+			unsigned to = bit_mask_and_shift(op, 2, 2);
 			unsigned hi = (op & 0x2);
 			unsigned low = (op & 0x1);
 			if (hi) {src8++;}
@@ -44,7 +50,7 @@ void Frit8UnCompVram(const void* src, volatile void* dest) {
 
 			regs[to] = regs[from] ^ operand;
 		} else {
-			unsigned regId = (op & 0x30) >> 4;
+			unsigned regId = bit_mask_and_shift(op, 2, 4);
 			unsigned length = (op & 0x0F) + 1;
 			if (length == 0x10) {
 				length = *(src8++) + 31;
