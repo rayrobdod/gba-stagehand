@@ -149,12 +149,18 @@ std::optional<std::vector<uint8_t>> compressFrit(const std::vector<WORD> src, ui
 
 	/* run optimization pass */
 	for (size_t runPos = 0; runPos < runs.size(); runPos++) {
+		// The delta does not change the output of a 1-length run,
+		// but changing the delta changes the run's end,
+		// and a different end can better set up registers for future runs
 		if (1 == runs[runPos].length) {
-			// If this 1-length run could end at the next run's starting point, it would have been merged with that run, I think
-			if (runPos + 2 < runs.size() && runs[runPos + 2].start == runs[runPos].start + 1) {
+			auto next_Zero	= std::find_if(runs.begin() + 1 + runPos, runs.end(), run_with_start<WORD>(runs[runPos].start + 0));
+			auto next_Pos	= std::find_if(runs.begin() + 1 + runPos, runs.end(), run_with_start<WORD>(runs[runPos].start + 1));
+			auto next_Neg	= std::find_if(runs.begin() + 1 + runPos, runs.end(), run_with_start<WORD>(runs[runPos].start - 1));
+
+			if (next_Pos < next_Neg && next_Pos < next_Zero) {
 				runs[runPos].delta = 1;
 			}
-			else if (runPos + 2 < runs.size() && runs[runPos + 2].start == runs[runPos].start - 1) {
+			if (next_Neg < next_Pos && next_Neg < next_Zero) {
 				runs[runPos].delta = -1;
 			}
 		}
