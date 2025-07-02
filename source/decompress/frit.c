@@ -3,104 +3,18 @@
 #include <stdbool.h>
 #include <stdint.h>
 
-__attribute__((optimize("-O3")))
-void Frit16UnComp(const void* src, volatile void* dest) {
-	const uint32_t* src32 = (const uint32_t*)src;
-	volatile uint16_t* dest16 = (volatile uint16_t*)dest;
-	const uint32_t len = *(src32++) >> 8;
-	volatile uint16_t* const dest_end = dest16 + len / sizeof(uint16_t);
 
-	const uint8_t* src8 = (const uint8_t*)src32;
+#define FUNCTION_NAME Frit16UnComp
+#define WORD uint16_t
+#include "decompress/frit_template.h"
+#undef FUNCTION_NAME
+#undef WORD
 
-	uint16_t regs[4] = {0};
-
-	while (dest16 < dest_end) {
-		uint8_t op = *(src8++);
-		unsigned op_code = op >> 6;
-
-		if (0 == op_code) {
-			unsigned from = (op & 0x30) >> 4;
-			unsigned to = (op & 0xC) >> 2;
-			unsigned hi = (op & 0x2);
-			unsigned low = (op & 0x1);
-			unsigned hiValue = (hi ? *(src8++) << 8 : 0);
-			unsigned lowValue = (low ? *(src8++) : 0);
-			unsigned operand = hiValue | lowValue;
-
-			regs[to] = regs[from] ^ operand;
-		} else {
-			unsigned regId = (op & 0x30) >> 4;
-			unsigned length = (op & 0x0F) + 1;
-			if (length == 0x10) {
-				length = *(src8++) + 31;
-			}
-			unsigned regValue = regs[regId];
-
-			if (2 == op_code) {
-				for (; length > 0; --length) {
-					*(dest16++) = regValue;
-				}
-			} else {
-				signed delta = ((signed) op_code) - 2;
-
-				for (; length > 0; --length) {
-					*(dest16++) = regValue;
-					regValue += delta;
-				}
-				regs[regId] = regValue;
-			}
-		}
-	}
-}
-
-__attribute__((optimize("-O3")))
-void Frit8UnCompWram(const void* src, volatile void* dest) {
-	const uint32_t* src32 = (const uint32_t*)src;
-	volatile uint8_t* dest8 = (volatile uint8_t*)dest;
-	const uint32_t len = *(src32++) >> 8;
-	volatile uint8_t* const dest_end = dest8 + len / sizeof(uint8_t);
-
-	const uint8_t* src8 = (const uint8_t*)src32;
-
-	uint8_t regs[4] = {0};
-
-	while (dest8 < dest_end) {
-		uint8_t op = *(src8++);
-		unsigned op_code = op >> 6;
-
-		if (0 == op_code) {
-			unsigned from = (op & 0x30) >> 4;
-			unsigned to = (op & 0xC) >> 2;
-			unsigned hi = (op & 0x2);
-			unsigned low = (op & 0x1);
-			if (hi) {src8++;}
-			unsigned operand = (low ? *(src8++) : 0);
-
-			regs[to] = regs[from] ^ operand;
-		} else {
-			unsigned regId = (op & 0x30) >> 4;
-			unsigned length = (op & 0x0F) + 1;
-			if (length == 0x10) {
-				length = *(src8++) + 31;
-			}
-			unsigned regValue = regs[regId];
-
-			if (2 == op_code) {
-				for (; length > 0; --length) {
-					*(dest8++) = regValue;
-				}
-			} else {
-				signed delta = ((signed) op_code) - 2;
-
-				for (; length > 0; --length) {
-					*(dest8++) = regValue;
-					regValue += delta;
-				}
-				regs[regId] = regValue;
-			}
-		}
-	}
-}
+#define FUNCTION_NAME Frit8UnCompWram
+#define WORD uint8_t
+#include "decompress/frit_template.h"
+#undef FUNCTION_NAME
+#undef WORD
 
 __attribute__((optimize("-O3")))
 void Frit8UnCompVram(const void* src, volatile void* dest) {
