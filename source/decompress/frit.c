@@ -26,8 +26,8 @@ __attribute__((optimize("-O3")))
 void Frit8UnCompVram(const void* src, volatile void* dest) {
 	const uint32_t* src32 = (const uint32_t*)src;
 	volatile uint16_t* dest16 = (volatile uint16_t*)dest;
-	const uint32_t len = *(src32++) >> 8;
-	volatile uint16_t* const dest_end = dest16 + len / sizeof(uint16_t);
+	_Static_assert(2 == sizeof(uint16_t));
+	volatile uint16_t* const dest_end = dest16 + (*(src32++) >> 9);
 
 	const uint8_t* src8 = (const uint8_t*)src32;
 
