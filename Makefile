@@ -286,7 +286,7 @@ $(GFXC): $(wildcard tools/gfxc/*.c) $(wildcard tools/gfxc/*.cpp) $(wildcard tool
 
 generated_headers: $(BUILDSRCDIR)/graphics.h
 OBJS += $(BUILDOBJDIR)/graphics.o
-$(BUILDOBJDIR)/graphics.o $(BUILDSRCDIR)/graphics.h: $(GFXC) $(SOURCES_PNG)
+$(BUILDOBJDIR)/graphics.o $(BUILDSRCDIR)/graphics.h &: $(GFXC) $(SOURCES_PNG)
 	@echo "  GFXC"
 	@$(MKDIR) -p $(BUILDOBJDIR)
 	@$(MKDIR) -p $(BUILDSRCDIR)
