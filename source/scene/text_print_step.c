@@ -1,6 +1,7 @@
 #include "scene/text_print_step.h"
 
 #include <stdlib.h>
+#include "decompress/type.h"
 #include "management/keyinput.h"
 #include "management/shadow_vram.h"
 #include "management/vram_op_queue.h"
@@ -48,10 +49,14 @@ static const char lorem_ipsum[] =
 	"in culpa qui officia deserunt\n"
 	"mollit anim id est laborum.";
 
-static const char zero_tile[sizeof(tile_4bpp_t) + 4] = {0, sizeof(tile_4bpp_t), 0};
+static const struct CompressedData zero_tile = {
+	.magic = 0,
+	.size = sizeof(tile_4bpp_t),
+	.data = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+};
 static const struct tileset one_zero_tileset = {
 	.palette = NULL,
-	.tileset = zero_tile,
+	.tileset = &zero_tile,
 	.tileset_count = 1,
 };
 

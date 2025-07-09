@@ -1,1 +1,3 @@
-void LZ11UnCompVram(const void* src, volatile void* dest);
+struct CompressedData;
+
+void LZ11UnCompVram(const struct CompressedData* src, volatile void* dest);

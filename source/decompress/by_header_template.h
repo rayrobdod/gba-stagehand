@@ -24,9 +24,8 @@ static UnCompFn CAT(UnCompFn, XRAM)(unsigned magic) {
 	}
 }
 
-void CAT(HeaderUnComp, XRAM)(const void* src, volatile void* dest) {
-	const uint8_t* src8 = (const uint8_t*)src;
-	const uint8_t magic = src8[0];
+void CAT(HeaderUnComp, XRAM)(const struct CompressedData* src, volatile void* dest) {
+	const uint8_t magic = src->magic;
 	UnCompFn fn = CAT(UnCompFn, XRAM)(magic);
 
 	if (fn) {

@@ -82,7 +82,7 @@ void sprite::write_struct(std::ostream& headerstream) {
 		<< "typedef uint16_t tiletag_t;" << std::endl
 		<< "struct shadow_oam_template {" << std::endl
 		<< "	const palette16_t* palette;" << std::endl
-		<< "	const char* tiles;" << std::endl
+		<< "	const struct CompressedData* tiles;" << std::endl
 		<< "	paltag_t paltag;" << std::endl
 		<< "	tiletag_t tiletag;" << std::endl
 		<< "	enum oam_shape shape: 2;" << std::endl

@@ -11,4 +11,6 @@ data:
 	the uncompressed data
 
 */
-void IdentityUnComp(const void* src, volatile void* dest);
+struct CompressedData;
+
+void IdentityUnComp(const struct CompressedData* src, volatile void* dest);

@@ -2,6 +2,7 @@
 
 #include <stddef.h>
 #include <stdio.h>
+#include "decompress/type.h"
 #include "management/isr.h"
 #include "gba/bios.h"
 #include "gba/vram.h"
@@ -16,7 +17,7 @@ static char fail_detail[256];
 struct decompression_suite {
 	const char* label;
 	const char* raw;
-	const char* data;
+	const struct CompressedData* data;
 	uint32_t size;
 };
 
@@ -98,10 +99,10 @@ void run_decompress_benchmark(const struct decompression_suite * suite) {
 		if (currentTestFailed) {
 			++failed;
 			MgbaPrintf(MGBA_LOG_INFO, "Decompress  Vram: %s %6s: \033[41mFAIL\033[0m: %s",
-				suite->label, UnCompFnName(suite->data[0]), fail_detail);
+				suite->label, UnCompFnName(suite->data->magic), fail_detail);
 		} else {
 			MgbaPrintf(MGBA_LOG_INFO, "Decompress  Vram: %s %6s: \033[44mBENCH\033[0m: %8ld cycles = %2ld.%03ld frames (%6ld bytes)",
-				suite->label, UnCompFnName(suite->data[0]), time, time / CYCLES_PER_FRAME, (time * 1000 / CYCLES_PER_FRAME) % 1000, suite->size);
+				suite->label, UnCompFnName(suite->data->magic), time, time / CYCLES_PER_FRAME, (time * 1000 / CYCLES_PER_FRAME) % 1000, suite->size);
 		}
 		++total;
 	}
@@ -117,10 +118,10 @@ void run_decompress_benchmark(const struct decompression_suite * suite) {
 		if (currentTestFailed) {
 			++failed;
 			MgbaPrintf(MGBA_LOG_INFO, "Decompress IWram: %s %6s: \033[41mFAIL\033[0m: %s",
-				suite->label, UnCompFnName(suite->data[0]), fail_detail);
+				suite->label, UnCompFnName(suite->data->magic), fail_detail);
 		} else {
 			MgbaPrintf(MGBA_LOG_INFO, "Decompress IWram: %s %6s: \033[44mBENCH\033[0m: %8ld cycles = %2ld.%03ld frames (%6ld bytes)",
-				suite->label, UnCompFnName(suite->data[0]), time, time / CYCLES_PER_FRAME, (time * 1000 / CYCLES_PER_FRAME) % 1000, suite->size);
+				suite->label, UnCompFnName(suite->data->magic), time, time / CYCLES_PER_FRAME, (time * 1000 / CYCLES_PER_FRAME) % 1000, suite->size);
 		}
 		++total;
 	} else {
@@ -134,10 +135,10 @@ void run_decompress_benchmark(const struct decompression_suite * suite) {
 		if (currentTestFailed) {
 			++failed;
 			MgbaPrintf(MGBA_LOG_INFO, "Decompress EWram: %s %6s: \033[41mFAIL\033[0m: %s",
-				suite->label, UnCompFnName(suite->data[0]), fail_detail);
+				suite->label, UnCompFnName(suite->data->magic), fail_detail);
 		} else {
 			MgbaPrintf(MGBA_LOG_INFO, "Decompress EWram: %s %6s: \033[44mBENCH\033[0m: %8ld cycles = %2ld.%03ld frames (%6ld bytes)",
-				suite->label, UnCompFnName(suite->data[0]), time, time / CYCLES_PER_FRAME, (time * 1000 / CYCLES_PER_FRAME) % 1000, suite->size);
+				suite->label, UnCompFnName(suite->data->magic), time, time / CYCLES_PER_FRAME, (time * 1000 / CYCLES_PER_FRAME) % 1000, suite->size);
 		}
 		++total;
 	}

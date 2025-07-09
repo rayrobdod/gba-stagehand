@@ -4,6 +4,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include "decompress/type.h"
 #include "gba/bios.h"
 #include "gba/screen.h"
 #include "management/keyinput.h"
@@ -40,10 +41,14 @@ static const char ballpos_scale_frac[BALLPOS_SCALE][4] = {
 	"875", "891", "906", "922", "938", "953", "969", "984",
 };
 
-static const char zero_tile[sizeof(tile_4bpp_t) + 4] = {0, sizeof(tile_4bpp_t), 0};
+static const struct CompressedData zero_tile = {
+	.magic = 0,
+	.size = sizeof(tile_4bpp_t),
+	.data = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+};
 static const struct tileset one_zero_tileset = {
 	.palette = NULL,
-	.tileset = zero_tile,
+	.tileset = &zero_tile,
 	.tileset_count = 1,
 };
 

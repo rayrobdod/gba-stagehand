@@ -1,3 +1,5 @@
-void Frit16UnComp(const void* src, volatile void* dest);
-void Frit8UnCompVram(const void* src, volatile void* dest);
-void Frit8UnCompWram(const void* src, volatile void* dest);
+struct CompressedData;
+
+void Frit16UnComp(const struct CompressedData* src, volatile void* dest);
+void Frit8UnCompVram(const struct CompressedData* src, volatile void* dest);
+void Frit8UnCompWram(const struct CompressedData* src, volatile void* dest);

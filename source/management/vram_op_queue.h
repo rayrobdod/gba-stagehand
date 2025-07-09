@@ -7,6 +7,8 @@
 #include "gba/palette.h"
 #include "gba/vram.h"
 
+struct CompressedData;
+
 enum vram_queue_op_type {
 	/** None */
 	VRAM_QUEUE_OP_NOOP = 0,
@@ -59,7 +61,7 @@ struct vram_op {
 			uint16_t count;
 		} tiles;
 		struct {
-			const char* from;
+			const struct CompressedData* from;
 			uint16_t to_block;
 			uint16_t to_tile;
 		} tiles_compressed;
@@ -88,7 +90,7 @@ struct vram_op {
 			uint16_t count;
 		} map_fill;
 		struct {
-			const char* from;
+			const struct CompressedData* from;
 			uint16_t to_block;
 			uint16_t to_tile;
 		} map_compressed;

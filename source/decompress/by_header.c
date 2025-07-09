@@ -5,6 +5,7 @@
 #include "decompress/frit.h"
 #include "decompress/identity.h"
 #include "decompress/lz11.h"
+#include "decompress/type.h"
 #include "gba/bios.h"
 #include "mgba.h"
 
@@ -12,7 +13,7 @@
 #define CAT(A, B) CAT1(A, B)
 #define STR(A) #A
 
-typedef void (*UnCompFn)(const void*, volatile void*);
+typedef void (*UnCompFn)(const struct CompressedData*, volatile void*);
 
 #define XRAM Vram
 #include "decompress/by_header_template.h"

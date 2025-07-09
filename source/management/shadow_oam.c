@@ -212,7 +212,7 @@ static void shadow_oam_release_palette(
 }
 
 static shadow_oam_tileid_t shadow_oam_add_tiles(
-	tiletag_t tiletag, const char* tiles, unsigned tilecount) {
+	tiletag_t tiletag, const struct CompressedData* tiles, unsigned tilecount) {
 	shadow_oam_tileid_t shadow_tile_index;
 	unsigned tile_index;
 

@@ -39,7 +39,7 @@ void tileset::write_struct(std::ostream& headerstream) {
 	headerstream << std::endl
 		<< "struct tileset {" << std::endl
 		<< "	const palette16_t* palette;" << std::endl
-		<< "	const char* tileset;" << std::endl
+		<< "	const struct CompressedData* tileset;" << std::endl
 		<< "	const uint16_t tileset_count;" << std::endl
 		<< "};" << std::endl;
 }

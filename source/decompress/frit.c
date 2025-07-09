@@ -2,6 +2,7 @@
 
 #include <stdbool.h>
 #include <stdint.h>
+#include "decompress/type.h"
 
 static inline unsigned bit_mask_and_shift(unsigned value, unsigned keep, unsigned shift) {
 	unsigned retval = value;
@@ -23,13 +24,11 @@ static inline unsigned bit_mask_and_shift(unsigned value, unsigned keep, unsigne
 #undef WORD
 
 __attribute__((optimize("-O3")))
-void Frit8UnCompVram(const void* src, volatile void* dest) {
-	const uint32_t* src32 = (const uint32_t*)src;
-	volatile uint16_t* dest16 = (volatile uint16_t*)dest;
-	_Static_assert(2 == sizeof(uint16_t));
-	volatile uint16_t* const dest_end = dest16 + (*(src32++) >> 9);
+void Frit8UnCompVram(const struct CompressedData* srcV, volatile void* destV) {
+	volatile uint16_t* dest16 = (volatile uint16_t*)destV;
+	volatile uint16_t* const dest_end = dest16 + (srcV->size / sizeof(uint16_t));
 
-	const uint8_t* src8 = (const uint8_t*)src32;
+	const uint8_t* src8 = srcV->data;
 
 	unsigned buffer = 0;
 	bool buffer_has_value = false;

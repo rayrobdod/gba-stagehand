@@ -2,15 +2,14 @@
 
 #include <stdbool.h>
 #include <stdint.h>
+#include "decompress/type.h"
 #include "mgba.h"
 
-void LZ11UnCompVram(const void* src, volatile void* dest) {
-	const uint32_t* src32 = (const uint32_t*)src;
+void LZ11UnCompVram(const struct CompressedData* src, volatile void* dest) {
 	volatile uint16_t* dest16 = (volatile uint16_t*)dest;
-	_Static_assert(2 == sizeof(uint16_t));
-	volatile uint16_t* const dest_end = dest16 + (*(src32++) >> 9);
+	volatile uint16_t* const dest_end = dest16 + (src->size / sizeof(uint16_t));
 
-	const uint8_t* src8 = (const uint8_t*)src32;
+	const uint8_t* src8 = src->data;
 
 	uint16_t buffer;
 	bool buffer_has_value = false;

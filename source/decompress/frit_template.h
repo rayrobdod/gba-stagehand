@@ -1,12 +1,9 @@
 __attribute__((optimize("-O3")))
-void FUNCTION_NAME(const void* srcV, volatile void* destV) {
-	const uint32_t* src32 = (const uint32_t*)srcV;
+void FUNCTION_NAME(const struct CompressedData* srcV, volatile void* destV) {
 	volatile WORD* dest = (volatile WORD*)destV;
-	_Static_assert(2 == sizeof(WORD) || 1 == sizeof(WORD), "word size must be 1 or 2");
-	// 2 / 2 == log2(2) == 1 ; 1 / 2 == log2(1) == 0 ; don't care about other `sizeof(WORD)`
-	volatile WORD* const dest_end = dest + (*(src32++) >> (8 + sizeof(WORD) / 2));
+	volatile WORD* const dest_end = dest + (srcV->size / sizeof(WORD));
 
-	const uint8_t* src8 = (const uint8_t*)src32;
+	const uint8_t* src8 = srcV->data;
 
 	// zero-initializing a `uint_16 x[4]` array translates into a memset call.
 	// assigning each item to zero translates into *two* `strs` instructions

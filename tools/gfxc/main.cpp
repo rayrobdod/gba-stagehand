@@ -33,6 +33,7 @@ int write_types_header(std::filesystem::path headerfile) {
 	std::ofstream headerstream(headerfile);
 	headerstream << "#include \"gba/palette.h\"" << std::endl;
 	headerstream << "#include \"gba/oam.h\"" << std::endl;
+	headerstream << "struct CompressedData;" << std::endl;
 
 	background::write_struct(headerstream);
 	font::write_struct(headerstream);

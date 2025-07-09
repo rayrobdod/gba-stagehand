@@ -252,7 +252,7 @@ bool shadow_tiles_load_tileset_fixed(unsigned bg, unsigned start, unsigned count
 	return true;
 }
 
-bool shadow_tiles_load_tileset_fixed_compressed(unsigned bg, unsigned start, unsigned count, const char* tileset) {
+bool shadow_tiles_load_tileset_fixed_compressed(unsigned bg, unsigned start, unsigned count, const struct CompressedData* tileset) {
 	start += TILES_PER_CHARBLOCK * shadow_tiles_bgcnt[bg].charblock;
 	for (unsigned i = start; i < start + count; i++) {
 		if (shadow_tiles_used[i])

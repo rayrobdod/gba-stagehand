@@ -96,7 +96,7 @@ void CpuFastSet(const void* src, volatile void* dest, const struct CpuFastSet ar
 	}
 }
 
-void LZ77UnCompVram(const void* src, volatile void* dest) {
+void LZ77UnCompVram(const struct CompressedData* src, volatile void* dest) {
 	// ???
 }
 
@@ -105,7 +105,7 @@ void BitUnPack(const void* src, volatile void* dest, const struct BitUnPack*) {
 }
 
 
-void HeaderUnCompVram(const void* src, volatile void* dest) {
+void HeaderUnCompVram(const struct CompressedData* src, volatile void* dest) {
 	// ???
 }
 
