@@ -1,14 +1,13 @@
 #include "scene/text_print_step.h"
 
 #include <stdlib.h>
-#include "decompress/type.h"
 #include "management/keyinput.h"
 #include "management/shadow_vram.h"
 #include "management/vram_op_queue.h"
 #include "scene/main_menu.h"
 #include "utils/arraycount.h"
+#include "utils/one_transparent_tileset.h"
 #include "graphics.h"
-#include "graphics_types.h"
 #include "main.h"
 #include "mgba.h"
 #include "text_printer.h"
@@ -48,17 +47,6 @@ static const char lorem_ipsum[] =
 	"cupidatat non proident, sunt\n"
 	"in culpa qui officia deserunt\n"
 	"mollit anim id est laborum.";
-
-static const struct CompressedData zero_tile = {
-	.magic = 0,
-	.size = sizeof(tile_4bpp_t),
-	.data = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
-};
-static const struct tileset one_zero_tileset = {
-	.palette = NULL,
-	.tileset = &zero_tile,
-	.tileset_count = 1,
-};
 
 static const palette16_t text_pal = {
 	{10, 10, 10},
@@ -174,7 +162,7 @@ void MainCB_textPrintStep_init(void) {
 		},
 	});
 
-	view_model->zero_tile_ref = (bg_tile_t) {.tile = shadow_tiles_load_tileset(&one_zero_tileset, (struct shadow_tiles_load_tileset) {0})};
+	view_model->zero_tile_ref = (bg_tile_t) {.tile = shadow_tiles_load_tileset(&one_transparent_tileset, (struct shadow_tiles_load_tileset) {0})};
 	view_model->border_tile_id = shadow_tiles_load_tileset(&dialog_box, (struct shadow_tiles_load_tileset) {0});
 	view_model->dialog_window_id = shadow_tiles_window_allocate(&dialog_window_template);
 

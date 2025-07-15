@@ -4,7 +4,6 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include "decompress/type.h"
 #include "gba/bios.h"
 #include "gba/screen.h"
 #include "management/keyinput.h"
@@ -12,9 +11,9 @@
 #include "management/shadow_vram.h"
 #include "management/vram_op_queue.h"
 #include "utils/arraycount.h"
+#include "utils/one_transparent_tileset.h"
 #include "utils/saturating_add.h"
 #include "graphics.h"
-#include "graphics_types.h"
 #include "main.h"
 #include "mgba.h"
 #include "text_printer.h"
@@ -39,17 +38,6 @@ static const char ballpos_scale_frac[BALLPOS_SCALE][4] = {
 	"625", "641", "656", "672", "688", "703", "719", "734",
 	"750", "766", "781", "797", "813", "828", "844", "859",
 	"875", "891", "906", "922", "938", "953", "969", "984",
-};
-
-static const struct CompressedData zero_tile = {
-	.magic = 0,
-	.size = sizeof(tile_4bpp_t),
-	.data = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
-};
-static const struct tileset one_zero_tileset = {
-	.palette = NULL,
-	.tileset = &zero_tile,
-	.tileset_count = 1,
 };
 
 inline static void MgbaPrintBallposFixpoint(char* var_name, int value) {
@@ -217,7 +205,7 @@ void MainCB_brickBreak_init(void) {
 		},
 	});
 
-	zero_tile_ref = (bg_tile_t) {.tile = shadow_tiles_load_tileset(&one_zero_tileset, (struct shadow_tiles_load_tileset) {3})};
+	zero_tile_ref = (bg_tile_t) {.tile = shadow_tiles_load_tileset(&one_transparent_tileset, (struct shadow_tiles_load_tileset) {3})};
 
 	vram_op_queue_enqueue((struct vram_op) {
 		.type = VRAM_QUEUE_OP_BG_MAP_FILL,

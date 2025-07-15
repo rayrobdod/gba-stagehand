@@ -31,6 +31,9 @@ static const unsigned FIRST_TAG = 0x1000;
 
 int write_types_header(std::filesystem::path headerfile) {
 	std::ofstream headerstream(headerfile);
+	headerstream << "#ifndef GRAPHICS_TYPES" << std::endl;
+	headerstream << "#define GRAPHICS_TYPES" << std::endl << std::endl;
+
 	headerstream << "#include \"gba/palette.h\"" << std::endl;
 	headerstream << "#include \"gba/oam.h\"" << std::endl;
 	headerstream << "struct CompressedData;" << std::endl;
@@ -45,7 +48,10 @@ int write_types_header(std::filesystem::path headerfile) {
 		<< "	uint16_t size;" << std::endl
 		<< "	uint16_t unit_width;" << std::endl
 		<< "	char data[];" << std::endl
-		<< "};" << std::endl;
+		<< "};" << std::endl
+		 << std::endl;
+
+	headerstream << "#endif" << std::endl;
 
 	return 0;
 }
