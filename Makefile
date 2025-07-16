@@ -83,6 +83,7 @@ SYM		:= $(NAME).sym
 
 GBAFIX	:= tools/gbafix/gbafix
 GFXC	:= tools/gfxc/gfxc
+METADATA	:= tools/metadata/metadata
 ROMTEST	?= ../icwic/tools/mgba/mgba-rom-test
 
 # Source files
@@ -284,6 +285,9 @@ $(GBAFIX): $(wildcard tools/gbafix/*.c)
 $(GFXC): $(wildcard tools/gfxc/*.c) $(wildcard tools/gfxc/*.cpp) $(wildcard tools/gfxc/**/*.cpp)
 	$(V)cd tools/gfxc && $(MAKE)
 
+$(METADATA): $(wildcard tools/metadata/*.c) $(wildcard tools/metadata/*.h) $(wildcard tools/metadata/*.cpp) $(wildcard tools/gfxc/object.cpp) $(wildcard tools/gfxc/object.hpp)
+	$(V)cd tools/metadata && $(MAKE)
+
 generated_headers: $(BUILDSRCDIR)/graphics.h
 OBJS += $(BUILDOBJDIR)/graphics.o
 $(BUILDOBJDIR)/graphics.o $(BUILDSRCDIR)/graphics.h &: $(GFXC) $(SOURCES_PNG)
@@ -297,6 +301,13 @@ $(BUILDSRCDIR)/graphics_types.h: $(GFXC)
 	@echo "  GFXC    --structs"
 	@$(MKDIR) -p $(BUILDSRCDIR)
 	$(V)$(GFXC) --structs $(BUILDSRCDIR)/graphics_types.h
+
+generated_headers: $(BUILDSRCDIR)/resource_credits.h
+OBJS += $(BUILDOBJDIR)/resource_credits.o
+$(BUILDSRCDIR)/resource_credits.o $(BUILDSRCDIR)/resource_credits.h &: $(METADATA) $(SOURCES_PNG)
+	@echo "  METADATA"
+	@$(MKDIR) -p $(BUILDSRCDIR)
+	$(V)$(METADATA) --out-object $(BUILDOBJDIR)/resource_credits.o --out-header $(BUILDSRCDIR)/resource_credits.h $(SOURCES_PNG)
 
 $(ELF): $(OBJS) source/sys/gba_cart.ld
 	@echo "  LD      $@"
@@ -344,6 +355,7 @@ clean:
 	$(V)$(RM) $(ROM) $(ELF) $(DUMP) $(SYM) $(MAP) $(BUILDDIR)
 	$(V)cd tools/gbafix && $(MAKE) clean
 	$(V)cd tools/gfxc && $(MAKE) clean
+	$(V)cd tools/metadata && $(MAKE) clean
 
 generated_headers:
 	@:

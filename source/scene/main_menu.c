@@ -8,6 +8,7 @@
 #include "management/shadow_oam.h"
 #include "management/vram_op_queue.h"
 #include "scene/brick_break.h"
+#include "scene/display_credits.h"
 #include "scene/gradient.h"
 #include "scene/mode3.h"
 #include "scene/text_print_profile.h"
@@ -54,6 +55,10 @@ static const struct {
 	{
 		.label = "Gradient",
 		.cb = &MainCB_gradient_init,
+	},
+	{
+		.label = "Credits",
+		.cb = &MainCB_credits_init,
 	},
 };
 
