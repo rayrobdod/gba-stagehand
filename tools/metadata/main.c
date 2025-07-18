@@ -42,7 +42,7 @@ int main(int argc, char* argv[]) {
 		generate_credits_object(args.outCreditsObject, metadata_count, metadatas);
 	}
 
-	for (int i = 0; i < args.inPngFileCount; i++) {
+	for (unsigned i = 0; i < args.inPngFileCount; i++) {
 		free_metadata_fields(metadatas[i]);
 	}
 	free(metadatas);

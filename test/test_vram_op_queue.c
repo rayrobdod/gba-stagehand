@@ -35,7 +35,7 @@ void test_vram_op_queue_enqueue_bg_palette(void) {
 	}
 }
 
-int main(int argc, char** argv) {
+int main() {
 	total = 0;
 	failed = 0;
 

@@ -42,11 +42,14 @@ SRCS_TEST_CPP	:= $(wildcard test/*.cpp)
 
 CFLAGS += -std=gnu11
 CFLAGS += -I.
-CFLAGS += -Wall
+CFLAGS += -Wall -Wextra
+CFLAGS += -Werror
 CFLAGS += -ggdb -DDEBUG
 CXXFLAGS += -std=gnu++20
 CXXFLAGS += -I.
-CXXFLAGS += -Wall
+CXXFLAGS += -Wall -Wextra
+CXXFLAGS += -Werror
+CXXFLAGS += -Wno-missing-field-initializers
 CXXFLAGS += -ggdb -DDEBUG
 CXXFLAGS += -fconcepts
 LDFLAGS += $(LIBS)

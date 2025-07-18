@@ -3,7 +3,7 @@
 
 #include "gba/shared.h"
 
-extern volatile void (* REG_ISR_MAIN)(void);
+extern void (* volatile REG_ISR_MAIN)(void);
 
 extern volatile interrupt_flag_t REG_IFBIOS;
 

@@ -21,8 +21,8 @@ struct decompression_suite {
 	uint32_t size;
 };
 
-const extern struct decompression_suite __decompression_suite_array_start[];
-const extern struct decompression_suite __decompression_suite_array_end[];
+extern const struct decompression_suite __decompression_suite_array_start[];
+extern const struct decompression_suite __decompression_suite_array_end[];
 
 static const uint32_t initial_memory_fill = 0x12345678;
 
@@ -145,7 +145,7 @@ void run_decompress_benchmark(const struct decompression_suite * suite) {
 }
 
 
-int main(int argc, char** argv) {
+int main() {
 	total = 0;
 	failed = 0;
 

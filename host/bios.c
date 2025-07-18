@@ -96,16 +96,16 @@ void CpuFastSet(const void* src, volatile void* dest, const struct CpuFastSet ar
 	}
 }
 
-void LZ77UnCompVram(const struct CompressedData* src, volatile void* dest) {
+void LZ77UnCompVram(__attribute__((unused)) const struct CompressedData* src, __attribute__((unused)) volatile void* dest) {
 	// ???
 }
 
-void BitUnPack(const void* src, volatile void* dest, const struct BitUnPack*) {
+void BitUnPack(__attribute__((unused)) const void* src, __attribute__((unused)) volatile void* dest, __attribute__((unused)) const struct BitUnPack*) {
 	// ???
 }
 
 
-void HeaderUnCompVram(const struct CompressedData* src, volatile void* dest) {
+void HeaderUnCompVram(__attribute__((unused)) const struct CompressedData* src, __attribute__((unused)) volatile void* dest) {
 	// ???
 }
 

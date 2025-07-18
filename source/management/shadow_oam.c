@@ -9,8 +9,9 @@
 #include "mgba.h"
 #include "vram_op_queue.h"
 
-typedef int8_t shadow_oam_palid_t;
-typedef int8_t shadow_oam_tileid_t;
+typedef uint8_t shadow_oam_palid_t;
+typedef uint8_t shadow_oam_tileid_t;
+static const shadow_oam_id_t shadow_id_invalid = 0xFF;
 
 static const struct {
 	uint8_t tilecount;
@@ -173,8 +174,6 @@ static int shadow_tiles_allocate(unsigned count) {
 	return -1;
 }
 
-static const shadow_oam_id_t shadow_id_invalid = 0xFF;
-
 static shadow_oam_palid_t shadow_oam_add_palette(
 	paltag_t paltag, const palette16_t* palette) {
 
@@ -214,7 +213,7 @@ static void shadow_oam_release_palette(
 static shadow_oam_tileid_t shadow_oam_add_tiles(
 	tiletag_t tiletag, const struct CompressedData* tiles, unsigned tilecount) {
 	shadow_oam_tileid_t shadow_tile_index;
-	unsigned tile_index;
+	int tile_index;
 
 	for (shadow_tile_index = 0; shadow_tile_index < arraycount(shadow_tiles); shadow_tile_index++) {
 		if (0 != shadow_tiles[shadow_tile_index].refcount && tiletag == shadow_tiles[shadow_tile_index].tag) {
@@ -317,7 +316,7 @@ shadow_oam_id_t shadow_oam_add_sprite(
 }
 
 void shadow_oam_remove_sprite(shadow_oam_id_t index) {
-	if (index >= arraycount(shadow_oam) || index < 0)
+	if (index >= arraycount(shadow_oam))
 		return;
 
 	struct shadow_oam* oam = &shadow_oam[index];
@@ -341,7 +340,7 @@ void shadow_oam_move_sprite(
 	shadow_oam_id_t index,
 	const struct shadow_oam_position position
 ) {
-	if (index >= arraycount(shadow_oam) || index < 0)
+	if (index >= arraycount(shadow_oam))
 		return;
 
 	const struct shadow_oam* oam = &shadow_oam[index];

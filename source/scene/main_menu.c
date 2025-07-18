@@ -139,7 +139,7 @@ void MainCB_mainMenu_init(void) {
 			tilemap_buffer[i] = (bg_tile_t) {' '};
 		}
 
-		for (int i = 0; i < arraycount(menu_options); i++) {
+		for (unsigned i = 0; i < arraycount(menu_options); i++) {
 			if (menu_options[i].label) {
 				print_to_tilemap(tilemap_buffer, 3, i + 2, menu_options[i].label);
 			}

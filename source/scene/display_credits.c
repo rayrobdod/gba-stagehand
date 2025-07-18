@@ -247,7 +247,7 @@ static void MainCB_credits_print(void) {
 			(font_colors_t) {0, 12, 15, 0, false},
 			view_model->current->retrieved_from);
 
-		const unsigned max_x = TILE_PIXEL_SIDE * URL_WINDOW_WIDTH - 1;
+		const int max_x = TILE_PIXEL_SIDE * URL_WINDOW_WIDTH - 1;
 
 		while (TEXT_PRINT_STEP_STOP != url_print_step_retval) {
 			url_print_step_retval = text_print_step(&url_print_step_state);

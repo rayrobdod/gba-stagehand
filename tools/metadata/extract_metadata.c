@@ -69,7 +69,7 @@ struct metadata_result extract_metadata_from_png(const char* name) {
 	png_text *texts;
 	unsigned num_text = png_get_text(png_ptr, info_ptr, &texts, NULL);
 
-	for (int i = 0; i < num_text; i++) {
+	for (unsigned i = 0; i < num_text; i++) {
 		if (0 == strcmp("Title", texts[i].key)) {
 			retval.value.title = strdup(texts[i].text);
 		}

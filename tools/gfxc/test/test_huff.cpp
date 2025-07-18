@@ -130,7 +130,7 @@ void test_make_prefix_tree_Huff(void) {
 	TEST_ASSERT_EQUAL_UNSIGNED(1, result.code('f').length);
 }
 
-int main(int argc, char** argv) {
+int main() {
 	total = 0;
 	failed = 0;
 

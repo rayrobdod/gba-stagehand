@@ -178,7 +178,7 @@ void Object::push_symbol(Elf32_Sym_Template hdr) {
 
 	uint32_t st_name = symbol_strings.push(hdr.name);
 	Elf32_Section shndx = index_of_section(hdr.section);
-	if (0 == shndx || shndx > 0xFFFF) {
+	if (0 == shndx) {
 		fprintf(stderr, "symbol %s pushed before section %s\n", hdr.name.c_str(), hdr.section.c_str());
 		exit(1);
 	}

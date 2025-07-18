@@ -47,7 +47,7 @@ void test_1bpp(void) {
 	TEST_ASSERT_EQUAL_VECTOR_HEX8(expected, dut.result());
 }
 
-int main(int argc, char** argv) {
+int main() {
 	total = 0;
 	failed = 0;
 

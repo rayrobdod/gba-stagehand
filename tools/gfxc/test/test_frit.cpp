@@ -101,7 +101,7 @@ void test_frit8_sixteen_loop(void) {
 	}
 }
 
-int main(int argc, char** argv) {
+int main() {
 	total = 0;
 	failed = 0;
 

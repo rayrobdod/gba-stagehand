@@ -104,8 +104,13 @@ DEFINES		+= -D__GBA__
 
 ARCH		:= -mcpu=arm7tdmi -mtune=arm7tdmi
 
+WARNFLAGS	+= -Werror
+WARNFLAGS	+= -Wall
+WARNFLAGS	+= -Wextra
+WARNFLAGS	+= -Wno-packed-bitfield-compat
 # -Wsizeof-array-div keeps yelling whenever I need to count the number of words in an item
-WARNFLAGS	:= -Wall -Wno-packed-bitfield-compat -Wno-sizeof-array-div
+WARNFLAGS	+= -Wno-sizeof-array-div
+WARNFLAGS	+= -Wno-missing-field-initializers
 
 INCLUDEFLAGS	:= $(foreach path,$(INCLUDES),-I$(path)) \
 		   $(foreach path,$(LIBDIRS),-I$(path)/include)
@@ -304,7 +309,7 @@ $(BUILDSRCDIR)/graphics_types.h: $(GFXC)
 
 generated_headers: $(BUILDSRCDIR)/resource_credits.h
 OBJS += $(BUILDOBJDIR)/resource_credits.o
-$(BUILDSRCDIR)/resource_credits.o $(BUILDSRCDIR)/resource_credits.h &: $(METADATA) $(SOURCES_PNG)
+$(BUILDOBJDIR)/resource_credits.o $(BUILDSRCDIR)/resource_credits.h &: $(METADATA) $(SOURCES_PNG)
 	@echo "  METADATA"
 	@$(MKDIR) -p $(BUILDSRCDIR)
 	$(V)$(METADATA) --out-object $(BUILDOBJDIR)/resource_credits.o --out-header $(BUILDSRCDIR)/resource_credits.h $(SOURCES_PNG)

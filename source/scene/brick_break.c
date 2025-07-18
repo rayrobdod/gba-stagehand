@@ -302,7 +302,7 @@ static void MainCB_brickBreak_main(void) {
 		if (ballvelocity.y > 0 && ballpos.y >= (160 + 4) * BALLPOS_SCALE) {
 			ballvelocity.y = -ballvelocity.y;
 		}
-		for (int i = 0; i < arraycount(bricks); i++) {
+		for (unsigned i = 0; i < arraycount(bricks); i++) {
 			if (0 == bricks[i].health) {
 				continue;
 			}

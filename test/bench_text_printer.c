@@ -41,7 +41,7 @@ void bench_text_printer_lorem_ipsum(void) {
 		lorem_ipsum);
 }
 
-int main(int argc, char** argv) {
+int main() {
 	isr_switchboard_init();
 	isr_enable(II_VBLANK);
 	MgbaOpen();

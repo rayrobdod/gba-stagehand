@@ -99,7 +99,7 @@ enum text_print_step_retval text_print_step(
 	if (state->scroll_up) {
 		state->scroll_up--;
 
-		unsigned pixel_y;
+		int pixel_y;
 		for (pixel_y = state->start_point.y; pixel_y < TILE_PIXEL_SIDE * state->window_args->height - 1; pixel_y++) {
 			unsigned tile_y = pixel_y / TILE_PIXEL_SIDE;
 			unsigned subtile_y = pixel_y % TILE_PIXEL_SIDE;

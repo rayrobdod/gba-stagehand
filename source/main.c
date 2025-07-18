@@ -14,7 +14,7 @@
 
 MainCallback scene_onframe_callback;
 
-int main(int argc, char* argv[]) {
+int main() {
 	isr_switchboard_init();
 	isr_enable(II_VBLANK);
 
