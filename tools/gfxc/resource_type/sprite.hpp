@@ -25,8 +25,10 @@ std::ostream& operator<<(std::ostream& os, enum sprite_size v);
 
 struct sprite {
 	std::string var_name;
-	uint16_t paltag;
+	std::string pal_var_name;
+	std::vector<std::pair<uint16_t, std::string>> palettes;
 	uint16_t tiletag;
+	std::vector<uint8_t> tiles;
 	enum sprite_size size;
 
 	void write(std::ostream& headerstream, Object& elf) const;

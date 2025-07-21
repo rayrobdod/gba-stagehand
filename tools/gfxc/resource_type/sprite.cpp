@@ -2,6 +2,7 @@
 
 #include <array>
 #include <stdexcept>
+#include "choose_compression.hpp"
 #include "variable_name_for_image.hpp"
 
 enum sprite_size sprite_size(unsigned width, unsigned height) {
@@ -91,32 +92,46 @@ void sprite::write_struct(std::ostream& headerstream) {
 }
 
 void sprite::write(std::ostream& headerstream, Object& elf) const {
-	headerstream << "extern const struct shadow_oam_template " << this->var_name << ";" << std::endl;
+	for (auto palette : this->palettes) {
+		headerstream << "extern const struct shadow_oam_template " << this->var_name << palette.second << ";" << std::endl;
+	}
 
-	std::array<uint32_t, 4> serialized = {
-		0,
-		0,
-		static_cast<uint32_t>(this->paltag | (this->tiletag << 16)),
-		this->size,
-	};
+	std::string tiles_var_name = this->var_name;
+	tiles_var_name += ".tiles";
+	auto tiles_compressed = choose_compression(tiles_var_name, this->tiles);
 
-	char pal_name[16];
-	snprintf(pal_name, 16, "plte.%x", this->paltag);
-	char tiles_name[16];
-	snprintf(tiles_name, 16, "tile.%x", this->tiletag);
+	elf.push_single_variable_rodata_sections({tiles_var_name, STB_LOCAL}, tiles_compressed.data);
 
-	std::initializer_list<relocation_template> relocs {
-		{
-			.offset = 0,
-			.type = R_ARM_ABS32,
-			.symbol_name = pal_name,
-		},
-		{
-			.offset = 4,
-			.type = R_ARM_ABS32,
-			.symbol_name = tiles_name,
-		},
-	};
+	for (auto palette : this->palettes) {
+		std::string my_var_name = this->var_name;
+		my_var_name += palette.second;
 
-	elf.push_single_variable_rodata_sections({this->var_name, STB_GLOBAL}, serialized, relocs);
+		std::string my_pal_var_name = "plte.";
+		my_pal_var_name += this->pal_var_name;
+		my_pal_var_name += palette.second;
+
+		std::array<uint16_t, 8> serialized = {
+			0, 0,
+			0, 0,
+			palette.first,
+			this->tiletag,
+			this->size,
+			0,
+		};
+
+		std::initializer_list<relocation_template> relocs {
+			{
+				.offset = 0,
+				.type = R_ARM_ABS32,
+				.symbol_name = my_pal_var_name,
+			},
+			{
+				.offset = 4,
+				.type = R_ARM_ABS32,
+				.symbol_name = tiles_var_name,
+			},
+		};
+
+		elf.push_single_variable_rodata_sections({my_var_name, STB_GLOBAL}, serialized, relocs);
+	}
 }

@@ -9,6 +9,7 @@ rgba16_t rgb15_t::with_alpha(uint16_t a) const {
 	return {this->r, this->g, this->b, a != 0};
 }
 const rgba16 rgba16_t::BLACK = {0, 0, 0, 1};
+const rgb15 rgb15_t::BLACK = {0, 0, 0};
 
 bool operator==(const rgba16_t& lhs, const rgba16_t& rhs) {
 	return (lhs.a == 0 && rhs.a == 0) || ((lhs.a == rhs.a) && (lhs.r == rhs.r) && (lhs.g == rhs.g) && (lhs.b == rhs.b));
@@ -122,6 +123,10 @@ std::map<std::string, std::vector<rgba16_t>> bufferedimage::alt_palettes(std::ve
 		retval.insert(make_pair(name, new_pal));
 	}
 	return retval;
+}
+
+std::map<std::string, std::map<rgba16_t, rgba16_t>> bufferedimage::alt_palettes() const {
+	return this->_alt_palettes;
 }
 
 ////

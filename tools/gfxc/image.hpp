@@ -10,14 +10,17 @@
 #include <vector>
 #include <ranges>
 
+struct rgb15;
 struct rgba16;
 
-typedef struct {
+typedef struct rgb15 {
 	uint16_t r : 5;
 	uint16_t g : 5;
 	uint16_t b : 5;
 
 	struct rgba16 with_alpha(uint16_t a) const;
+
+	static const rgb15 BLACK;
 } rgb15_t;
 
 typedef struct rgba16 {
@@ -177,6 +180,7 @@ public:
 	rgb15_t background() const;
 
 	std::map<std::string, std::vector<rgba16_t>> alt_palettes(std::vector<rgba16_t> palette) const;
+	std::map<std::string, std::map<rgba16_t, rgba16_t>> alt_palettes() const;
 };
 
 #include <algorithm>

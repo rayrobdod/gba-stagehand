@@ -29,6 +29,21 @@
 
 static const unsigned FIRST_TAG = 0x1000;
 
+struct alt_palette_data {
+	const uint16_t tag;
+	std::map<rgba16_t, rgba16_t> mapping;
+
+	alt_palette_data(uint16_t _tag) : tag(_tag) {}
+};
+
+struct palette_data {
+	const uint16_t tag;
+	std::set<rgba16_t> colors;
+	std::map<const std::string, alt_palette_data> alternates;
+
+	palette_data(uint16_t _tag) : tag(_tag) {}
+};
+
 int write_types_header(std::filesystem::path headerfile) {
 	std::ofstream headerstream(headerfile);
 	headerstream << "#ifndef GRAPHICS_TYPES" << std::endl;
@@ -98,64 +113,105 @@ int compile_object(std::filesystem::path srcdir, std::filesystem::path objfile, 
 		}
 	}
 
-	indexed_insert_only_set<std::vector<rgba16_t>> single_palettes;
+	std::map<const std::filesystem::path, const std::string> file_to_palette_name;
+	std::map<const std::string, palette_data> palette_datas;
 	{
-		std::set<std::set<rgba16_t>> single_palettes_0;
+		uint16_t next_paltag = FIRST_TAG;
 		for (auto const& image : sprite_imgs) {
-			std::set<rgba16_t> new_pal;
-			new_pal.insert(image.second.background().with_alpha(0));
-			new_pal.merge(image.second.palette());
-			if (new_pal.size() > 16) {
-				std::string msg(image.first.string());
+			std::string palette_name;
+			auto palette_name_pair = image.second.text().find("Palette Tag");
+			if (palette_name_pair != image.second.text().end()) {
+				palette_name = palette_name_pair->second;
+			} else {
+				palette_name = variable_name_for_image(image);
+				palette_name += "$";
+			}
+
+			file_to_palette_name.emplace(image.first, palette_name);
+
+			auto palette_data_emplace_result = palette_datas.try_emplace(palette_name, next_paltag);
+			if (palette_data_emplace_result.second) {
+				++next_paltag;
+			}
+			auto palette_data_ptr = palette_data_emplace_result.first;
+
+			palette_data_ptr->second.colors.insert(image.second.background().with_alpha(0));
+			palette_data_ptr->second.colors.merge(image.second.palette());
+
+			if (palette_data_ptr->second.colors.size() > 16) {
+				std::string msg(palette_name);
 				msg += ": palette larger than 16 colors";
 				throw std::logic_error(msg);
 			}
-			single_palettes_0.insert(new_pal);
-		}
 
-		// TODO: more palette deduplication
-		// E.g. finding subsets
+			std::map<std::string, std::map<rgba16_t, rgba16_t>> addend_alts = image.second.alt_palettes();
+			for (auto const& addend_alt : addend_alts) {
+				std::string alt_name = addend_alt.first;
+				std::map<rgba16_t, rgba16_t> addend_replacements = addend_alt.second;
 
-		for (auto pal0 : single_palettes_0) {
-			std::vector<rgba16_t> pal(pal0.begin(), pal0.end());
-			single_palettes.find_or_push_back(pal);
+				auto altpalette_data_emplace_result = palette_data_ptr->second.alternates.try_emplace(alt_name, next_paltag);
+				if (altpalette_data_emplace_result.second) {
+					++next_paltag;
+				}
+				auto altpalette_data_ptr = altpalette_data_emplace_result.first;
+
+				for (auto const& addend_replacement : addend_replacements) {
+					rgba16_t from = addend_replacement.first;
+					rgba16_t to = addend_replacement.second;
+
+					auto i = altpalette_data_ptr->second.mapping.find(from);
+					if (i == altpalette_data_ptr->second.mapping.end()) {
+						altpalette_data_ptr->second.mapping.emplace(from, to);
+					} else if (to == i->second) {
+						// do nothing
+					} else {
+						std::string msg;
+						msg += palette_name;
+						msg += "_";
+						msg += alt_name;
+						msg += ": contradictory alternate palette mapping";
+						throw std::logic_error(msg);
+					}
+				}
+			}
 		}
 	}
 
-	indexed_insert_only_set<std::vector<uint8_t>> tiledatas;
 	std::vector<sprite> sprites;
 
-	for (auto const& image : sprite_imgs) {
-		uint16_t paltag = find_palette_superset<indexed_insert_only_set<std::vector<rgba16_t>>>(single_palettes, image.second.palette());
-		const std::vector<rgba16_t> used_pal = single_palettes[paltag];
-		paltag += FIRST_TAG;
+	{
+		uint16_t next_tiletag = FIRST_TAG;
+		for (auto const& image : sprite_imgs) {
+			std::string var_name = variable_name_for_image(image);
 
-		subword_output_iterator<uint8_t, uint4_t, DIRECTION_INC> tiledata_builder;
-		for (auto subimg : image.second.subs(8, 8)) {
-			for (auto pixel : subimg.pixels()) {
-				auto palptr = std::find(used_pal.begin(), used_pal.end(), pixel);
-				uint4_t palindex(palptr - used_pal.begin());
+			std::string pal_name = file_to_palette_name.find(image.first)->second;
+			palette_data pal_data = palette_datas.find(pal_name)->second;
 
-				*tiledata_builder = palindex;
-				++tiledata_builder;
+			std::vector<std::pair<uint16_t, std::string>> palettes;
+			palettes.emplace_back(pal_data.tag, "");
+			for (auto alt : pal_data.alternates) {
+				std::string altname = "_";
+				altname += alt.first;
+				palettes.emplace_back(alt.second.tag, altname);
 			}
-		}
-		std::vector<uint8_t> tiledata = tiledata_builder.result();
 
-		enum sprite_size size = sprite_size(image.second.width(), image.second.height());
-		uint16_t tiletag = FIRST_TAG + tiledatas.find_or_push_back(tiledata);
+			const std::vector<rgba16_t> used_pal(pal_data.colors.begin(), pal_data.colors.end());
 
-		std::string name = variable_name_for_image(image);
+			subword_output_iterator<uint8_t, uint4_t, DIRECTION_INC> tiledata_builder;
+			for (auto subimg : image.second.subs(8, 8)) {
+				for (auto pixel : subimg.pixels()) {
+					auto palptr = std::find(used_pal.begin(), used_pal.end(), pixel);
+					uint4_t palindex(palptr - used_pal.begin());
 
-		sprites.push_back({name, paltag, tiletag, size});
+					*tiledata_builder = palindex;
+					++tiledata_builder;
+				}
+			}
+			std::vector<uint8_t> tiledata = tiledata_builder.result();
 
-		std::map<std::string, std::vector<rgba16_t>> altpals = image.second.alt_palettes(used_pal);
-		for (auto altpal : altpals) {
-			std::string altname(name);
-			altname += "_";
-			altname += altpal.first;
-			uint16_t altpaltag = FIRST_TAG + single_palettes.find_or_push_back(altpal.second);
-			sprites.push_back({altname, altpaltag, tiletag, size});
+			enum sprite_size size = sprite_size(image.second.width(), image.second.height());
+
+			sprites.push_back({var_name, pal_name, palettes, next_tiletag++, tiledata, size});
 		}
 	}
 
@@ -177,27 +233,38 @@ int compile_object(std::filesystem::path srcdir, std::filesystem::path objfile, 
 	Object elf(objfile);
 	std::ofstream headerstream(headerfile);
 
-	for (auto pal0 = single_palettes.cbegin(); pal0 != single_palettes.cend(); ++pal0) {
-		size_t i = pal0 - single_palettes.cbegin();
-		char pal_name[16];
-		snprintf(pal_name, 16, "plte.%lx", FIRST_TAG + i);
+	for (auto const& palette_data : palette_datas) {
+		std::string var_name = "plte.";
+		var_name += palette_data.first;
+
+		std::vector<rgba16_t> pala;
 		std::vector<rgb15_t> pal;
-		for (auto color : *pal0) {
+		for (auto color : palette_data.second.colors) {
+			pala.push_back(color);
 			pal.push_back(color.strip_alpha());
 		}
-		elf.push_single_variable_rodata_sections({pal_name, STB_LOCAL}, pal);
-	}
-
-	for (size_t tiletag = 0; tiletag < tiledatas.size(); ++tiletag) {
-		char tiles_name[16];
-		snprintf(tiles_name, 16, "tile.%lx", FIRST_TAG + tiletag);
-		auto compressed = choose_compression(tiles_name, tiledatas[tiletag]);
-
-		if (false) {
-			std::cout << "  " << tiles_name << ": " << compressed.alg_name << std::endl;
+		while (false) { //(pal.size() < 16) {
+			pala.push_back(rgba16_t::BLACK);
+			pal.push_back(rgb15_t::BLACK);
 		}
+		elf.push_single_variable_rodata_sections({var_name, STB_LOCAL}, pal);
 
-		elf.push_single_variable_rodata_sections({tiles_name, STB_LOCAL}, compressed.data);
+		for (auto alt : palette_data.second.alternates) {
+			std::string alt_var_name = var_name;
+			alt_var_name += "_";
+			alt_var_name += alt.first;
+
+			std::vector<rgb15_t> alt_pal;
+			for (rgba16_t main_color : pala) {
+				auto alt_color = alt.second.mapping.find(main_color);
+				if (alt.second.mapping.end() == alt_color) {
+					alt_pal.push_back(main_color.strip_alpha());
+				} else {
+					alt_pal.push_back(alt_color->second.strip_alpha());
+				}
+			}
+			elf.push_single_variable_rodata_sections({alt_var_name, STB_LOCAL}, alt_pal);
+		}
 	}
 
 	headerstream << std::endl;
