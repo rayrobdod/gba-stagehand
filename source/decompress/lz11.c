@@ -5,6 +5,26 @@
 #include "decompress/type.h"
 #include "mgba.h"
 
+static inline void parseCopyInstruction(unsigned* width, unsigned* distance, const uint8_t** src8) {
+	switch (**src8 >> 4) {
+	case 0:
+		*width = ((**src8 << 4) | ((*(*src8 + 1) >> 4) & 0xF)) + 0x11;
+		*distance = (((*(*src8 + 1) & 0xF) << 8) | (*(*src8 + 2))) + 1;
+		*src8 += 3;
+		break;
+	case 1:
+		*width = (((**src8 & 0xF) << 12) | (*(*src8 + 1) << 4) | ((*(*src8 + 2) >> 4) & 0xF)) + 0x111;
+		*distance = (((*(*src8 + 2) & 0xF) << 8) | (*(*src8 + 3))) + 1;
+		*src8 += 4;
+		break;
+	default:
+		*width = (**src8 >> 4) + 1;
+		*distance = (((**src8 & 0xF) << 8) | (*(*src8 + 1))) + 1;
+		*src8 += 2;
+		break;
+	}
+}
+
 void LZ11UnCompVram(const struct CompressedData* src, volatile void* dest) {
 	volatile uint16_t* dest16 = (volatile uint16_t*)dest;
 	volatile uint16_t* const dest_end = dest16 + (src->size / sizeof(uint16_t));
@@ -25,23 +45,7 @@ void LZ11UnCompVram(const struct CompressedData* src, volatile void* dest) {
 				unsigned width;
 				unsigned distance;
 
-				switch (*src8 >> 4) {
-				case 0:
-					width = ((*src8 << 4) | ((*(src8 + 1) >> 4) & 0xF)) + 0x11;
-					distance = (((*(src8 + 1) & 0xF) << 8) | (*(src8 + 2))) + 1;
-					src8 += 3;
-					break;
-				case 1:
-					width = (((*src8 & 0xF) << 12) | (*(src8 + 1) << 4) | ((*(src8 + 2) >> 4) & 0xF)) + 0x111;
-					distance = (((*(src8 + 2) & 0xF) << 8) | (*(src8 + 3))) + 1;
-					src8 += 4;
-					break;
-				default:
-					width = (*src8 >> 4) + 1;
-					distance = (((*src8 & 0xF) << 8) | (*(src8 + 1))) + 1;
-					src8 += 2;
-					break;
-				}
+				parseCopyInstruction(&width, &distance, &src8);
 
 				if (distance % 2 == 0) {
 					if (buffer_has_value) {
@@ -104,23 +108,7 @@ void LZ11UnCompWram(const struct CompressedData* src, volatile void* dest) {
 				unsigned width;
 				unsigned distance;
 
-				switch (*src8 >> 4) {
-				case 0:
-					width = ((*src8 << 4) | ((*(src8 + 1) >> 4) & 0xF)) + 0x11;
-					distance = (((*(src8 + 1) & 0xF) << 8) | (*(src8 + 2))) + 1;
-					src8 += 3;
-					break;
-				case 1:
-					width = (((*src8 & 0xF) << 12) | (*(src8 + 1) << 4) | ((*(src8 + 2) >> 4) & 0xF)) + 0x111;
-					distance = (((*(src8 + 2) & 0xF) << 8) | (*(src8 + 3))) + 1;
-					src8 += 4;
-					break;
-				default:
-					width = (*src8 >> 4) + 1;
-					distance = (((*src8 & 0xF) << 8) | (*(src8 + 1))) + 1;
-					src8 += 2;
-					break;
-				}
+				parseCopyInstruction(&width, &distance, &src8);
 
 				volatile uint8_t* from = dest8 - distance;
 				for (; width > 7; width -= 8, dest8 += 8, from += 8) {
