@@ -86,3 +86,59 @@ void LZ11UnCompVram(const struct CompressedData* src, volatile void* dest) {
 		}
 	}
 }
+
+void LZ11UnCompWram(const struct CompressedData* src, volatile void* dest) {
+	volatile uint8_t* dest8 = (volatile uint8_t*)dest;
+	volatile uint8_t* const dest_end = dest + (src->size / sizeof(uint8_t));
+
+	const uint8_t* src8 = src->data;
+
+	while (dest8 < dest_end) {
+		unsigned flags = *(src8++);
+
+		for (int i = 7; i >= 0; --i) {
+			if (dest8 >= dest_end)
+				break;
+
+			if (flags & (1 << i)) {
+				unsigned width;
+				unsigned distance;
+
+				switch (*src8 >> 4) {
+				case 0:
+					width = ((*src8 << 4) | ((*(src8 + 1) >> 4) & 0xF)) + 0x11;
+					distance = (((*(src8 + 1) & 0xF) << 8) | (*(src8 + 2))) + 1;
+					src8 += 3;
+					break;
+				case 1:
+					width = (((*src8 & 0xF) << 12) | (*(src8 + 1) << 4) | ((*(src8 + 2) >> 4) & 0xF)) + 0x111;
+					distance = (((*(src8 + 2) & 0xF) << 8) | (*(src8 + 3))) + 1;
+					src8 += 4;
+					break;
+				default:
+					width = (*src8 >> 4) + 1;
+					distance = (((*src8 & 0xF) << 8) | (*(src8 + 1))) + 1;
+					src8 += 2;
+					break;
+				}
+
+				volatile uint8_t* from = dest8 - distance;
+				for (; width > 7; width -= 8, dest8 += 8, from += 8) {
+					*(dest8 + 0) = *(from + 0);
+					*(dest8 + 1) = *(from + 1);
+					*(dest8 + 2) = *(from + 2);
+					*(dest8 + 3) = *(from + 3);
+					*(dest8 + 4) = *(from + 4);
+					*(dest8 + 5) = *(from + 5);
+					*(dest8 + 6) = *(from + 6);
+					*(dest8 + 7) = *(from + 7);
+				}
+				for (; width > 0; --width, ++dest8, ++from) {
+					*(dest8) = *(from);
+				}
+			} else {
+				*(dest8++) = *(src8++);
+			}
+		}
+	}
+}
