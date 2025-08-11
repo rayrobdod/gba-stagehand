@@ -72,12 +72,7 @@ int write_types_header(std::filesystem::path headerfile) {
 }
 
 int compile_object(std::filesystem::path srcdir, std::filesystem::path objfile, std::filesystem::path headerfile) {
-	std::map<std::filesystem::path, struct bufferedimage> sprite_imgs;
-	std::map<std::filesystem::path, struct bufferedimage> tileset_imgs;
-	std::map<std::filesystem::path, struct bufferedimage> monochrome_tileset_imgs;
-	std::map<std::filesystem::path, struct bufferedimage> background_imgs;
-	std::map<std::filesystem::path, struct bufferedimage> background_mode3_imgs;
-	std::map<std::filesystem::path, struct bufferedimage> font_imgs;
+	std::map<type, std::map<std::filesystem::path, struct bufferedimage>> sorted_imgs;
 
 	for (auto const& dir_entry : std::filesystem::recursive_directory_iterator{srcdir}) {
 		if (dir_entry.is_regular_file() && dir_entry.path().extension() == ".png") {
@@ -86,27 +81,10 @@ int compile_object(std::filesystem::path srcdir, std::filesystem::path objfile, 
 			try {
 				bufferedimage result = png_deserialize(dir_entry.path().c_str());
 				std::pair nameImage(relative_png, result);
+				type type = resource_type(result);
 
-				switch (resource_type(result)) {
-				case TYPE_SPRITE:
-					sprite_imgs.insert(nameImage);
-					break;
-				case TYPE_FONT:
-					font_imgs.insert(nameImage);
-					break;
-				case TYPE_TILESET:
-					tileset_imgs.insert(nameImage);
-					break;
-				case TYPE_TILESET_MONOCHROME:
-					monochrome_tileset_imgs.insert(nameImage);
-					break;
-				case TYPE_BACKGROUND:
-					background_imgs.insert(nameImage);
-					break;
-				case TYPE_BACKGROUND_MODE3:
-					background_mode3_imgs.insert(nameImage);
-					break;
-				}
+				sorted_imgs.try_emplace(type);
+				sorted_imgs.at(type).insert(nameImage);
 			} catch (const std::exception& e) {
 				std::cerr << relative_png << ": " << e.what() << std::endl;
 			}
@@ -117,7 +95,7 @@ int compile_object(std::filesystem::path srcdir, std::filesystem::path objfile, 
 	std::map<const std::string, palette_data> palette_datas;
 	{
 		uint16_t next_paltag = FIRST_TAG;
-		for (auto const& image : sprite_imgs) {
+		for (auto const& image : sorted_imgs.at(TYPE_SPRITE)) {
 			std::string palette_name;
 			auto palette_name_pair = image.second.text().find("Palette Tag");
 			if (palette_name_pair != image.second.text().end()) {
@@ -181,7 +159,7 @@ int compile_object(std::filesystem::path srcdir, std::filesystem::path objfile, 
 
 	{
 		uint16_t next_tiletag = FIRST_TAG;
-		for (auto const& image : sprite_imgs) {
+		for (auto const& image : sorted_imgs.at(TYPE_SPRITE)) {
 			std::string var_name = variable_name_for_image(image);
 
 			std::string pal_name = file_to_palette_name.find(image.first)->second;
@@ -216,17 +194,17 @@ int compile_object(std::filesystem::path srcdir, std::filesystem::path objfile, 
 	}
 
 	std::vector<background> backgrounds;
-	for (auto const& image : background_imgs) {
+	for (auto const& image : sorted_imgs.at(TYPE_BACKGROUND)) {
 		backgrounds.emplace_back(image);
 	}
 
 	std::vector<font> fonts;
-	for (auto const& image : font_imgs) {
+	for (auto const& image : sorted_imgs.at(TYPE_FONT)) {
 		fonts.emplace_back(image);
 	}
 
 	std::vector<tileset> tilesets;
-	for (auto const& image : tileset_imgs) {
+	for (auto const& image : sorted_imgs.at(TYPE_TILESET)) {
 		tilesets.emplace_back(image);
 	}
 
@@ -288,7 +266,7 @@ int compile_object(std::filesystem::path srcdir, std::filesystem::path objfile, 
 	}
 
 	headerstream << std::endl;
-	for (auto const& image : monochrome_tileset_imgs) {
+	for (auto const& image : sorted_imgs.at(TYPE_TILESET_MONOCHROME)) {
 		std::string name = variable_name_for_image(image);
 
 		subword_output_iterator<uint8_t, uint1_t, DIRECTION_INC> tiledata_builder;
@@ -313,7 +291,7 @@ int compile_object(std::filesystem::path srcdir, std::filesystem::path objfile, 
 	}
 
 	headerstream << std::endl;
-	for (auto const& image : background_mode3_imgs) {
+	for (auto const& image : sorted_imgs.at(TYPE_BACKGROUND_MODE3)) {
 		std::string name = variable_name_for_image(image);
 
 		if (image.second.width() != 240 || image.second.height() != 160) {
