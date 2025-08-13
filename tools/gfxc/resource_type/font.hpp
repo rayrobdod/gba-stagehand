@@ -1,3 +1,6 @@
+#ifndef RESOURCE_TYPE_FONT_HPP
+#define RESOURCE_TYPE_FONT_HPP
+
 #include <cstdint>
 #include <filesystem>
 #include <string>
@@ -5,6 +8,7 @@
 #include <vector>
 #include "image.hpp"
 #include "object.hpp"
+#include "resource_type_functions.hpp"
 
 struct font_glyph {
 	uint8_t width;
@@ -18,6 +22,8 @@ struct font {
 
 	explicit font(const std::pair<std::filesystem::path, bufferedimage>);
 	void write(std::ostream& headerstream, Object& elf) const;
-
-	static void write_struct(std::ostream& headerstream);
 };
+
+extern const type_functions font_type_functions;
+
+#endif

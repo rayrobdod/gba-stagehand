@@ -1,3 +1,6 @@
+#ifndef RESOURCE_TYPE_HPP
+#define RESOURCE_TYPE_HPP
+
 #include "image.hpp"
 
 enum type {
@@ -12,3 +15,5 @@ enum type {
 std::ostream& operator<<(std::ostream& os, enum type typ);
 
 enum type resource_type(const bufferedimage&);
+
+#endif

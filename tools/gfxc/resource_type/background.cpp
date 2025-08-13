@@ -8,6 +8,7 @@
 #include "find_palette_superset.hpp"
 #include "subword_output_iterator.hpp"
 #include "variable_name_for_image.hpp"
+#include "resource_type/tileset.hpp"
 
 // may improve frit compression
 static constexpr bool SORT_BY_PALETTE = true;
@@ -193,18 +194,6 @@ background::background(const std::pair<std::filesystem::path, bufferedimage> dat
 	this->tilemap = tilemap;
 }
 
-void background::write_struct(std::ostream& headerstream) {
-	headerstream << std::endl
-		<< "struct background {" << std::endl
-		<< "	const palette16_t* palette;" << std::endl
-		<< "	const struct CompressedData* tileset;" << std::endl
-		<< "	const struct CompressedData* tilemap;" << std::endl
-		<< "	const uint16_t palette_count;" << std::endl
-		<< "	const uint16_t tileset_count;" << std::endl
-		<< "	const uint16_t tilemap_count;" << std::endl
-		<< "};" << std::endl;
-}
-
 void background::write(std::ostream& headerstream, Object& elf) const {
 	headerstream << "extern struct background " << this->var_name << ";" << std::endl;
 
@@ -265,3 +254,122 @@ void background::write(std::ostream& headerstream, Object& elf) const {
 
 	elf.push_single_variable_rodata_sections({this->var_name, STB_GLOBAL}, serialized, relocs);
 }
+
+static std::vector<gbatile_4bpp> background_extract_tiles(std::pair<std::filesystem::path, struct bufferedimage> image, palette_data palettes) {
+	std::vector<gbatile_4bpp> retval;
+
+	for (auto subimg : image.second.subs(8, 8)) {
+		uint16_t pal_i = find_palette_superset<std::vector<std::vector<rgba16_t>>>(palettes.colorss, subimg.palette());
+		const std::vector<rgba16_t> used_pal = palettes.colorss[pal_i];
+
+		gbatile_4bpp tile1(subimg.to_tile_4bpp(used_pal));
+
+		unsigned i;
+		for (i = 0; i < retval.size(); i++) {
+			if (tile1 == retval[i]) {
+				break;
+			}
+		}
+		if (i >= retval.size()) {
+			retval.push_back(tile1);
+		}
+	}
+
+	return retval;
+}
+
+static void background_write_struct(std::ostream& headerstream) {
+	headerstream << std::endl
+		<< "struct background {" << std::endl
+		<< "	const palette16_t* palette;" << std::endl
+		<< "	const struct CompressedData* tileset;" << std::endl
+		<< "	const struct CompressedData* tilemap;" << std::endl
+		<< "	const uint16_t palette_count;" << std::endl
+		<< "	const uint16_t tileset_count;" << std::endl
+		<< "	const uint16_t tilemap_count;" << std::endl
+		<< "};" << std::endl;
+}
+
+static void background_write_to_elf(
+	[[gnu::unused]] std::pair<std::filesystem::path, struct bufferedimage> image,
+	std::pair<std::string, palette_data> palettes,
+	std::pair<std::string, tiles_data> tiles_pair,
+	std::string var_name,
+	std::ostream& headerstream,
+	Object& elf
+) {
+	headerstream << "extern struct background " << var_name << ";" << std::endl;
+
+	std::vector<bg_tile_t> tilemap;
+	const std::vector<gbatile_4bpp> tiles = tiles_pair.second.tiles;
+
+	for (auto subimg : image.second.subs(8, 8)) {
+		uint16_t pal_i = find_palette_superset<std::vector<std::vector<rgba16_t>>>(palettes.second.colorss, subimg.palette());
+		const std::vector<rgba16_t> used_pal = palettes.second.colorss[pal_i];
+
+		gbatile_4bpp tile1(subimg.to_tile_4bpp(used_pal));
+
+		unsigned tile_i;
+		for (tile_i = 0; tile_i < tiles.size(); tile_i++) {
+			if (tile1 == tiles[tile_i]) {
+				tilemap.push_back(bg_tile_t(tile_i, false, false, pal_i));
+				break;
+			}
+		}
+		if (tile_i >= tiles.size()) {
+			std::string msg(image.first);
+			msg += ": lost tile between `background_extract_tiles` and `background_write_to_elf`";
+			throw std::logic_error(msg);
+		}
+	}
+
+	std::array<uint16_t, 9> serialized = {
+		0, 0,
+		0, 0,
+		0, 0,
+		static_cast<uint16_t>(palettes.second.colorss.size()),
+		static_cast<uint16_t>(tiles_pair.second.tiles.size()),
+		static_cast<uint16_t>(tilemap.size()),
+	};
+
+	std::string pal_name = palettes.first;
+	std::string tileset_name = tiles_pair.first;
+	std::string tilemap_name("map.");
+	tilemap_name += var_name;
+
+	std::initializer_list<relocation_template> relocs {
+		{
+			.offset = 0,
+			.type = R_ARM_ABS32,
+			.symbol_name = pal_name,
+		},
+		{
+			.offset = 4,
+			.type = R_ARM_ABS32,
+			.symbol_name = tileset_name,
+		},
+		{
+			.offset = 8,
+			.type = R_ARM_ABS32,
+			.symbol_name = tilemap_name,
+		},
+	};
+
+	std::vector<uint8_t> tilemap_bytes;
+	for (bg_tile_t entry : tilemap) {
+		std::array<uint8_t, 2> bs = entry.to_bytes();
+		tilemap_bytes.push_back(bs[0]);
+		tilemap_bytes.push_back(bs[1]);
+	}
+	auto tilemap_comp = choose_compression(tilemap_name, tilemap_bytes);
+
+	elf.push_single_variable_rodata_sections({tilemap_name, STB_LOCAL}, tilemap_comp.data);
+	elf.push_single_variable_rodata_sections({var_name, STB_GLOBAL}, serialized, relocs);
+}
+
+const type_functions background_type_functions(
+	  &background_write_struct
+	, &tileset_extract_palettes
+	, &background_extract_tiles
+	, &background_write_to_elf
+);

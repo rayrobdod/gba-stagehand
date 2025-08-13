@@ -5,6 +5,7 @@
 #include <vector>
 #include "image.hpp"
 #include "object.hpp"
+#include "resource_type_functions.hpp"
 
 struct tileset {
 	std::string var_name;
@@ -13,6 +14,8 @@ struct tileset {
 
 	explicit tileset(const std::pair<std::filesystem::path, bufferedimage>);
 	void write(std::ostream& headerstream, Object& elf) const;
-
-	static void write_struct(std::ostream& headerstream);
 };
+
+palette_data_builder tileset_extract_palettes(std::pair<std::filesystem::path, bufferedimage> in);
+
+extern const type_functions tileset_type_functions;

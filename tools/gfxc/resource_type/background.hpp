@@ -1,3 +1,6 @@
+#ifndef RESOURCE_TYPE_BACKGROUND_HPP
+#define RESOURCE_TYPE_BACKGROUND_HPP
+
 #include <array>
 #include <cstdint>
 #include <filesystem>
@@ -5,6 +8,7 @@
 #include <vector>
 #include "image.hpp"
 #include "object.hpp"
+#include "resource_type_functions.hpp"
 
 struct bg_tile_t {
 	uint16_t tile : 10;
@@ -24,6 +28,8 @@ struct background {
 
 	explicit background(const std::pair<std::filesystem::path, bufferedimage>);
 	void write(std::ostream& headerstream, Object& elf) const;
-
-	static void write_struct(std::ostream& headerstream);
 };
+
+extern const type_functions background_type_functions;
+
+#endif

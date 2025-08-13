@@ -81,19 +81,6 @@ font::font(const std::pair<std::filesystem::path, bufferedimage> data)
 	}
 }
 
-void font::write_struct(std::ostream& headerstream) {
-	headerstream << std::endl
-		<< "struct font {" << std::endl
-		<< "	const uint16_t* pixel_data;" << std::endl
-		<< "	uint16_t glyph_height;" << std::endl
-		<< "	uint16_t glyph_count;" << std::endl
-		<< "	struct font_glyph {" << std::endl
-		<< "		uint16_t width;" << std::endl
-		<< "		uint16_t pixel_data_start_index;" << std::endl
-		<< "	} glyphs[];" << std::endl
-		<< "};" << std::endl;
-}
-
 void font::write(std::ostream& headerstream, Object& elf) const {
 	headerstream << "extern const struct font " << this->var_name << ";" << std::endl;
 
@@ -126,3 +113,36 @@ void font::write(std::ostream& headerstream, Object& elf) const {
 
 	elf.push_single_variable_rodata_sections({this->var_name, STB_GLOBAL}, metadata, relocs);
 }
+
+void font_write_struct(std::ostream& headerstream) {
+	headerstream << std::endl
+		<< "struct font {" << std::endl
+		<< "	const uint16_t* pixel_data;" << std::endl
+		<< "	uint16_t glyph_height;" << std::endl
+		<< "	uint16_t glyph_count;" << std::endl
+		<< "	struct font_glyph {" << std::endl
+		<< "		uint16_t width;" << std::endl
+		<< "		uint16_t pixel_data_start_index;" << std::endl
+		<< "	} glyphs[];" << std::endl
+		<< "};" << std::endl;
+}
+
+void font_write_to_elf(
+	std::pair<std::filesystem::path, struct bufferedimage> image,
+	[[gnu::unused]] std::pair<std::string, palette_data> palettes,
+	[[gnu::unused]] std::pair<std::string, tiles_data> tiles,
+	[[gnu::unused]] std::string var_name,
+	std::ostream& headerstream,
+	Object& elf
+) {
+	font data(image);
+
+	data.write(headerstream, elf);
+}
+
+const type_functions font_type_functions(
+	  &font_write_struct
+	, nullptr
+	, nullptr
+	, &font_write_to_elf
+);

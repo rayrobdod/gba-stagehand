@@ -29,20 +29,29 @@
 
 static const unsigned FIRST_TAG = 0x1000;
 
-struct alt_palette_data {
-	const uint16_t tag;
-	std::map<rgba16_t, rgba16_t> mapping;
+static std::string palette_name_for_image(std::pair<std::filesystem::path, struct bufferedimage> image) {
+	std::string retval = "plte.";
+	auto palette_name_pair = image.second.text().find("Palette Tag");
+	if (palette_name_pair != image.second.text().end()) {
+		retval += palette_name_pair->second;
+	} else {
+		retval += variable_name_for_image(image);
+		retval += "$";
+	}
+	return retval;
+}
 
-	alt_palette_data(uint16_t _tag) : tag(_tag) {}
-};
-
-struct palette_data {
-	const uint16_t tag;
-	std::set<rgba16_t> colors;
-	std::map<const std::string, alt_palette_data> alternates;
-
-	palette_data(uint16_t _tag) : tag(_tag) {}
-};
+static std::string tileset_name_for_image(std::pair<std::filesystem::path, struct bufferedimage> image) {
+	std::string retval = "tiles.";
+	auto palette_name_pair = image.second.text().find("Tileset Tag");
+	if (palette_name_pair != image.second.text().end()) {
+		retval += palette_name_pair->second;
+	} else {
+		retval += variable_name_for_image(image);
+		retval += "$";
+	}
+	return retval;
+}
 
 int write_types_header(std::filesystem::path headerfile) {
 	std::ofstream headerstream(headerfile);
@@ -53,10 +62,12 @@ int write_types_header(std::filesystem::path headerfile) {
 	headerstream << "#include \"gba/oam.h\"" << std::endl;
 	headerstream << "struct CompressedData;" << std::endl;
 
-	background::write_struct(headerstream);
-	font::write_struct(headerstream);
-	sprite::write_struct(headerstream);
-	tileset::write_struct(headerstream);
+	for (auto pair : type_functionss) {
+		type_functions fns = pair.second;
+		if (fns.write_struct) {
+			fns.write_struct(headerstream);
+		}
+	};
 
 	headerstream << std::endl
 		<< "struct bitpacked_tileset {" << std::endl
@@ -92,138 +103,108 @@ int compile_object(std::filesystem::path srcdir, std::filesystem::path objfile, 
 	}
 
 	std::map<const std::filesystem::path, const std::string> file_to_palette_name;
-	std::map<const std::string, palette_data> palette_datas;
+	std::map<const std::string, const palette_data> palette_datas;
 	{
-		uint16_t next_paltag = FIRST_TAG;
-		for (auto const& image : sorted_imgs.at(TYPE_SPRITE)) {
-			std::string palette_name;
-			auto palette_name_pair = image.second.text().find("Palette Tag");
-			if (palette_name_pair != image.second.text().end()) {
-				palette_name = palette_name_pair->second;
-			} else {
-				palette_name = variable_name_for_image(image);
-				palette_name += "$";
-			}
+		std::map<const std::string, palette_data_builder> palette_data_builders;
+		for (auto images : sorted_imgs) {
+			const type typ = images.first;
+			auto fns_ptr = type_functionss.find(typ);
+			if (fns_ptr != type_functionss.end()) {
+				type_functions fns = fns_ptr->second;
 
-			file_to_palette_name.emplace(image.first, palette_name);
+				if (fns.extract_palettes) {
+					for (auto image : images.second) {
+						std::string palette_name = palette_name_for_image(image);
+						file_to_palette_name.emplace(image.first, palette_name);
 
-			auto palette_data_emplace_result = palette_datas.try_emplace(palette_name, next_paltag);
-			if (palette_data_emplace_result.second) {
-				++next_paltag;
-			}
-			auto palette_data_ptr = palette_data_emplace_result.first;
+						auto out = palette_data_builders.try_emplace(palette_name).first;
+						palette_data_builder new_data = fns.extract_palettes(image);
 
-			palette_data_ptr->second.colors.insert(image.second.background().with_alpha(0));
-			palette_data_ptr->second.colors.merge(image.second.palette());
-
-			if (palette_data_ptr->second.colors.size() > 16) {
-				std::string msg(palette_name);
-				msg += ": palette larger than 16 colors";
-				throw std::logic_error(msg);
-			}
-
-			std::map<std::string, std::map<rgba16_t, rgba16_t>> addend_alts = image.second.alt_palettes();
-			for (auto const& addend_alt : addend_alts) {
-				std::string alt_name = addend_alt.first;
-				std::map<rgba16_t, rgba16_t> addend_replacements = addend_alt.second;
-
-				auto altpalette_data_emplace_result = palette_data_ptr->second.alternates.try_emplace(alt_name, next_paltag);
-				if (altpalette_data_emplace_result.second) {
-					++next_paltag;
-				}
-				auto altpalette_data_ptr = altpalette_data_emplace_result.first;
-
-				for (auto const& addend_replacement : addend_replacements) {
-					rgba16_t from = addend_replacement.first;
-					rgba16_t to = addend_replacement.second;
-
-					auto i = altpalette_data_ptr->second.mapping.find(from);
-					if (i == altpalette_data_ptr->second.mapping.end()) {
-						altpalette_data_ptr->second.mapping.emplace(from, to);
-					} else if (to == i->second) {
-						// do nothing
-					} else {
-						std::string msg;
-						msg += palette_name;
-						msg += "_";
-						msg += alt_name;
-						msg += ": contradictory alternate palette mapping";
-						throw std::logic_error(msg);
+						out->second.merge(new_data, palette_name);
 					}
 				}
 			}
 		}
-	}
 
-	std::vector<sprite> sprites;
+		for (auto builders_i = palette_data_builders.begin(); builders_i != palette_data_builders.end(); builders_i++) {
+			builders_i->second.condense_colors();
+		}
 
-	{
-		uint16_t next_tiletag = FIRST_TAG;
-		for (auto const& image : sorted_imgs.at(TYPE_SPRITE)) {
-			std::string var_name = variable_name_for_image(image);
+		uint16_t next_paltag = FIRST_TAG;
+		for (auto builder_pair : palette_data_builders) {
+			std::string palname = builder_pair.first;
+			palette_data_builder builder = builder_pair.second;
 
-			std::string pal_name = file_to_palette_name.find(image.first)->second;
-			palette_data pal_data = palette_datas.find(pal_name)->second;
-
-			std::vector<std::pair<uint16_t, std::string>> palettes;
-			palettes.emplace_back(pal_data.tag, "");
-			for (auto alt : pal_data.alternates) {
-				std::string altname = "_";
-				altname += alt.first;
-				palettes.emplace_back(alt.second.tag, altname);
+			std::map<const std::string, alt_palette_data> alternates;
+			for (auto alternate : builder.alternates) {
+				alternates.try_emplace(alternate.first, next_paltag++, alternate.second);
 			}
 
-			const std::vector<rgba16_t> used_pal(pal_data.colors.begin(), pal_data.colors.end());
-
-			subword_output_iterator<uint8_t, uint4_t, DIRECTION_INC> tiledata_builder;
-			for (auto subimg : image.second.subs(8, 8)) {
-				for (auto pixel : subimg.pixels()) {
-					auto palptr = std::find(used_pal.begin(), used_pal.end(), pixel);
-					uint4_t palindex(palptr - used_pal.begin());
-
-					*tiledata_builder = palindex;
-					++tiledata_builder;
-				}
+			std::vector<std::vector<rgba16_t>> colorss;
+			for (auto colors : builder.colorss) {
+				colorss.emplace_back(colors.begin(), colors.end());
 			}
-			std::vector<uint8_t> tiledata = tiledata_builder.result();
 
-			enum sprite_size size = sprite_size(image.second.width(), image.second.height());
-
-			sprites.push_back({var_name, pal_name, palettes, next_tiletag++, tiledata, size});
+			palette_datas.try_emplace(palname, next_paltag++, colorss, alternates);
 		}
 	}
 
-	std::vector<background> backgrounds;
-	for (auto const& image : sorted_imgs.at(TYPE_BACKGROUND)) {
-		backgrounds.emplace_back(image);
+	std::map<const std::filesystem::path, const std::string> file_to_tiles_name;
+	std::map<const std::string, const tiles_data> tiles_datas;
+	{
+		std::map<const std::string, std::vector<gbatile_4bpp>> tileset_data_builders;
+		for (auto images : sorted_imgs) {
+			const type typ = images.first;
+			auto fns_ptr = type_functionss.find(typ);
+			if (fns_ptr != type_functionss.end()) {
+				type_functions fns = fns_ptr->second;
+
+				if (fns.extract_tiles) {
+					for (auto image : images.second) {
+						const std::string tileset_name = tileset_name_for_image(image);
+						file_to_tiles_name.emplace(image.first, tileset_name);
+
+						const std::string palette_name = file_to_palette_name.at(image.first);
+						palette_data palette = palette_datas.at(palette_name);
+
+						auto out = tileset_data_builders.try_emplace(tileset_name).first;
+						std::vector<gbatile_4bpp> new_data = fns.extract_tiles(image, palette);
+
+						for (gbatile_4bpp tile : new_data) {
+							out->second.push_back(tile);
+						}
+					}
+				}
+			}
+		}
+
+		uint16_t next_tiletag = FIRST_TAG;
+		for (auto builder_pair : tileset_data_builders) {
+			std::string tilesname = builder_pair.first;
+			std::vector<gbatile_4bpp> builder = builder_pair.second;
+
+			tiles_datas.try_emplace(tilesname, next_tiletag++, builder);
+		}
 	}
 
-	std::vector<font> fonts;
-	for (auto const& image : sorted_imgs.at(TYPE_FONT)) {
-		fonts.emplace_back(image);
-	}
-
-	std::vector<tileset> tilesets;
-	for (auto const& image : sorted_imgs.at(TYPE_TILESET)) {
-		tilesets.emplace_back(image);
-	}
 
 	Object elf(objfile);
 	std::ofstream headerstream(headerfile);
 
 	for (auto const& palette_data : palette_datas) {
-		std::string var_name = "plte.";
-		var_name += palette_data.first;
+		std::string var_name = palette_data.first;
 
 		std::vector<rgba16_t> pala;
 		std::vector<rgb15_t> pal;
-		for (auto color : palette_data.second.colors) {
-			pala.push_back(color);
-			pal.push_back(color.strip_alpha());
-		}
-		while (false) { //(pal.size() < 16) {
-			pala.push_back(rgba16_t::BLACK);
-			pal.push_back(rgb15_t::BLACK);
+		for (auto colors : palette_data.second.colorss) {
+			for (auto color : colors) {
+				pala.push_back(color);
+				pal.push_back(color.strip_alpha());
+			}
+			for (size_t i = colors.size(); i < 16; i++) {
+				pala.push_back(rgba16_t::BLACK);
+				pal.push_back(rgb15_t::BLACK);
+			}
 		}
 		elf.push_single_variable_rodata_sections({var_name, STB_LOCAL}, pal);
 
@@ -245,25 +226,70 @@ int compile_object(std::filesystem::path srcdir, std::filesystem::path objfile, 
 		}
 	}
 
-	headerstream << std::endl;
-	for (font font : fonts) {
-		font.write(headerstream, elf);
+	for (auto const& tileset_data : tiles_datas) {
+		std::string var_name = tileset_data.first;
+
+		std::vector<uint8_t> bytes;
+		for (gbatile_4bpp tile : tileset_data.second.tiles) {
+			for (uint8_t b : tile.bytes()) {
+				bytes.push_back(b);
+			}
+		}
+
+		auto compressed = choose_compression(tileset_data.first, bytes);
+
+		elf.push_single_variable_rodata_sections({var_name, STB_LOCAL}, compressed.data);
 	}
 
-	headerstream << std::endl;
-	for (sprite sprite : sprites) {
-		sprite.write(headerstream, elf);
+	{
+		for (auto images : sorted_imgs) {
+			const type typ = images.first;
+			auto fns_ptr = type_functionss.find(typ);
+			if (fns_ptr != type_functionss.end()) {
+				type_functions fns = fns_ptr->second;
+
+				if (fns.write_to_elf) {
+					for (auto image : images.second) {
+						std::string var_name = variable_name_for_image(image);
+
+						std::pair<std::string, palette_data> my_palette_data;
+						{
+							auto palette_name_ptr = file_to_palette_name.find(image.first);
+							if (palette_name_ptr != file_to_palette_name.end()) {
+								std::string palette_name = palette_name_ptr->second;
+								auto palette_ptr = palette_datas.find(palette_name);
+								if (palette_ptr != palette_datas.end()) {
+									my_palette_data = *palette_ptr;
+								}
+							}
+						}
+
+						std::pair<std::string, tiles_data> my_tiles_data;
+						{
+							auto tiles_name_ptr = file_to_tiles_name.find(image.first);
+							if (tiles_name_ptr != file_to_tiles_name.end()) {
+								std::string tiles_name = tiles_name_ptr->second;
+								auto tiles_ptr = tiles_datas.find(tiles_name);
+								if (tiles_ptr != tiles_datas.end()) {
+									my_tiles_data = *tiles_ptr;
+								}
+							}
+						}
+
+						fns.write_to_elf(
+							image,
+							my_palette_data,
+							my_tiles_data,
+							var_name,
+							headerstream,
+							elf
+						);
+					}
+				}
+			}
+		}
 	}
 
-	headerstream << std::endl;
-	for (auto const& background : backgrounds) {
-		background.write(headerstream, elf);
-	}
-
-	headerstream << std::endl;
-	for (auto const& tileset : tilesets) {
-		tileset.write(headerstream, elf);
-	}
 
 	headerstream << std::endl;
 	for (auto const& image : sorted_imgs.at(TYPE_TILESET_MONOCHROME)) {
