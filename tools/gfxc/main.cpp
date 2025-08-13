@@ -12,18 +12,14 @@
 #include <string>
 #include <string_view>
 #include <vector>
-#include "resource_type/background.hpp"
-#include "resource_type/font.hpp"
-#include "resource_type/sprite.hpp"
-#include "resource_type/tileset.hpp"
 #include "build_compress_suite.hpp"
 #include "choose_compression.hpp"
-#include "find_palette_superset.hpp"
 #include "image.hpp"
 #include "indexed_insert_only_set.hpp"
 #include "object.hpp"
 #include "png_deserialize.hpp"
 #include "resource_type.hpp"
+#include "resource_type_functions.hpp"
 #include "subword_output_iterator.hpp"
 #include "variable_name_for_image.hpp"
 
