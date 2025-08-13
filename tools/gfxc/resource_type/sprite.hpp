@@ -1,9 +1,4 @@
-#include <cstdint>
-#include <filesystem>
 #include <ostream>
-#include <string>
-#include "image.hpp"
-#include "object.hpp"
 #include "resource_type_functions.hpp"
 
 enum sprite_size {

@@ -2,8 +2,7 @@
 
 #include <array>
 #include <stdexcept>
-#include "choose_compression.hpp"
-#include "variable_name_for_image.hpp"
+#include "object.hpp"
 
 enum sprite_size sprite_size(unsigned width, unsigned height) {
 	if (8 == width && 8 == height)

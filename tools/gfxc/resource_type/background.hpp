@@ -4,10 +4,8 @@
 #include <array>
 #include <cstdint>
 #include <filesystem>
-#include <string>
 #include <vector>
 #include "image.hpp"
-#include "object.hpp"
 #include "resource_type_functions.hpp"
 
 struct bg_tile_t {
@@ -20,15 +18,7 @@ struct bg_tile_t {
 	std::array<uint8_t, 2> to_bytes(void);
 };
 
-struct background {
-	std::string var_name;
-	std::vector<std::array<rgba16_t, 16>> palette;
-	std::vector<uint8_t> tileset;
-	std::vector<bg_tile_t> tilemap;
-
-	explicit background(const std::pair<std::filesystem::path, bufferedimage>);
-	void write(std::ostream& headerstream, Object& elf) const;
-};
+std::vector<bg_tile_t> background_extract_map(std::pair<std::filesystem::path, struct bufferedimage> image, palette_data palettes, tiles_data tiles_dat);
 
 extern const type_functions background_type_functions;
 
