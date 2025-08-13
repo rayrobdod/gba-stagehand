@@ -60,24 +60,52 @@ std::ostream& operator<<(std::ostream& os, const std::array<rgba16_t, 16>& value
 	return os;
 }
 
-
 static std::vector<gbatile_4bpp> background_extract_tiles(std::pair<std::filesystem::path, struct bufferedimage> image, palette_data palettes) {
 	std::vector<gbatile_4bpp> retval;
 
-	for (auto subimg : image.second.subs(8, 8)) {
-		uint16_t pal_i = find_palette_superset<std::vector<std::vector<rgba16_t>>>(palettes.colorss, subimg.palette());
-		const std::vector<rgba16_t> used_pal = palettes.colorss[pal_i];
+	if (SORT_BY_PALETTE) {
+		std::vector<std::vector<gbatile_4bpp>> tileset_per_palette;
 
-		gbatile_4bpp tile1(subimg.to_tile_4bpp(used_pal));
+		for (size_t i = 0; i < palettes.colorss.size(); i++)
+			tileset_per_palette.emplace_back();
 
-		unsigned i;
-		for (i = 0; i < retval.size(); i++) {
-			if (tile1 == retval[i]) {
-				break;
+		for (auto subimg : image.second.subs(8, 8)) {
+			uint16_t pal_i = find_palette_superset<std::vector<std::vector<rgba16_t>>>(palettes.colorss, subimg.palette());
+			const std::vector<rgba16_t> used_pal = palettes.colorss[pal_i];
+
+			gbatile_4bpp tile1(subimg.to_tile_4bpp(used_pal));
+
+			auto tileset_contains_tile1 = [tile1](std::vector<gbatile_4bpp>& check_tileset) {
+				return check_tileset.end() != std::find(check_tileset.begin(), check_tileset.end(), tile1);
+			};
+
+			if (tileset_per_palette.end() == std::find_if(tileset_per_palette.begin(), tileset_per_palette.end(), tileset_contains_tile1)) {
+				tileset_per_palette[pal_i].push_back(tile1);
 			}
 		}
-		if (i >= retval.size()) {
-			retval.push_back(tile1);
+
+		for (auto tiles : tileset_per_palette) {
+			for (auto tile : tiles) {
+				retval.push_back(tile);
+			}
+		}
+
+	} else {
+		for (auto subimg : image.second.subs(8, 8)) {
+			uint16_t pal_i = find_palette_superset<std::vector<std::vector<rgba16_t>>>(palettes.colorss, subimg.palette());
+			const std::vector<rgba16_t> used_pal = palettes.colorss[pal_i];
+
+			gbatile_4bpp tile1(subimg.to_tile_4bpp(used_pal));
+
+			unsigned i;
+			for (i = 0; i < retval.size(); i++) {
+				if (tile1 == retval[i]) {
+					break;
+				}
+			}
+			if (i >= retval.size()) {
+				retval.push_back(tile1);
+			}
 		}
 	}
 

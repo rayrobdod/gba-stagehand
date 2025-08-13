@@ -211,7 +211,7 @@ int build_decompression_suite(std::filesystem::path srcfile, std::filesystem::pa
 		break;
 	case TYPE_BACKGROUND:
 		{
-			palette_data_builder pal_builder = tileset_type_functions.extract_palettes(name_and_parsed);
+			palette_data_builder pal_builder = background_type_functions.extract_palettes(name_and_parsed);
 			pal_builder.condense_colors();
 
 			std::map<const std::string, alt_palette_data> alternates;
@@ -221,7 +221,7 @@ int build_decompression_suite(std::filesystem::path srcfile, std::filesystem::pa
 			}
 			palette_data pal_data(0, colorss, alternates);
 
-			std::vector<gbatile_4bpp> tiles = tileset_type_functions.extract_tiles(name_and_parsed, pal_data);
+			std::vector<gbatile_4bpp> tiles = background_type_functions.extract_tiles(name_and_parsed, pal_data);
 			std::vector<uint8_t> tiles_bytes;
 			for (gbatile_4bpp tile : tiles) {
 				for (uint8_t b : tile.bytes()) {
