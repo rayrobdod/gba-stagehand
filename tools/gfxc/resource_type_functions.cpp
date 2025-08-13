@@ -1,6 +1,7 @@
 #include "resource_type_functions.hpp"
 
 #include "resource_type/background.hpp"
+#include "resource_type/background_mode3.hpp"
 #include "resource_type/font.hpp"
 #include "resource_type/sprite.hpp"
 #include "resource_type/tileset.hpp"
@@ -92,6 +93,7 @@ const std::initializer_list<std::pair<const type, type_functions>> type_function
 	{TYPE_FONT, font_type_functions},
 	{TYPE_TILESET, tileset_type_functions},
 	{TYPE_BACKGROUND, background_type_functions},
+	{TYPE_BACKGROUND_MODE3, background_mode3_type_functions},
 };
 
 const std::map<type, type_functions> type_functionss(type_functionss_initializer);

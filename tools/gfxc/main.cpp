@@ -281,6 +281,8 @@ int compile_object(std::filesystem::path srcdir, std::filesystem::path objfile, 
 							elf
 						);
 					}
+
+					headerstream << std::endl;
 				}
 			}
 		}
@@ -310,23 +312,6 @@ int compile_object(std::filesystem::path srcdir, std::filesystem::path objfile, 
 		elf.push_single_variable_rodata_sections({name, STB_GLOBAL}, tiledata);
 
 		headerstream << "extern const struct bitpacked_tileset " << name << ";" << std::endl;
-	}
-
-	headerstream << std::endl;
-	for (auto const& image : sorted_imgs.at(TYPE_BACKGROUND_MODE3)) {
-		std::string name = variable_name_for_image(image);
-
-		if (image.second.width() != 240 || image.second.height() != 160) {
-			std::string msg(image.first.string());
-			msg += ": mode3 background does not have expected dimensions";
-			throw std::logic_error(msg);
-		}
-
-		std::vector<rgba16_t> imgdata(image.second.pixels().begin(), image.second.pixels().end());
-
-		elf.push_single_variable_rodata_sections({name, STB_GLOBAL}, imgdata);
-
-		headerstream << "extern const rgb_t " << name << "[160][240];" << std::endl;
 	}
 
 	headerstream.close();
