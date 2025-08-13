@@ -5,6 +5,7 @@
 #include "resource_type/font.hpp"
 #include "resource_type/sprite.hpp"
 #include "resource_type/tileset.hpp"
+#include "resource_type/tileset_monochrome.hpp"
 
 alt_palette_data::alt_palette_data(uint16_t _tag, std::map<rgba16_t, rgba16_t> _mapping) : tag(_tag), mapping(_mapping) {}
 
@@ -92,6 +93,7 @@ const std::initializer_list<std::pair<const type, type_functions>> type_function
 	{TYPE_SPRITE, sprite_type_functions},
 	{TYPE_FONT, font_type_functions},
 	{TYPE_TILESET, tileset_type_functions},
+	{TYPE_TILESET_MONOCHROME, tileset_monochrome_type_functions},
 	{TYPE_BACKGROUND, background_type_functions},
 	{TYPE_BACKGROUND_MODE3, background_mode3_type_functions},
 };
