@@ -1,10 +1,11 @@
 #include "scene/parallax_mountain_dusk.h"
 
 #include <stdlib.h>
+#include "decompress/by_header.h"
+#include "decompress/type.h"
 #include "gba/screen.h"
 #include "gba/vram.h"
 #include "management/keyinput.h"
-#include "management/shadow_vram.h"
 #include "management/vram_op_queue.h"
 #include "scene/main_menu.h"
 #include "utils/one_transparent_tileset.h"
@@ -37,36 +38,57 @@ enum {
 	TREES_SCREENBLOCK = 27,
 };
 
-static const struct shadow_vram_init my_shadow_vram_init = {
-	.enable_bg = {true, true, true, true},
-	.enable_obj = false,
-	.bgcnt = {
-		[0] = {
-			.priority = 3,
-			.charblock = MY_CHARBLOCK,
-			.screenblock = SKY_SCREENBLOCK,
-		},
-		[1] = {
-			.priority = 2,
-			.charblock = MY_CHARBLOCK,
-			.screenblock = MOUNTAIN_FAR_SCREENBLOCK,
-		},
-		[2] = {
-			.priority = 1,
-			.charblock = MY_CHARBLOCK,
-			.screenblock = MOUNTAINS_SCREENBLOCK,
-		},
-		[3] = {
-			.priority = 0,
-			.charblock = MY_CHARBLOCK,
-			.screenblock = TREES_SCREENBLOCK,
-		}
+static const bgcnt_t my_bgcnts[4] = {
+	[0] = {
+		.priority = 3,
+		.charblock = MY_CHARBLOCK,
+		.screenblock = SKY_SCREENBLOCK,
+	},
+	[1] = {
+		.priority = 2,
+		.charblock = MY_CHARBLOCK,
+		.screenblock = MOUNTAIN_FAR_SCREENBLOCK,
+	},
+	[2] = {
+		.priority = 1,
+		.charblock = MY_CHARBLOCK,
+		.screenblock = MOUNTAINS_SCREENBLOCK,
+	},
+	[3] = {
+		.priority = 0,
+		.charblock = MY_CHARBLOCK,
+		.screenblock = TREES_SCREENBLOCK,
 	}
 };
 
 void MainCB_parallaxMountainDusk_init(void) {
 	view_model = calloc(sizeof(view_model[0]), 1);
-	shadow_vram_init(&my_shadow_vram_init);
+
+	vram_op_queue_enqueue((struct vram_op) {
+		.type = VRAM_QUEUE_OP_HWREG_DISPCNT,
+		.dispcnt = {
+			.value = (dispcnt_t) {
+				.mode = 0,
+				.obj_character_mapping = OBJ_CHAR_MAP_1D,
+				.force_blank = false,
+				.enable_bg0 = true,
+				.enable_bg1 = true,
+				.enable_bg2 = true,
+				.enable_bg3 = true,
+				.enable_obj = false,
+			}
+		}
+	});
+
+	for (int i = 0; i < 4; i++) {
+		vram_op_queue_enqueue((struct vram_op) {
+			.type = VRAM_QUEUE_OP_HWREG_BGCNT,
+			.bgcnt = {
+				.value = my_bgcnts[i],
+				.to_index = i,
+			}
+		});
+	}
 
 	vram_op_queue_enqueue((struct vram_op) {
 		.type = VRAM_QUEUE_OP_BG_PALETTES,
