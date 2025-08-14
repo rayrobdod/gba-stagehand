@@ -7,6 +7,7 @@
 #include "management/shadow_vram.h"
 #include "management/vram_op_queue.h"
 #include "scene/main_menu.h"
+#include "utils/one_transparent_tileset.h"
 #include "graphics.h"
 #include "graphics_types.h"
 #include "main.h"
@@ -102,13 +103,54 @@ void MainCB_parallaxMountainDusk_init(void) {
 		},
 	});
 
+	unsigned transparent_tile_index = parallax_mountain_dusk_bg.tileset_count;
+
+	vram_op_queue_enqueue((struct vram_op) {
+		.type = VRAM_QUEUE_OP_BG_TILES_COMPRESSED,
+		.tiles_compressed = {
+			.from = one_transparent_tileset.tileset,
+			.to_block = MY_CHARBLOCK,
+			.to_tile = transparent_tile_index,
+		},
+	});
+
+	vram_op_queue_enqueue((struct vram_op) {
+		.type = VRAM_QUEUE_OP_BG_MAP_FILL,
+		.map_fill = {
+			.value = {transparent_tile_index},
+			.to_block = MOUNTAIN_FAR_SCREENBLOCK,
+			.to_tile = 0,
+			.count = (20 - parallax_mountain_dusk_mountain_far.tilemap_height) * 32,
+		},
+	});
+
+	vram_op_queue_enqueue((struct vram_op) {
+		.type = VRAM_QUEUE_OP_BG_MAP_FILL,
+		.map_fill = {
+			.value = {transparent_tile_index},
+			.to_block = MOUNTAINS_SCREENBLOCK,
+			.to_tile = 0,
+			.count = (20 - parallax_mountain_dusk_mountains.tilemap_height) * 32,
+		},
+	});
+
+	vram_op_queue_enqueue((struct vram_op) {
+		.type = VRAM_QUEUE_OP_BG_MAP_FILL,
+		.map_fill = {
+			.value = {transparent_tile_index},
+			.to_block = TREES_SCREENBLOCK,
+			.to_tile = 0,
+			.count = (20 - parallax_mountain_dusk_trees.tilemap_height) * 32,
+		},
+	});
+
 	for (unsigned x = 0; x < DISPLAY_WIDTH_TILES + 1; x++) {
 		vram_op_queue_enqueue((struct vram_op) {
 			.type = VRAM_QUEUE_OP_BG_MAP_COLUMN,
 			.map = {
 				.from = parallax_mountain_dusk_mountain_far.tilemap + x * parallax_mountain_dusk_mountain_far.tilemap_height,
 				.to_block = MOUNTAIN_FAR_SCREENBLOCK,
-				.to_tile = x,
+				.to_tile = x + (20 - parallax_mountain_dusk_mountain_far.tilemap_height) * 32,
 				.count = parallax_mountain_dusk_mountain_far.tilemap_height,
 			},
 		});
@@ -118,7 +160,7 @@ void MainCB_parallaxMountainDusk_init(void) {
 			.map = {
 				.from = parallax_mountain_dusk_mountains.tilemap + x * parallax_mountain_dusk_mountains.tilemap_height,
 				.to_block = MOUNTAINS_SCREENBLOCK,
-				.to_tile = x,
+				.to_tile = x + (20 - parallax_mountain_dusk_mountains.tilemap_height) * 32,
 				.count = parallax_mountain_dusk_mountains.tilemap_height,
 			},
 		});
@@ -182,7 +224,7 @@ static void MainCB_parallaxMountainDusk_main(void) {
 		advance_layer(
 			&(view_model->mountain_far),
 			&parallax_mountain_dusk_mountain_far,
-			0,
+			20 - parallax_mountain_dusk_mountain_far.tilemap_height,
 			MOUNTAIN_FAR_SCREENBLOCK,
 			&(reg_lcd.BG1HOFS)
 		);
@@ -192,7 +234,7 @@ static void MainCB_parallaxMountainDusk_main(void) {
 		advance_layer(
 			&(view_model->mountains),
 			&parallax_mountain_dusk_mountains,
-			0,
+			20 - parallax_mountain_dusk_mountains.tilemap_height,
 			MOUNTAINS_SCREENBLOCK,
 			&(reg_lcd.BG2HOFS)
 		);
