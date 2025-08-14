@@ -205,6 +205,10 @@ all: $(ROM)
 # Rules
 # -----
 
+$(GRAPHICSDIR)/%.png : $(GRAPHICSDIR)/%.sng
+	@echo "  SNG     $<"
+	$(V)../../C/sng/sng $<
+
 $(BUILDOBJDIR)/%.s.o : $(SOURCEDIR)/%.s
 	@echo "  AS      $<"
 	@$(MKDIR) -p $(@D) # Build target's directory if it doesn't exist

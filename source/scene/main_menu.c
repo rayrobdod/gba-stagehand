@@ -11,6 +11,7 @@
 #include "scene/display_credits.h"
 #include "scene/gradient.h"
 #include "scene/mode3.h"
+#include "scene/parallax_mountain_dusk.h"
 #include "scene/text_print_profile.h"
 #include "scene/text_print_step.h"
 #include "utils/arraycount.h"
@@ -51,6 +52,10 @@ static const struct {
 	{
 		.label = "Text Print Step",
 		.cb = &MainCB_textPrintStep_init,
+	},
+	{
+		.label = "Parallax Mountain Dusk",
+		.cb = &MainCB_parallaxMountainDusk_init,
 	},
 	{
 		.label = "Gradient",

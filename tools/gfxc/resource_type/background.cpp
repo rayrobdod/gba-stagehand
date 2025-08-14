@@ -12,6 +12,7 @@
 // may improve frit compression
 static constexpr bool SORT_BY_PALETTE = true;
 
+bg_tile_t::bg_tile_t() : tile(0), hflip(false), vflip(false), palette(0) {}
 bg_tile_t::bg_tile_t(uint16_t tile, bool hflip, bool vflip, uint16_t palette) : tile(tile), hflip(hflip), vflip(vflip), palette(palette) {}
 
 std::array<uint8_t, 2> bg_tile_t::to_bytes(void) {
@@ -60,7 +61,7 @@ std::ostream& operator<<(std::ostream& os, const std::array<rgba16_t, 16>& value
 	return os;
 }
 
-static std::vector<gbatile_4bpp> background_extract_tiles(std::pair<std::filesystem::path, struct bufferedimage> image, palette_data palettes) {
+std::vector<gbatile_4bpp> background_extract_tiles(std::pair<std::filesystem::path, struct bufferedimage> image, palette_data palettes) {
 	std::vector<gbatile_4bpp> retval;
 
 	if (SORT_BY_PALETTE) {

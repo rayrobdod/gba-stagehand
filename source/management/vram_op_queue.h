@@ -28,6 +28,8 @@ enum vram_queue_op_type {
 	VRAM_QUEUE_OP_BG_MAP_FREE,
 	/** .map_compressed */
 	VRAM_QUEUE_OP_BG_MAP_COMPRESSED,
+	/** .map */
+	VRAM_QUEUE_OP_BG_MAP_COLUMN,
 	/** .map_fill */
 	VRAM_QUEUE_OP_BG_MAP_FILL,
 	/** .palettes */
@@ -42,6 +44,8 @@ enum vram_queue_op_type {
 	VRAM_QUEUE_OP_HWREG_DISPCNT,
 	/** .bgcnt */
 	VRAM_QUEUE_OP_HWREG_BGCNT,
+	/** .uint16 */
+	VRAM_QUEUE_OP_UINT16,
 };
 
 struct vram_op {
@@ -103,6 +107,10 @@ struct vram_op {
 			bgcnt_t value;
 			uint16_t to_index;
 		} bgcnt;
+		struct {
+			uint16_t value;
+			volatile uint16_t* to;
+		} uint16;
 	};
 };
 

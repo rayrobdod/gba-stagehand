@@ -10,6 +10,7 @@ enum type {
 	TYPE_TILESET_MONOCHROME,
 	TYPE_BACKGROUND,
 	TYPE_BACKGROUND_MODE3,
+	TYPE_BACKGROUND_HORIZONTAL_SCROLL,
 };
 
 std::ostream& operator<<(std::ostream& os, enum type typ);
