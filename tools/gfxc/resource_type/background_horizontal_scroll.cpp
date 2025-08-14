@@ -26,7 +26,7 @@ static void background_horizontal_scroll_write_to_elf(
 	std::ostream& headerstream,
 	Object& elf
 ) {
-	headerstream << "extern struct background_horizontal_scroll " << var_name << ";" << std::endl;
+	headerstream << "extern const struct background_horizontal_scroll " << var_name << ";" << std::endl;
 
 	uint16_t map_height(image.second.height() / 8);
 	uint16_t map_width(image.second.width() / 8);

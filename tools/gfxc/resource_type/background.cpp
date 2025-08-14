@@ -175,7 +175,7 @@ static void background_write_to_elf(
 	std::ostream& headerstream,
 	Object& elf
 ) {
-	headerstream << "extern struct background " << var_name << ";" << std::endl;
+	headerstream << "extern const struct background " << var_name << ";" << std::endl;
 
 	std::vector<bg_tile_t> tilemap = background_extract_map(image, palettes.second, tiles_pair.second);
 
