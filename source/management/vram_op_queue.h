@@ -44,6 +44,8 @@ enum vram_queue_op_type {
 	VRAM_QUEUE_OP_HWREG_DISPCNT,
 	/** .bgcnt */
 	VRAM_QUEUE_OP_HWREG_BGCNT,
+	/** .bgofss */
+	VRAM_QUEUE_OP_HWREG_BGOFSS,
 	/** .uint16 */
 	VRAM_QUEUE_OP_UINT16,
 };
@@ -107,6 +109,9 @@ struct vram_op {
 			bgcnt_t value;
 			uint16_t to_index;
 		} bgcnt;
+		struct {
+			struct bgofs value[4];
+		} bgofss;
 		struct {
 			uint16_t value;
 			volatile uint16_t* to;

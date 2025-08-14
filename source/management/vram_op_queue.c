@@ -139,6 +139,12 @@ void vram_op_queue_execute(void) {
 		case VRAM_QUEUE_OP_HWREG_BGCNT:
 			reg_lcd.BGCNT[entry->bgcnt.to_index] = entry->bgcnt.value;
 			break;
+		case VRAM_QUEUE_OP_HWREG_BGOFSS:
+			reg_lcd.BGOFS[0] = entry->bgofss.value[0];
+			reg_lcd.BGOFS[1] = entry->bgofss.value[1];
+			reg_lcd.BGOFS[2] = entry->bgofss.value[2];
+			reg_lcd.BGOFS[3] = entry->bgofss.value[3];
+			break;
 		case VRAM_QUEUE_OP_UINT16:
 			*(entry->uint16.to) = entry->uint16.value;
 			break;

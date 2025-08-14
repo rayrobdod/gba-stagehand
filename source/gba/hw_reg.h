@@ -89,20 +89,18 @@ typedef struct {
 __attribute__((unused))
 static window_enable_t WIN_ENABLE_ALL = {true, true, true, true, true, true};
 
+struct bgofs {
+	uint16_t h;
+	uint16_t v;
+};
+
 typedef struct {
 	dispcnt_t DISPCNT;	/* 4000000 */
 	uint16_t _unused0;	/* 4000002 */
 	dispstat_t DISPSTAT;	/* 4000004 */
 	uint16_t VCOUNT;	/* 4000006 */
 	bgcnt_t BGCNT[4];	/* 4000008 */
-	uint16_t BG0HOFS;	/* 4000010 */
-	uint16_t BG0VOFS;	/* 4000012 */
-	uint16_t BG1HOFS;	/* 4000014 */
-	uint16_t BG1VOFS;	/* 4000016 */
-	uint16_t BG2HOFS;	/* 4000018 */
-	uint16_t BG2VOFS;	/* 400001A */
-	uint16_t BG3HOFS;	/* 400001C */
-	uint16_t BG3VOFS;	/* 400001E */
+	struct bgofs BGOFS[4];	/* 4000010 */
 	uint16_t BG2PA;	/* 4000020 */
 	uint16_t BG2PB;	/* 4000022 */
 	uint16_t BG2PC;	/* 4000024 */

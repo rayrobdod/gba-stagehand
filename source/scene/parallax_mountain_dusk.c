@@ -87,10 +87,14 @@ void MainCB_parallaxMountainDusk_init(void) {
 	});
 
 	vram_op_queue_enqueue((struct vram_op) {
-		.type = VRAM_QUEUE_OP_UINT16,
-		.uint16 = {
-			.value = 8,
-			.to = &(reg_lcd.BG0HOFS),
+		.type = VRAM_QUEUE_OP_HWREG_BGOFSS,
+		.bgofss = {
+			.value = {
+				[0] = { .h = 8, .v = 0 },
+				[1] = { .h = 0, .v = 0 },
+				[2] = { .h = 0, .v = 0 },
+				[3] = { .h = 0, .v = 0 },
+			},
 		},
 	});
 
@@ -226,7 +230,7 @@ static void MainCB_parallaxMountainDusk_main(void) {
 			&parallax_mountain_dusk_mountain_far,
 			20 - parallax_mountain_dusk_mountain_far.tilemap_height,
 			MOUNTAIN_FAR_SCREENBLOCK,
-			&(reg_lcd.BG1HOFS)
+			&(reg_lcd.BGOFS[1].h)
 		);
 	}
 
@@ -236,7 +240,7 @@ static void MainCB_parallaxMountainDusk_main(void) {
 			&parallax_mountain_dusk_mountains,
 			20 - parallax_mountain_dusk_mountains.tilemap_height,
 			MOUNTAINS_SCREENBLOCK,
-			&(reg_lcd.BG2HOFS)
+			&(reg_lcd.BGOFS[2].h)
 		);
 	}
 
@@ -246,7 +250,7 @@ static void MainCB_parallaxMountainDusk_main(void) {
 			&parallax_mountain_dusk_trees,
 			20 - parallax_mountain_dusk_trees.tilemap_height,
 			TREES_SCREENBLOCK,
-			&(reg_lcd.BG3HOFS)
+			&(reg_lcd.BGOFS[3].h)
 		);
 	}
 

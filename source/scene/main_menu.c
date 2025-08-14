@@ -97,6 +97,13 @@ void MainCB_mainMenu_init(void) {
 	});
 
 	vram_op_queue_enqueue((struct vram_op) {
+		.type = VRAM_QUEUE_OP_HWREG_BGOFSS,
+		.bgofss = {
+			.value = {{0},{0},{0},{0},},
+		},
+	});
+
+	vram_op_queue_enqueue((struct vram_op) {
 		.type = VRAM_QUEUE_OP_HWREG_BGCNT,
 		.bgcnt = {
 			.value = (bgcnt_t) {
