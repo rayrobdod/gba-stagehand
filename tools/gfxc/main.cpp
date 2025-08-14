@@ -159,8 +159,17 @@ int compile_object(std::filesystem::path srcdir, std::filesystem::path objfile, 
 						auto out = tileset_data_builders.try_emplace(tileset_name).first;
 						std::vector<gbatile_4bpp> new_data = fns.extract_tiles(image, palette);
 
+						size_t old_data_size = out->second.size();
+
+						// If a single tileset has duplicate tiles, include both.
+						// However, if multiple shared tilesets have the same tile, deduplicate
 						for (gbatile_4bpp tile : new_data) {
-							out->second.push_back(tile);
+							auto old_data_begin = out->second.begin();
+							auto old_data_end = old_data_begin + old_data_size;
+
+							if (old_data_end == std::find(old_data_begin, old_data_end, tile)) {
+								out->second.push_back(tile);
+							}
 						}
 					}
 				}

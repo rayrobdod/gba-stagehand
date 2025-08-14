@@ -74,10 +74,11 @@ std::vector<gbatile_4bpp> background_extract_tiles(std::pair<std::filesystem::pa
 			uint16_t pal_i = find_palette_superset<std::vector<std::vector<rgba16_t>>>(palettes.colorss, subimg.palette());
 			const std::vector<rgba16_t> used_pal = palettes.colorss[pal_i];
 
-			gbatile_4bpp tile1(subimg.to_tile_4bpp(used_pal));
+			const gbatile_4bpp tile1(subimg.to_tile_4bpp(used_pal));
+			const gbatile_4bpp_matcher tile1m(tile1);
 
-			auto tileset_contains_tile1 = [tile1](std::vector<gbatile_4bpp>& check_tileset) {
-				return check_tileset.end() != std::find(check_tileset.begin(), check_tileset.end(), tile1);
+			auto tileset_contains_tile1 = [tile1m](std::vector<gbatile_4bpp>& check_tileset) {
+				return check_tileset.end() != std::find_if(check_tileset.begin(), check_tileset.end(), tile1m);
 			};
 
 			if (tileset_per_palette.end() == std::find_if(tileset_per_palette.begin(), tileset_per_palette.end(), tileset_contains_tile1)) {
@@ -96,15 +97,10 @@ std::vector<gbatile_4bpp> background_extract_tiles(std::pair<std::filesystem::pa
 			uint16_t pal_i = find_palette_superset<std::vector<std::vector<rgba16_t>>>(palettes.colorss, subimg.palette());
 			const std::vector<rgba16_t> used_pal = palettes.colorss[pal_i];
 
-			gbatile_4bpp tile1(subimg.to_tile_4bpp(used_pal));
+			const gbatile_4bpp tile1(subimg.to_tile_4bpp(used_pal));
+			const gbatile_4bpp_matcher tile1m(tile1);
 
-			unsigned i;
-			for (i = 0; i < retval.size(); i++) {
-				if (tile1 == retval[i]) {
-					break;
-				}
-			}
-			if (i >= retval.size()) {
+			if (retval.end() == std::find_if(retval.begin(), retval.end(), tile1m)) {
 				retval.push_back(tile1);
 			}
 		}
@@ -116,18 +112,36 @@ std::vector<gbatile_4bpp> background_extract_tiles(std::pair<std::filesystem::pa
 std::vector<bg_tile_t> background_extract_map(std::pair<std::filesystem::path, struct bufferedimage> image, palette_data palettes, tiles_data tiles_dat) {
 	std::vector<bg_tile_t> retval;
 
-	const std::vector<gbatile_4bpp> tiles = tiles_dat.tiles;
+	const std::vector<gbatile_4bpp> tiles(tiles_dat.tiles);
 
 	for (auto subimg : image.second.subs(8, 8)) {
 		uint16_t pal_i = find_palette_superset<std::vector<std::vector<rgba16_t>>>(palettes.colorss, subimg.palette());
 		const std::vector<rgba16_t> used_pal = palettes.colorss[pal_i];
 
-		gbatile_4bpp tile1(subimg.to_tile_4bpp(used_pal));
+		const gbatile_4bpp tile1(subimg.to_tile_4bpp(used_pal));
+		gbatile_4bpp tile1h(tile1);
+		tile1h.hflip();
+		gbatile_4bpp tile1v(tile1);
+		tile1v.vflip();
+		gbatile_4bpp tile1hv(tile1h);
+		tile1hv.vflip();
 
 		unsigned tile_i;
 		for (tile_i = 0; tile_i < tiles.size(); tile_i++) {
 			if (tile1 == tiles[tile_i]) {
 				retval.push_back(bg_tile_t(tile_i, false, false, pal_i));
+				break;
+			}
+			if (tile1h == tiles[tile_i]) {
+				retval.push_back(bg_tile_t(tile_i, true, false, pal_i));
+				break;
+			}
+			if (tile1v == tiles[tile_i]) {
+				retval.push_back(bg_tile_t(tile_i, false, true, pal_i));
+				break;
+			}
+			if (tile1hv == tiles[tile_i]) {
+				retval.push_back(bg_tile_t(tile_i, true, true, pal_i));
 				break;
 			}
 		}

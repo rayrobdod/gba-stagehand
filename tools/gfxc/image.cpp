@@ -1,6 +1,7 @@
 #include "image.hpp"
 
 #include <cstdlib>
+#include <iomanip>
 
 rgb15_t rgba16_t::strip_alpha() const {
 	return {this->r, this->g, this->b};
@@ -42,12 +43,76 @@ std::ostream& operator<<(std::ostream& os, const rgba16_t& value) {
 
 ////
 
-gbatile_4bpp::gbatile_4bpp(std::vector<uint8_t> bytes) : _bytes(bytes) {}
+gbatile_4bpp::gbatile_4bpp(const std::vector<uint8_t>& bytes) : _bytes(bytes) {}
+
+void gbatile_4bpp::hflip() {
+	if (this->_bytes.size() != 32) {
+		std::string msg("can only flip 8x8 tiles");
+		throw std::logic_error(msg);
+	}
+
+	for (int y = 0; y < 8; y++) {
+		uint32_t _a = this->_bytes[y * 4];
+		_a |= (this->_bytes[y * 4 + 1] << 8);
+		_a |= (this->_bytes[y * 4 + 2] << 16);
+		_a |= (this->_bytes[y * 4 + 3] << 24);
+		uint32_t _b = (_a & 0xF0F0F0F0) >> 4;
+		_b |= (_a & 0x0F0F0F0F) << 4;
+
+		this->_bytes[y * 4] = _b >> 24;
+		this->_bytes[y * 4 + 1] = _b >> 16;
+		this->_bytes[y * 4 + 2] = _b >> 8;
+		this->_bytes[y * 4 + 3] = _b;
+	}
+}
+
+void gbatile_4bpp::vflip() {
+	if (this->_bytes.size() != 32) {
+		std::string msg("can only flip 8x8 tiles");
+		throw std::logic_error(msg);
+	}
+
+	for (int y = 0; y < 4; y++) {
+		for (int x = 0; x < 4; x++) {
+			std::swap(this->_bytes[y * 4 + x], this->_bytes[(7 - y) * 4 + x]);
+		}
+	}
+}
 
 std::vector<uint8_t> gbatile_4bpp::bytes() const {return this->_bytes;}
 
 bool gbatile_4bpp::operator==(const gbatile_4bpp& other) const {return this->_bytes == other._bytes;}
 
+std::ostream& operator<<(std::ostream& os, const gbatile_4bpp& value) {
+	os << "gbatile_4bpp[";
+	for (int i = 0; i < 32; i++) {
+		os << std::hex << std::setw(2) << std::setfill('0') << static_cast<int>(value.bytes()[i]) << " ";
+	}
+	os << "]";
+	return os;
+}
+
+
+gbatile_4bpp_matcher::gbatile_4bpp_matcher(const gbatile_4bpp& _tile) : tile(_tile) {}
+
+bool gbatile_4bpp_matcher::operator()(gbatile_4bpp other) const {
+	if (this->tile == other)
+		return true;
+
+	other.hflip();
+	if (this->tile == other)
+		return true;
+
+	other.vflip();
+	if (this->tile == other)
+		return true;
+
+	other.hflip();
+	if (this->tile == other)
+		return true;
+
+	return false;
+}
 
 ////
 

@@ -45,11 +45,25 @@ std::ostream& operator<<(std::ostream& os, const rgba16_t& value);
 class gbatile_4bpp {
 	std::vector<uint8_t> _bytes;
 public:
-	gbatile_4bpp(std::vector<uint8_t> bytes);
+	explicit gbatile_4bpp(const std::vector<uint8_t>& bytes);
+
+	/** assumes 8px by 8px */
+	void hflip();
+	/** assumes 8px by 8px */
+	void vflip();
 
 	std::vector<uint8_t> bytes() const;
 
 	bool operator==(const gbatile_4bpp&) const;
+};
+
+std::ostream& operator<<(std::ostream& os, const gbatile_4bpp& value);
+
+class gbatile_4bpp_matcher {
+	const gbatile_4bpp tile;
+public:
+	explicit gbatile_4bpp_matcher(const gbatile_4bpp&);
+	bool operator()(gbatile_4bpp other) const;
 };
 
 //
