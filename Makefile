@@ -369,3 +369,4 @@ generated_headers:
 # --------------------------------------
 
 -include $(DEPS)
+-include user.mk

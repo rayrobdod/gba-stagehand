@@ -6,12 +6,13 @@
 #include <stdexcept>
 #include "choose_compression.hpp"
 #include "find_palette_superset.hpp"
-#include "subword_output_iterator.hpp"
-#include "variable_name_for_image.hpp"
+#include "object.hpp"
+#include "resource_type/tileset.hpp"
 
 // may improve frit compression
 static constexpr bool SORT_BY_PALETTE = true;
 
+bg_tile_t::bg_tile_t() : tile(0), hflip(false), vflip(false), palette(0) {}
 bg_tile_t::bg_tile_t(uint16_t tile, bool hflip, bool vflip, uint16_t palette) : tile(tile), hflip(hflip), vflip(vflip), palette(palette) {}
 
 std::array<uint8_t, 2> bg_tile_t::to_bytes(void) {
@@ -60,140 +61,101 @@ std::ostream& operator<<(std::ostream& os, const std::array<rgba16_t, 16>& value
 	return os;
 }
 
+std::vector<gbatile_4bpp> background_extract_tiles(std::pair<std::filesystem::path, struct bufferedimage> image, palette_data palettes) {
+	std::vector<gbatile_4bpp> retval;
 
-background::background(const std::pair<std::filesystem::path, bufferedimage> data)
-	: var_name(variable_name_for_image(data))
-{
-	std::set<std::set<rgba16_t>> tile_palettes2;
-	for (auto subimg : data.second.subs(8, 8)) {
-		std::set<rgba16_t> new_pal;
-		new_pal.insert(data.second.background().with_alpha(0));
-		new_pal.merge(subimg.palette());
-		if (new_pal.size() > 16) {
-			std::string msg(data.first.string());
-			msg += ": tile palette larger than 16 colors";
-			throw std::logic_error(msg);
-		}
-		tile_palettes2.insert(new_pal);
-	}
-
-	std::vector<std::set<rgba16_t>> tile_palettes(tile_palettes2.begin(), tile_palettes2.end());
-	std::sort(tile_palettes.begin(), tile_palettes.end(),
-		[](std::set<rgba16_t> a, std::set<rgba16_t> b) {
-			return a.size() > b.size();
-		}
-	);
-
-	std::vector<std::set<rgba16_t>> palettes_builder;
-	for (std::set<rgba16_t> tile_pal : tile_palettes) {
-		unsigned pal_i;
-		for (pal_i = 0; pal_i < palettes_builder.size(); pal_i++) {
-			std::set<rgba16_t> tile_pal2(tile_pal.begin(), tile_pal.end());
-
-			std::set<rgba16_t> new_pal(palettes_builder[pal_i].begin(), palettes_builder[pal_i].end());
-			new_pal.merge(tile_pal2);
-
-			if (new_pal.size() <= 16) {
-				palettes_builder[pal_i] = new_pal;
-				break;
-			}
-		}
-		if (pal_i >= palettes_builder.size()) {
-			palettes_builder.push_back(tile_pal);
-		}
-	}
-
-	if (palettes_builder.size() > 16) {
-		std::string msg(data.first.string());
-		msg += ": image has too many palettes";
-		throw std::logic_error(msg);
-	}
-
-	for (std::set<rgba16_t> pal : palettes_builder) {
-		std::vector pal2(pal.begin(), pal.end());
-		std::array<rgba16_t, 16> newpal;
-		size_t i;
-		for (i = 0; i < pal2.size(); i++) {
-			newpal[i] = pal2[i];
-		}
-		for (; i < 16; i++) {
-			newpal[i] = rgba16::BLACK;
-		}
-		this->palette.push_back(newpal);
-	}
-
-	std::vector<std::vector<gbatile_4bpp>> tileset_per_palette;
 	if (SORT_BY_PALETTE) {
-		for (size_t i = 0; i < this->palette.size(); i++)
+		std::vector<std::vector<gbatile_4bpp>> tileset_per_palette;
+
+		for (size_t i = 0; i < palettes.colorss.size(); i++)
 			tileset_per_palette.emplace_back();
 
-		for (auto subimg : data.second.subs(8, 8)) {
-			uint16_t pal_i = find_palette_superset<std::vector<std::array<rgba16_t, 16>>>(this->palette, subimg.palette());
-			const std::array<rgba16_t, 16> used_pal = this->palette[pal_i];
+		for (auto subimg : image.second.subs(8, 8)) {
+			uint16_t pal_i = find_palette_superset<std::vector<std::vector<rgba16_t>>>(palettes.colorss, subimg.palette());
+			const std::vector<rgba16_t> used_pal = palettes.colorss[pal_i];
 
-			gbatile_4bpp tile1(subimg.to_tile_4bpp(used_pal));
+			const gbatile_4bpp tile1(subimg.to_tile_4bpp(used_pal));
+			const gbatile_4bpp_matcher tile1m(tile1);
 
-			unsigned i;
-			for (i = 0; i < tileset_per_palette[pal_i].size(); i++) {
-				if (tile1 == tileset_per_palette[pal_i][i]) {
-					break;
-				}
-			}
-			if (i >= tileset_per_palette[pal_i].size()) {
+			auto tileset_contains_tile1 = [tile1m](std::vector<gbatile_4bpp>& check_tileset) {
+				return check_tileset.end() != std::find_if(check_tileset.begin(), check_tileset.end(), tile1m);
+			};
+
+			if (tileset_per_palette.end() == std::find_if(tileset_per_palette.begin(), tileset_per_palette.end(), tileset_contains_tile1)) {
 				tileset_per_palette[pal_i].push_back(tile1);
 			}
 		}
-	}
 
-	std::vector<gbatile_4bpp> tileset;
-	std::vector<bg_tile_t> tilemap;
-
-	if (SORT_BY_PALETTE) {
-		for (auto tileset1 : tileset_per_palette)
-		for (auto tile1 : tileset1) {
-			unsigned i;
-			for (i = 0; i < tileset.size(); i++) {
-				if (tile1 == tileset[i]) {
-					break;
-				}
+		for (auto tiles : tileset_per_palette) {
+			for (auto tile : tiles) {
+				retval.push_back(tile);
 			}
-			if (i >= tileset.size()) {
-				tileset.push_back(tile1);
+		}
+
+	} else {
+		for (auto subimg : image.second.subs(8, 8)) {
+			uint16_t pal_i = find_palette_superset<std::vector<std::vector<rgba16_t>>>(palettes.colorss, subimg.palette());
+			const std::vector<rgba16_t> used_pal = palettes.colorss[pal_i];
+
+			const gbatile_4bpp tile1(subimg.to_tile_4bpp(used_pal));
+			const gbatile_4bpp_matcher tile1m(tile1);
+
+			if (retval.end() == std::find_if(retval.begin(), retval.end(), tile1m)) {
+				retval.push_back(tile1);
 			}
 		}
 	}
 
-	for (auto subimg : data.second.subs(8, 8)) {
-		uint16_t pal_i = find_palette_superset<std::vector<std::array<rgba16_t, 16>>>(this->palette, subimg.palette());
-		const std::array<rgba16_t, 16> used_pal = this->palette[pal_i];
+	return retval;
+}
 
-		gbatile_4bpp tile1(subimg.to_tile_4bpp(used_pal));
+std::vector<bg_tile_t> background_extract_map(std::pair<std::filesystem::path, struct bufferedimage> image, palette_data palettes, tiles_data tiles_dat) {
+	std::vector<bg_tile_t> retval;
 
-		unsigned i;
-		for (i = 0; i < tileset.size(); i++) {
-			if (tile1 == tileset[i]) {
-				tilemap.push_back(bg_tile_t(i, false, false, pal_i));
+	const std::vector<gbatile_4bpp> tiles(tiles_dat.tiles);
+
+	for (auto subimg : image.second.subs(8, 8)) {
+		uint16_t pal_i = find_palette_superset<std::vector<std::vector<rgba16_t>>>(palettes.colorss, subimg.palette());
+		const std::vector<rgba16_t> used_pal = palettes.colorss[pal_i];
+
+		const gbatile_4bpp tile1(subimg.to_tile_4bpp(used_pal));
+		gbatile_4bpp tile1h(tile1);
+		tile1h.hflip();
+		gbatile_4bpp tile1v(tile1);
+		tile1v.vflip();
+		gbatile_4bpp tile1hv(tile1h);
+		tile1hv.vflip();
+
+		unsigned tile_i;
+		for (tile_i = 0; tile_i < tiles.size(); tile_i++) {
+			if (tile1 == tiles[tile_i]) {
+				retval.push_back(bg_tile_t(tile_i, false, false, pal_i));
+				break;
+			}
+			if (tile1h == tiles[tile_i]) {
+				retval.push_back(bg_tile_t(tile_i, true, false, pal_i));
+				break;
+			}
+			if (tile1v == tiles[tile_i]) {
+				retval.push_back(bg_tile_t(tile_i, false, true, pal_i));
+				break;
+			}
+			if (tile1hv == tiles[tile_i]) {
+				retval.push_back(bg_tile_t(tile_i, true, true, pal_i));
 				break;
 			}
 		}
-		if (i >= tileset.size()) {
-			tileset.push_back(tile1);
-			tilemap.push_back(bg_tile_t(i, false, false, pal_i));
+		if (tile_i >= tiles.size()) {
+			std::string msg(image.first);
+			msg += ": lost tile between `background_extract_tiles` and `background_write_to_elf`";
+			throw std::logic_error(msg);
 		}
 	}
 
-	std::vector<uint8_t> tileset_flat;
-	for (auto tile1 : tileset) {
-		for (auto item : tile1.bytes()) {
-			tileset_flat.push_back(item);
-		}
-	}
-
-	this->tileset = tileset_flat;
-	this->tilemap = tilemap;
+	return retval;
 }
 
-void background::write_struct(std::ostream& headerstream) {
+static void background_write_struct(std::ostream& headerstream) {
 	headerstream << std::endl
 		<< "struct background {" << std::endl
 		<< "	const palette16_t* palette;" << std::endl
@@ -205,24 +167,31 @@ void background::write_struct(std::ostream& headerstream) {
 		<< "};" << std::endl;
 }
 
-void background::write(std::ostream& headerstream, Object& elf) const {
-	headerstream << "extern struct background " << this->var_name << ";" << std::endl;
+static void background_write_to_elf(
+	[[gnu::unused]] std::pair<std::filesystem::path, struct bufferedimage> image,
+	std::pair<std::string, palette_data> palettes,
+	std::pair<std::string, tiles_data> tiles_pair,
+	std::string var_name,
+	std::ostream& headerstream,
+	Object& elf
+) {
+	headerstream << "extern const struct background " << var_name << ";" << std::endl;
+
+	std::vector<bg_tile_t> tilemap = background_extract_map(image, palettes.second, tiles_pair.second);
 
 	std::array<uint16_t, 9> serialized = {
 		0, 0,
 		0, 0,
 		0, 0,
-		static_cast<uint16_t>(this->palette.size()),
-		static_cast<uint16_t>(this->tileset.size() / 32),
-		static_cast<uint16_t>(this->tilemap.size()),
+		static_cast<uint16_t>(palettes.second.colorss.size()),
+		static_cast<uint16_t>(tiles_pair.second.tiles.size()),
+		static_cast<uint16_t>(tilemap.size()),
 	};
 
-	std::string pal_name(this->var_name);
-	pal_name += ".pal";
-	std::string tileset_name(this->var_name);
-	tileset_name += ".tileset";
-	std::string tilemap_name(this->var_name);
-	tilemap_name += ".tilemap";
+	std::string pal_name = palettes.first;
+	std::string tileset_name = tiles_pair.first;
+	std::string tilemap_name("map.");
+	tilemap_name += var_name;
 
 	std::initializer_list<relocation_template> relocs {
 		{
@@ -242,26 +211,21 @@ void background::write(std::ostream& headerstream, Object& elf) const {
 		},
 	};
 
-	std::vector<rgba16_t> palettes_flat;
-	for (auto row : this->palette) {
-		for (auto item : row) {
-			palettes_flat.push_back(item);
-		}
-	}
-
-	auto tileset_comp = choose_compression(tileset_name, this->tileset);
 	std::vector<uint8_t> tilemap_bytes;
-	for (bg_tile_t entry : this->tilemap) {
+	for (bg_tile_t entry : tilemap) {
 		std::array<uint8_t, 2> bs = entry.to_bytes();
 		tilemap_bytes.push_back(bs[0]);
 		tilemap_bytes.push_back(bs[1]);
 	}
 	auto tilemap_comp = choose_compression(tilemap_name, tilemap_bytes);
 
-
-	elf.push_single_variable_rodata_sections({pal_name, STB_LOCAL}, palettes_flat);
-	elf.push_single_variable_rodata_sections({tileset_name, STB_LOCAL}, tileset_comp.data);
 	elf.push_single_variable_rodata_sections({tilemap_name, STB_LOCAL}, tilemap_comp.data);
-
-	elf.push_single_variable_rodata_sections({this->var_name, STB_GLOBAL}, serialized, relocs);
+	elf.push_single_variable_rodata_sections({var_name, STB_GLOBAL}, serialized, relocs);
 }
+
+const type_functions background_type_functions(
+	  &background_write_struct
+	, &tileset_extract_palettes
+	, &background_extract_tiles
+	, &background_write_to_elf
+);

@@ -211,30 +211,65 @@ int build_decompression_suite(std::filesystem::path srcfile, std::filesystem::pa
 		break;
 	case TYPE_BACKGROUND:
 		{
-			background bg(name_and_parsed);
+			palette_data_builder pal_builder = background_type_functions.extract_palettes(name_and_parsed);
+			pal_builder.condense_colors();
+
+			std::map<const std::string, alt_palette_data> alternates;
+			std::vector<std::vector<rgba16_t>> colorss;
+			for (auto colors : pal_builder.colorss) {
+				colorss.emplace_back(colors.begin(), colors.end());
+			}
+			palette_data pal_data(0, colorss, alternates);
+
+			std::vector<gbatile_4bpp> tiles = background_type_functions.extract_tiles(name_and_parsed, pal_data);
+			std::vector<uint8_t> tiles_bytes;
+			for (gbatile_4bpp tile : tiles) {
+				for (uint8_t b : tile.bytes()) {
+					tiles_bytes.push_back(b);
+				}
+			}
+			tiles_data tiles_data(0, tiles);
 
 			std::string tileset_name = "decompression_suite_"s + variable_name + "_tiles";
 			std::string tileset_label = variable_name + " (tiles)";
-			suite_1(tileset_name, tileset_label, bg.tileset, elf);
+			suite_1(tileset_name, tileset_label, tiles_bytes, elf);
+
+			std::vector<bg_tile_t> tilemap = background_extract_map(name_and_parsed, pal_data, tiles_data);
+			std::vector<uint8_t> tilemap_bytes;
+			for (bg_tile_t entry : tilemap) {
+				for (uint8_t b : entry.to_bytes()) {
+					tilemap_bytes.push_back(b);
+				}
+			}
 
 			std::string tilemap_variable_name = "decompression_suite_"s + variable_name + "_map";
 			std::string tilemap_label = variable_name + " (map)";
-			std::vector<uint8_t> tilemap_bytes;
-			for (auto entry : bg.tilemap) {
-				for (uint8_t byte : entry.to_bytes()) {
-					tilemap_bytes.push_back(byte);
-				}
-			}
 			suite_1(tilemap_variable_name, tilemap_label, tilemap_bytes, elf);
 		}
 		break;
 	case TYPE_TILESET:
 		{
-			tileset data(name_and_parsed);
+			palette_data_builder pal_builder = tileset_type_functions.extract_palettes(name_and_parsed);
+			pal_builder.condense_colors();
+
+			std::map<const std::string, alt_palette_data> alternates;
+			std::vector<std::vector<rgba16_t>> colorss;
+			for (auto colors : pal_builder.colorss) {
+				colorss.emplace_back(colors.begin(), colors.end());
+			}
+			palette_data pal(0, colorss, alternates);
+
+			std::vector<gbatile_4bpp> tiles = tileset_type_functions.extract_tiles(name_and_parsed, pal);
+			std::vector<uint8_t> tiles_bytes;
+			for (gbatile_4bpp tile : tiles) {
+				for (uint8_t b : tile.bytes()) {
+					tiles_bytes.push_back(b);
+				}
+			}
 
 			std::string tileset_name = "decompression_suite_"s + variable_name;
 			std::string tileset_label = variable_name;
-			suite_1(tileset_name, tileset_label, data.tiles, elf);
+			suite_1(tileset_name, tileset_label, tiles_bytes, elf);
 		}
 		break;
 	default:

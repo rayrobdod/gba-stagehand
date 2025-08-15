@@ -5,3 +5,4 @@
 *.swp
 *.sym
 build/
+user.mk

@@ -20,6 +20,9 @@ std::ostream& operator<<(std::ostream& os, enum type typ) {
 	case TYPE_BACKGROUND_MODE3:
 		os << "SCENE_MODE3";
 		break;
+	case TYPE_BACKGROUND_HORIZONTAL_SCROLL:
+		os << "SCENE_HORIZ_SCROLL";
+		break;
 	}
 	return os;
 }
@@ -39,6 +42,8 @@ enum type resource_type(const bufferedimage& image) {
 			return TYPE_BACKGROUND;
 		if (explicit_typ->second == "Background Mode 3")
 			return TYPE_BACKGROUND_MODE3;
+		if (explicit_typ->second == "Background Horizontal Scroll")
+			return TYPE_BACKGROUND_HORIZONTAL_SCROLL;
 
 		std::string msg("Unknown explicit type: ");
 		msg += explicit_typ->second;

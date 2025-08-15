@@ -11,6 +11,7 @@
 #include "scene/display_credits.h"
 #include "scene/gradient.h"
 #include "scene/mode3.h"
+#include "scene/parallax_mountain_dusk.h"
 #include "scene/text_print_profile.h"
 #include "scene/text_print_step.h"
 #include "utils/arraycount.h"
@@ -53,6 +54,10 @@ static const struct {
 		.cb = &MainCB_textPrintStep_init,
 	},
 	{
+		.label = "Parallax Mountain Dusk",
+		.cb = &MainCB_parallaxMountainDusk_init,
+	},
+	{
 		.label = "Gradient",
 		.cb = &MainCB_gradient_init,
 	},
@@ -88,6 +93,13 @@ void MainCB_mainMenu_init(void) {
 				.enable_bg1 = true,
 				.enable_obj = true,
 			}
+		},
+	});
+
+	vram_op_queue_enqueue((struct vram_op) {
+		.type = VRAM_QUEUE_OP_HWREG_BGOFSS,
+		.bgofss = {
+			.value = {{0},{0},{0},{0},},
 		},
 	});
 

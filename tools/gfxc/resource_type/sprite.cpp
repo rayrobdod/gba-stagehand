@@ -2,8 +2,7 @@
 
 #include <array>
 #include <stdexcept>
-#include "choose_compression.hpp"
-#include "variable_name_for_image.hpp"
+#include "object.hpp"
 
 enum sprite_size sprite_size(unsigned width, unsigned height) {
 	if (8 == width && 8 == height)
@@ -76,8 +75,46 @@ std::ostream& operator<<(std::ostream& os, enum sprite_size v) {
 	return os;
 }
 
+static palette_data_builder sprite_extract_palettes(std::pair<std::filesystem::path, bufferedimage> image) {
+	palette_data_builder retval;
 
-void sprite::write_struct(std::ostream& headerstream) {
+	std::set<rgba16_t> colors;
+	colors.insert(image.second.background().with_alpha(0));
+	colors.merge(image.second.palette());
+
+	if (colors.size() > 16) {
+		std::string msg(image.first);
+		msg += ": sprite palette larger than 16 colors";
+		throw std::logic_error(msg);
+	}
+
+	retval.colorss.insert(colors);
+
+	retval.alternates = image.second.alt_palettes();
+
+	return retval;
+}
+
+static std::vector<gbatile_4bpp> sprite_extract_tiles(std::pair<std::filesystem::path, struct bufferedimage> image, palette_data palettes) {
+	if (1 != palettes.colorss.size()) {
+		std::string msg(image.first);
+		msg += ": more than one palette for sprite";
+		throw std::logic_error(msg);
+	}
+
+	const std::vector<rgba16_t> used_pal = palettes.colorss[0];
+	std::vector<gbatile_4bpp> retval;
+
+	for (auto subimg : image.second.subs(8, 8)) {
+		gbatile_4bpp tile1(subimg.to_tile_4bpp(used_pal));
+
+		retval.push_back(tile1);
+	}
+
+	return retval;
+}
+
+static void sprite_write_struct(std::ostream& headerstream) {
 	headerstream << std::endl
 		<< "typedef uint16_t paltag_t;" << std::endl
 		<< "typedef uint16_t tiletag_t;" << std::endl
@@ -91,47 +128,65 @@ void sprite::write_struct(std::ostream& headerstream) {
 		<< "};" << std::endl;
 }
 
-void sprite::write(std::ostream& headerstream, Object& elf) const {
-	for (auto palette : this->palettes) {
-		headerstream << "extern const struct shadow_oam_template " << this->var_name << palette.second << ";" << std::endl;
-	}
+static void sprite_write_to_elf(
+	std::pair<std::filesystem::path, struct bufferedimage> image,
+	std::pair<std::string, palette_data> palettes,
+	std::pair<std::string, tiles_data> tiles,
+	std::string var_name,
+	std::ostream& headerstream,
+	Object& elf
+) {
+	headerstream << "extern const struct shadow_oam_template " << var_name << ";" << std::endl;
 
-	std::string tiles_var_name = this->var_name;
-	tiles_var_name += ".tiles";
-	auto tiles_compressed = choose_compression(tiles_var_name, this->tiles);
+	enum sprite_size my_size = sprite_size(image.second.width(), image.second.height());
 
-	elf.push_single_variable_rodata_sections({tiles_var_name, STB_LOCAL}, tiles_compressed.data);
+	std::array<uint16_t, 8> serialized = {
+		0, 0,
+		0, 0,
+		palettes.second.tag,
+		tiles.second.tag,
+		my_size,
+		0,
+	};
 
-	for (auto palette : this->palettes) {
-		std::string my_var_name = this->var_name;
-		my_var_name += palette.second;
+	std::vector<relocation_template> relocs {
+		{
+			.offset = 0,
+			.type = R_ARM_ABS32,
+			.symbol_name = palettes.first,
+		},
+		{
+			.offset = 4,
+			.type = R_ARM_ABS32,
+			.symbol_name = tiles.first,
+		},
+	};
 
-		std::string my_pal_var_name = "plte.";
-		my_pal_var_name += this->pal_var_name;
-		my_pal_var_name += palette.second;
+	elf.push_single_variable_rodata_sections({var_name, STB_GLOBAL}, serialized, relocs);
 
-		std::array<uint16_t, 8> serialized = {
-			0, 0,
-			0, 0,
-			palette.first,
-			this->tiletag,
-			this->size,
-			0,
-		};
+	for (auto alternate : palettes.second.alternates) {
+		std::string alternate_var_name;
+		alternate_var_name += var_name;
+		alternate_var_name += "_";
+		alternate_var_name += alternate.first;
 
-		std::initializer_list<relocation_template> relocs {
-			{
-				.offset = 0,
-				.type = R_ARM_ABS32,
-				.symbol_name = my_pal_var_name,
-			},
-			{
-				.offset = 4,
-				.type = R_ARM_ABS32,
-				.symbol_name = tiles_var_name,
-			},
-		};
+		headerstream << "extern const struct shadow_oam_template " << alternate_var_name << ";" << std::endl;
 
-		elf.push_single_variable_rodata_sections({my_var_name, STB_GLOBAL}, serialized, relocs);
+		std::string alternate_palette_name;
+		alternate_palette_name += palettes.first;
+		alternate_palette_name += "_";
+		alternate_palette_name += alternate.first;
+
+		serialized[4] = alternate.second.tag;
+		relocs[0].symbol_name = alternate_palette_name;
+
+		elf.push_single_variable_rodata_sections({alternate_var_name, STB_GLOBAL}, serialized, relocs);
 	}
 }
+
+const type_functions sprite_type_functions(
+	  &sprite_write_struct
+	, &sprite_extract_palettes
+	, &sprite_extract_tiles
+	, &sprite_write_to_elf
+);

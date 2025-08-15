@@ -116,6 +116,20 @@ void vram_op_queue_execute(void) {
 					.datasize = WORDSIZE_16BIT,
 				});
 			break;
+		case VRAM_QUEUE_OP_BG_MAP_COLUMN:
+			{
+				unsigned rows = entry->map.count;
+				const bg_tile_t* from = entry->map.from;
+				uint16_t to_tile = entry->map.to_tile;
+
+				while (rows > 0) {
+					vram.screenblock[entry->map.to_block][to_tile] = *from;
+					rows--;
+					from++;
+					to_tile += 32;
+				}
+			}
+			break;
 		case VRAM_QUEUE_OP_OAM_ENTRY:
 			oam[entry->oam.to_index] = entry->oam.value;
 			break;
@@ -124,6 +138,15 @@ void vram_op_queue_execute(void) {
 			break;
 		case VRAM_QUEUE_OP_HWREG_BGCNT:
 			reg_lcd.BGCNT[entry->bgcnt.to_index] = entry->bgcnt.value;
+			break;
+		case VRAM_QUEUE_OP_HWREG_BGOFSS:
+			reg_lcd.BGOFS[0] = entry->bgofss.value[0];
+			reg_lcd.BGOFS[1] = entry->bgofss.value[1];
+			reg_lcd.BGOFS[2] = entry->bgofss.value[2];
+			reg_lcd.BGOFS[3] = entry->bgofss.value[3];
+			break;
+		case VRAM_QUEUE_OP_UINT16:
+			*(entry->uint16.to) = entry->uint16.value;
 			break;
 		}
 	}

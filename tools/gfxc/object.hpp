@@ -187,10 +187,12 @@ public:
 			data
 		);
 
+		if (false) {
 		private_symbols.push_back({
 			.st_info = ELF32_ST_INFO(STB_LOCAL, STT_SECTION),
 			.st_shndx = data_section_index,
 		});
+		}
 		(variable.binding == STB_LOCAL ? private_symbols : public_symbols).push_back({
 			.st_name = symbol_strings.push(variable.name),
 			.st_value = 0x00,

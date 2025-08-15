@@ -91,6 +91,12 @@ struct metadata_result extract_metadata_from_png(const char* name) {
 		else if (0 == strcmp("Palette Tag", texts[i].key)) {
 			// don't care
 		}
+		else if (0 == strcmp("Tileset Tag", texts[i].key)) {
+			// don't care
+		}
+		else if (0 == strcmp("Software", texts[i].key)) {
+			// don't care
+		}
 		else {
 			fprintf(stderr, "%s: %s\n", texts[i].key, texts[i].text);
 		}
