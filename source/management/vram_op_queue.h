@@ -20,6 +20,8 @@ enum vram_queue_op_type {
 	VRAM_QUEUE_OP_BG_TILES,
 	/** .tiles_compressed */
 	VRAM_QUEUE_OP_BG_TILES_COMPRESSED,
+	/** .tiles_fill */
+	VRAM_QUEUE_OP_BG_TILES_FILL,
 	/** .tiles_bitunpack */
 	VRAM_QUEUE_OP_BG_TILES_BITUNPACK,
 	/** .map */
@@ -64,6 +66,12 @@ struct vram_op {
 			uint16_t to_tile;
 			uint16_t count;
 		} tiles;
+		struct {
+			uint16_t value: 4;
+			uint16_t to_block;
+			uint16_t to_tile;
+			uint16_t count;
+		} tiles_fill;
 		struct {
 			const struct CompressedData* from;
 			uint16_t to_block;

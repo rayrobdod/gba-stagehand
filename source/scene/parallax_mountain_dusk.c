@@ -8,7 +8,6 @@
 #include "management/keyinput.h"
 #include "management/vram_op_queue.h"
 #include "scene/main_menu.h"
-#include "utils/one_transparent_tileset.h"
 #include "graphics.h"
 #include "graphics_types.h"
 #include "main.h"
@@ -132,11 +131,12 @@ void MainCB_parallaxMountainDusk_init(void) {
 	unsigned transparent_tile_index = parallax_mountain_dusk_bg.tileset_count;
 
 	vram_op_queue_enqueue((struct vram_op) {
-		.type = VRAM_QUEUE_OP_BG_TILES_COMPRESSED,
-		.tiles_compressed = {
-			.from = one_transparent_tileset.tileset,
+		.type = VRAM_QUEUE_OP_BG_TILES_FILL,
+		.tiles_fill = {
+			.value = 0,
 			.to_block = MY_CHARBLOCK,
 			.to_tile = transparent_tile_index,
+			.count = 1,
 		},
 	});
 
