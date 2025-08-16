@@ -73,12 +73,12 @@ void MainCB_textPrintProfile_init(void) {
 		vram.screenblock[31][i] = (bg_tile_t) {.tile = i, .hflip = false, .vflip = false, .palette = 0};
 	}
 
-	background_palette[0][0] = rgb(0,16,31);
-	background_palette[0][1] = rgb(31,31,31);
-	background_palette[0][2] = rgb(16,16,16);
-	background_palette[0][3] = rgb(0,0,0);
-	background_palette[0][4] = rgb(0,31,0);
-	background_palette[0][5] = rgb(31,16,16);
+	hw_palette.background._4[0][0] = rgb(0,16,31);
+	hw_palette.background._4[0][1] = rgb(31,31,31);
+	hw_palette.background._4[0][2] = rgb(16,16,16);
+	hw_palette.background._4[0][3] = rgb(0,0,0);
+	hw_palette.background._4[0][4] = rgb(0,31,0);
+	hw_palette.background._4[0][5] = rgb(31,16,16);
 
 	CpuFastSet(
 		&zero_uint32,

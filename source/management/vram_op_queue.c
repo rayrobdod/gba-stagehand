@@ -29,7 +29,7 @@ static void vram_op_queue_execute_1(struct vram_op* entry) {
 	case VRAM_QUEUE_OP_BG_PALETTES:
 		CpuFastSet(
 			entry->palettes.from,
-			&background_palette[entry->palettes.to_palette],
+			&hw_palette.background._4[entry->palettes.to_palette],
 			(struct CpuFastSet){
 				.word_count = entry->palettes.count * (sizeof(palette16_t) / sizeof(uint32_t)),
 				.mode = CPU_SET_COPY,
@@ -38,7 +38,7 @@ static void vram_op_queue_execute_1(struct vram_op* entry) {
 	case VRAM_QUEUE_OP_OAM_PALETTES:
 		CpuFastSet(
 			entry->palettes.from,
-			&object_palette[entry->palettes.to_palette],
+			&hw_palette.object._4[entry->palettes.to_palette],
 			(struct CpuFastSet){
 				.word_count = entry->palettes.count * (sizeof(palette16_t) / sizeof(uint32_t)),
 				.mode = CPU_SET_COPY,

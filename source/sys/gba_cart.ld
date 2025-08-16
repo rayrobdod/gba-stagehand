@@ -255,9 +255,7 @@ SECTIONS
 
     .palette (NOLOAD) : ALIGN(4)
     {
-        *(.palette.bg)
-        . = 0x200;
-        *(.palette.obj)
+        *(.palette)
         . = ALIGN(4);
     } > PALETTE
 

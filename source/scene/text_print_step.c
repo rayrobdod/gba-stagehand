@@ -151,7 +151,7 @@ void MainCB_textPrintStep_init(void) {
 	}
 	shadow_vram_init(&text_print_shadow_vram_init);
 
-	background_palette[0][0] = rgb(0,16,31);
+	hw_palette.background._4[0][0] = rgb(0,16,31);
 
 	vram_op_queue_enqueue((struct vram_op) {
 		.type = VRAM_QUEUE_OP_BG_PALETTES,

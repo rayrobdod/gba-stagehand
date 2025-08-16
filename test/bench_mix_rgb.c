@@ -12,8 +12,6 @@ union rgb2uint {
 
 [[gnu::section(".sbss")]]
 static rgb_t random_pal_512[512] = {0};
-[[gnu::section(".sbss")]]
-static rgb_t dest_pal_512[512];
 
 void setUp(void) {
 	static uint32_t lfsr = 159226;
@@ -51,7 +49,7 @@ void mix_rgb_many_1(
 
 void bench_mix_rgb_512_1(void) {
 	mix_rgb_many_1(
-		dest_pal_512,
+		hw_palette.all,
 		random_pal_512,
 		512,
 		rgb(11, 3, 20),

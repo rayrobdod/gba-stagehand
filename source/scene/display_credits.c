@@ -138,7 +138,7 @@ void MainCB_credits_init(void) {
 	view_model = calloc(sizeof(view_model[0]), 1);
 
 	shadow_vram_init(&vram_init);
-	background_palette[0][0] = rgb(31,16,16);
+	hw_palette.background._4[0][0] = rgb(31,16,16);
 
 	view_model->current = resource_credits;
 	view_model->zero_tile_ref = (bg_tile_t) {.tile = shadow_tiles_load_tileset(&one_transparent_tileset, (struct shadow_tiles_load_tileset) {0})};

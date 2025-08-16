@@ -14,7 +14,7 @@ static const palette16_t rainbow = {{0,0,0}, {31,0,0}, {31,16,0}, {31,31,0}, {0,
 
 void test_vram_op_queue_enqueue_bg_palette(void) {
 	for (unsigned i = 0; i < arraycount(rainbow); i++) {
-		background_palette[1][i] = black;
+		hw_palette.background._4[1][i] = black;
 	}
 	vram_op_queue_enqueue(
 		(struct vram_op) {
@@ -27,11 +27,11 @@ void test_vram_op_queue_enqueue_bg_palette(void) {
 		}
 	);
 	for (unsigned i = 0; i < arraycount(rainbow); i++) {
-		TEST_ASSERT_EQUAL_RGB(black, background_palette[1][i]);
+		TEST_ASSERT_EQUAL_RGB(black, hw_palette.background._4[1][i]);
 	}
 	vram_op_queue_execute();
 	for (unsigned i = 0; i < arraycount(rainbow); i++) {
-		TEST_ASSERT_EQUAL_RGB(rainbow[i], background_palette[1][i]);
+		TEST_ASSERT_EQUAL_RGB(rainbow[i], hw_palette.background._4[1][i]);
 	}
 }
 
