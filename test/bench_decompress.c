@@ -12,7 +12,6 @@
 
 static unsigned total;
 static unsigned failed;
-static char fail_detail[256];
 
 struct decompression_suite {
 	const char* label;

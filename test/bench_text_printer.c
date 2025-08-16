@@ -29,6 +29,7 @@ static const char lorem_ipsum[] =
 
 void setUp(void){}
 void tearDown(void){}
+bool check(void){return true;}
 
 void bench_text_printer_lorem_ipsum(void) {
 	text_print_immediate(
@@ -46,7 +47,7 @@ int main() {
 	isr_enable(II_VBLANK);
 	MgbaOpen();
 
-	RUN_BENCHMARK(bench_text_printer_lorem_ipsum);
+	RUN_BENCHMARK(bench_text_printer_lorem_ipsum, check);
 
 	return 0;
 }
