@@ -37,31 +37,24 @@ static void run_parallaxMountainDusk_initialization_benchmark() {
 	MainCB_parallaxMountainDusk(fadeCb);
 
 	while (MainCB_parallaxMountainDusk_main != scene_onframe_callback) {
-		setUp();
 		VBlankIntrWait();
+
+		benchmark_start();
+		vram_op_queue_execute();
+		uint32_t opsqueue_time = benchmark_stop();
+
 		benchmark_start();
 		scene_onframe_callback();
-		uint32_t time = benchmark_stop();
-		{
-			const char* color = (time > (CYCLES_PER_FRAME * 3 / 4) ? "\033[43m" : "\033[0m");
-			MgbaPrintf(MGBA_LOG_INFO, "  [%3d]:      %s%8ld cycles = %2ld.%03ld frames\033[0m",
-				frameNo, color, time, time / CYCLES_PER_FRAME, (time * 1000 / CYCLES_PER_FRAME) % 1000);
-		}
+		uint32_t scene_time = benchmark_stop();
 
-		//MgbaPrintf(MGBA_LOG_INFO, "    cb: %p", scene_onframe_callback);
+		const char* opsqueue_color = (opsqueue_time > CYCLES_PER_VBLANK ? "\033[43m" : "\033[0m");
+		MgbaPrintf(MGBA_LOG_INFO, "    [%3d] vram_ops: %s%8ld cycles = %2ld.%03ld frames\033[0m",
+			frameNo, opsqueue_color, opsqueue_time, opsqueue_time / CYCLES_PER_FRAME, (opsqueue_time * 1000 / CYCLES_PER_FRAME) % 1000);
 
-		VBlankIntrWait();
-		{
-			benchmark_start();
-			vram_op_queue_execute();
-			time = benchmark_stop();
-			{
-				const char* color = (time > (CYCLES_PER_FRAME * 3 / 4) ? "\033[43m" : "\033[0m");
-				MgbaPrintf(MGBA_LOG_INFO, "    vram_ops: %s%8ld cycles = %2ld.%03ld frames\033[0m",
-					color, time, time / CYCLES_PER_FRAME, (time * 1000 / CYCLES_PER_FRAME) % 1000);
-			}
-		}
-		tearDown();
+		const char* scene_color = ((scene_time + opsqueue_time) > (CYCLES_PER_FRAME) ? "\033[43m" : "\033[0m");
+		MgbaPrintf(MGBA_LOG_INFO, "             scene: %s%8ld cycles = %2ld.%03ld frames\033[0m",
+			scene_color, scene_time, scene_time / CYCLES_PER_FRAME, (scene_time * 1000 / CYCLES_PER_FRAME) % 1000);
+
 		++frameNo;
 	}
 }

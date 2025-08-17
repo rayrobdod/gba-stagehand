@@ -1,7 +1,9 @@
 #include <stdbool.h>
 #include <stdint.h>
+#include "gba/screen.h"
 
 static const unsigned CYCLES_PER_FRAME = 280896;
+static const unsigned CYCLES_PER_VBLANK = CYCLES_PER_FRAME * (VCOUNT_MAX - DISPLAY_HEIGHT) / VCOUNT_MAX;
 
 extern char fail_detail[256];
 
