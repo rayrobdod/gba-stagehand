@@ -36,6 +36,7 @@ static const unsigned TILEMAP_BUFFER_COUNT = 32 * 20;
 static const struct {
 	char* label;
 	MainCallback cb;
+	void (*startFn)(void (*fadeCb)(void));
 } menu_options[] = {
 	{
 		.label = "Brick Break",
@@ -55,7 +56,7 @@ static const struct {
 	},
 	{
 		.label = "Parallax Mountain Dusk",
-		.cb = &MainCB_parallaxMountainDusk_init,
+		.startFn = &MainCB_parallaxMountainDusk,
 	},
 	{
 		.label = "Gradient",
@@ -69,6 +70,7 @@ static const struct {
 
 //
 static void MainCB_mainMenu_main(void);
+static void FadeCB_mainMenu(void);
 
 static void print_to_tilemap(bg_tile_t* buffer, unsigned x, unsigned y, char* message) {
 	unsigned start_index = y * 32 + x;
@@ -174,49 +176,63 @@ void MainCB_mainMenu_init(void) {
 	scene_onframe_callback = &MainCB_mainMenu_main;
 }
 
+static void redraw_arrow(void) {
+	uint16_t arrow_wiggle = 0;
+	switch ((arrow_wiggle_timer & 0x30) >> 4) {
+	case 1:
+		arrow_wiggle = -1;
+		break;
+	case 3:
+		arrow_wiggle = 1;
+		break;
+	}
+
+	shadow_oam_move_sprite(
+		spriteid_arrow,
+		(struct shadow_oam_position) {
+			.coord = (ucoords16_t) {
+				.x = 24 + arrow_wiggle,
+				.y = 20 + selection * 8,
+			},
+			.hotspot = HOTSPOT_RIGHT,
+		}
+	);
+}
+
 static void MainCB_mainMenu_main(void) {
 	arrow_wiggle_timer++;
 
 	if (! keyinput_get_new().a) {
-		shadow_oam_free_all();
-
 		if (selection < arraycount(menu_options)) {
+			if (menu_options[selection].startFn) {
+				menu_options[selection].startFn(FadeCB_mainMenu);
+			} else
 			if (menu_options[selection].cb) {
 				scene_onframe_callback = menu_options[selection].cb;
 			}
 		}
 	}
 
-	bool redraw_arrow = false;
+	bool should_redraw_arrow = false;
 
 	if (0 == (arrow_wiggle_timer & 0xF)) {
-		redraw_arrow = true;
+		should_redraw_arrow = true;
 	}
 	int dselection = keyinput_vertical_new();
 	if (dselection) {
-		redraw_arrow = true;
+		should_redraw_arrow = true;
 		selection = saturating_add(selection, 0, arraycount(menu_options) - 1, dselection);
 	}
 
-	if (redraw_arrow) {
-		uint16_t arrow_wiggle = 0;
-		switch ((arrow_wiggle_timer & 0x30) >> 4) {
-		case 1:
-			arrow_wiggle = -1;
-			break;
-		case 3:
-			arrow_wiggle = 1;
-			break;
-		}
+	if (should_redraw_arrow) {
+		redraw_arrow();
+	}
+}
 
-		shadow_oam_move_sprite(
-			spriteid_arrow,
-			(struct shadow_oam_position) {
-				.coord = (ucoords16_t) {
-					.x = 24 + arrow_wiggle,
-					.y = 20 + selection * 8,
-				},
-				.hotspot = HOTSPOT_RIGHT,
-		});
+static void FadeCB_mainMenu(void) {
+	arrow_wiggle_timer++;
+
+	if (0 == (arrow_wiggle_timer & 0xF)) {
+		redraw_arrow();
 	}
 }

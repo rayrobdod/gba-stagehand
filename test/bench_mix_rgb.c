@@ -1,3 +1,5 @@
+#include "mix_rgb.h"
+
 #include <stdio.h>
 #include "gba/palette.h"
 #include "management/isr.h"
@@ -26,25 +28,6 @@ void setUp(void) {
 void tearDown(void) {}
 bool check(void) {
 	return true;
-}
-
-[[gnu::noipa]]
-void mix_rgb_many_1(
-	  volatile rgb_t* dest
-	, const rgb_t* from
-	, const unsigned count
-	, const rgb_t to
-	, const unsigned proportion
-) {
-	// the compiled version does calculate `to.r * (16 - proportion)` only once.
-	// No local variables needed.
-	for (unsigned i = 0; i < count; ++i) {
-		dest[i] = (rgb_t){
-			.r = (to.r * (16 - proportion) + from[i].r * proportion) / 16,
-			.g = (to.g * (16 - proportion) + from[i].g * proportion) / 16,
-			.b = (to.b * (16 - proportion) + from[i].b * proportion) / 16,
-		};
-	}
 }
 
 void bench_mix_rgb_512_1(void) {

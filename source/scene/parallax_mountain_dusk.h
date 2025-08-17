@@ -1,1 +1,1 @@
-void MainCB_parallaxMountainDusk_init(void);
+void MainCB_parallaxMountainDusk(void (*fadeCb)(void));

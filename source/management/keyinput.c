@@ -3,7 +3,32 @@
 struct {
 	keypad_t down;
 	keypad_t new;
-} keyinputs = {0};
+} keyinputs = {
+	.down = {
+		 .a = true,
+		 .b = true,
+		 .select = true,
+		 .start = true,
+		 .right = true,
+		 .left = true,
+		 .up = true,
+		 .down = true,
+		 .r = true,
+		 .l = true,
+	},
+	.new = {
+		 .a = true,
+		 .b = true,
+		 .select = true,
+		 .start = true,
+		 .right = true,
+		 .left = true,
+		 .up = true,
+		 .down = true,
+		 .r = true,
+		 .l = true,
+	},
+};
 
 keypad_t keyinput_get_down(void) {
 	return keyinputs.down;
