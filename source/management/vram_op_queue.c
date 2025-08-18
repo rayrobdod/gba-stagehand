@@ -78,6 +78,16 @@ static void vram_op_queue_execute_1(struct vram_op* entry) {
 			entry->tiles_compressed.from,
 			&vram.bg_charblock[entry->tiles_compressed.to_block][entry->tiles_compressed.to_tile]);
 		break;
+	case VRAM_QUEUE_OP_BG_TILES_FREE:
+		CpuFastSet(
+			entry->tiles_free.from,
+			&vram.bg_charblock[entry->tiles_free.to_block][entry->tiles_free.to_tile],
+			(struct CpuFastSet){
+				.word_count = entry->tiles_free.count * (sizeof(tile_4bpp_t) / sizeof(uint32_t)),
+				.mode = CPU_SET_COPY,
+			});
+		free(entry->tiles_free.from);
+		break;
 	case VRAM_QUEUE_OP_BG_TILES_FILL:
 		{
 			uint32_t value = entry->tiles_fill.value & 0xF;
