@@ -8,6 +8,7 @@
 #include "management/keyinput.h"
 #include "management/vram_op_queue.h"
 #include "scene/main_menu.h"
+#include "utils/arraycount.h"
 #include "graphics.h"
 #include "graphics_types.h"
 #include "main.h"
@@ -26,12 +27,21 @@ struct parallax_layer {
 	uint16_t next_source_column;
 };
 
+struct tree_sprite {
+	bool enabled;
+	uint8_t tile_num;
+	int16_t offset;
+};
+
 __attribute__((section(".sbss")))
 static struct {
 	uint16_t timer;
 	struct parallax_layer mountain_far;
 	struct parallax_layer mountains;
 	struct parallax_layer trees;
+	uint8_t next_tree_countdown;
+	uint8_t next_tree_type;
+	struct tree_sprite foreground_trees[8];
 }* view_model = NULL;
 
 __attribute__((section(".sbss")))
@@ -91,16 +101,7 @@ static void MainCB_parallaxMountainDusk_initFadeSolid(void) {
 	vram_op_queue_enqueue((struct vram_op) {
 		.type = VRAM_QUEUE_OP_HWREG_DISPCNT,
 		.dispcnt = {
-			.value = (dispcnt_t) {
-				.mode = 0,
-				.obj_character_mapping = OBJ_CHAR_MAP_1D,
-				.force_blank = false,
-				.enable_bg0 = true,
-				.enable_bg1 = true,
-				.enable_bg2 = true,
-				.enable_bg3 = true,
-				.enable_obj = false,
-			}
+			.value = (dispcnt_t) {0}
 		}
 	});
 
@@ -139,6 +140,15 @@ static void MainCB_parallaxMountainDusk_initFadeSolid(void) {
 		.type = VRAM_QUEUE_OP_BG_TILES_COMPRESSED,
 		.tiles_compressed = {
 			.from = parallax_mountain_dusk_bg.tileset,
+			.to_block = MY_CHARBLOCK,
+			.to_tile = 0,
+		},
+	});
+
+	vram_op_queue_enqueue((struct vram_op) {
+		.type = VRAM_QUEUE_OP_OAM_TILES_COMPRESSED,
+		.tiles_compressed = {
+			.from = parallax_mountain_dusk_foreground_trees.tileset,
 			.to_block = MY_CHARBLOCK,
 			.to_tile = 0,
 		},
@@ -221,6 +231,26 @@ static void MainCB_parallaxMountainDusk_initFadeSolid(void) {
 		});
 	}
 
+	vram_op_queue_enqueue((struct vram_op) {
+		.type = VRAM_QUEUE_OP_DISABLE_ALL_OAM,
+	});
+
+	vram_op_queue_enqueue((struct vram_op) {
+		.type = VRAM_QUEUE_OP_HWREG_DISPCNT,
+		.dispcnt = {
+			.value = (dispcnt_t) {
+				.mode = 0,
+				.obj_character_mapping = OBJ_CHAR_MAP_2D,
+				.force_blank = false,
+				.enable_bg0 = true,
+				.enable_bg1 = true,
+				.enable_bg2 = true,
+				.enable_bg3 = true,
+				.enable_obj = true,
+			}
+		}
+	});
+
 	view_model->mountain_far.next_hardware_column = DISPLAY_WIDTH_TILES + 1;
 	view_model->mountain_far.next_source_column = DISPLAY_WIDTH_TILES + 1 - MOUNTAINFAR_INITIAL_OFFSET;
 
@@ -230,7 +260,15 @@ static void MainCB_parallaxMountainDusk_initFadeSolid(void) {
 	view_model->trees.next_hardware_column = DISPLAY_WIDTH_TILES + 1;
 	view_model->trees.next_source_column = DISPLAY_WIDTH_TILES + 1;
 
-	fade_from_initialize(parallax_mountain_dusk_bg.palette[0], 16);
+	view_model->next_tree_countdown = 16;
+
+	union palette512 final_palette = {0};
+	for (int i = 0; i < 16; i++)
+		final_palette.background._4[0][i] = parallax_mountain_dusk_bg.palette[0][i];
+	for (int i = 0; i < 16; i++)
+		final_palette.object._4[0][i] = parallax_mountain_dusk_foreground_trees.palette[0][i];
+
+	fade_from_initialize(final_palette.all, 512);
 	scene_onframe_callback = &MainCB_parallaxMountainDusk_initFadeIn;
 }
 
@@ -301,6 +339,51 @@ void MainCB_parallaxMountainDusk_main(void) {
 			TREES_SCREENBLOCK,
 			&(reg_lcd.BGOFS[3].h)
 		);
+	}
+
+
+	static uint32_t lfsr = 0x67EDEEAE;
+
+	if (0 == --(view_model->next_tree_countdown)) {
+		for (unsigned i = 0; i < arraycount(view_model->foreground_trees); i++) {
+			if (! view_model->foreground_trees[i].enabled) {
+				view_model->foreground_trees[i] = (struct tree_sprite) {
+					.enabled = true,
+					.tile_num = view_model->next_tree_type * 4,
+					.offset = DISPLAY_WIDTH,
+				};
+				break;
+			}
+		}
+		view_model->next_tree_countdown = 8 + lfsr % 24;
+		view_model->next_tree_type += 1;
+		view_model->next_tree_type %= 7;
+		lfsr = (lfsr >> 1) ^ (lfsr & 1 ? 0xB40000 : 0);
+	}
+
+	for (unsigned i = 0; i < arraycount(view_model->foreground_trees); i++) {
+		if (view_model->foreground_trees[i].enabled) {
+			view_model->foreground_trees[i].offset -= 2;
+			if (view_model->foreground_trees[i].offset < -32) {
+				view_model->foreground_trees[i].enabled = false;
+			}
+		}
+		if (view_model->foreground_trees[i].enabled) {
+			vram_op_queue_enqueue((struct vram_op) {
+				.type = VRAM_QUEUE_OP_OAM_ENTRY,
+				.oam = {
+					.value = {
+						.shape = OAM_SHAPE_VERTICAL,
+						.size = 3,
+						.y = DISPLAY_HEIGHT - 64,
+						.x = view_model->foreground_trees[i].offset,
+						.tile_num = view_model->foreground_trees[i].tile_num,
+					},
+					.to_index = i,
+				},
+			});
+		}
+
 	}
 
 	if (! keyinput_get_new().b) {
