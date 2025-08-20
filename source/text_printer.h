@@ -34,6 +34,7 @@ enum text_print_step_retval {
 struct text_print_step_state {
 	coord16_t current_point;
 	uint8_t scroll_up;
+	uint8_t height_since_last_wait;
 	const char* message;
 
 	volatile tile_4bpp_t* buffer;

@@ -142,6 +142,7 @@ enum text_print_step_retval text_print_step(
 		if (c == '\f') {
 			state->scroll_up = state->current_point.y + state->font->glyph_height + state->kerning.y;
 			state->current_point = state->start_point;
+			state->height_since_last_wait = state->font->glyph_height;
 			retval = TEXT_PRINT_STEP_WAIT;
 		} else
 		if (c == '\r') {
@@ -156,9 +157,15 @@ enum text_print_step_retval text_print_step(
 
 			if (next_y + state->font->glyph_height < window_bottom) {
 				state->current_point.y = next_y;
-				retval = TEXT_PRINT_STEP_CONTINUE;
 			} else {
 				state->scroll_up = state->font->glyph_height + state->kerning.y;
+			}
+
+			state->height_since_last_wait += state->font->glyph_height + state->kerning.y;
+			if (state->height_since_last_wait < window_bottom) {
+				retval = TEXT_PRINT_STEP_CONTINUE;
+			} else {
+				state->height_since_last_wait = state->font->glyph_height;
 				retval = TEXT_PRINT_STEP_WAIT;
 			}
 		} else
@@ -190,6 +197,8 @@ void text_print_step_init(
 	const char* message
 ) {
 	state->current_point = start_point;
+	state->scroll_up = 0;
+	state->height_since_last_wait = font->glyph_height;
 	state->message = message;
 
 	state->buffer = buffer;
