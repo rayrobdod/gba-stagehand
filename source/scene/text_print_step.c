@@ -227,6 +227,10 @@ static void MainCB_textPrintStep_main(void) {
 		}
 		break;
 	}
+
+	if (! keyinput_get_new().b) {
+		scene_onframe_callback = &MainCB_textPrintStep_cleanup;
+	}
 }
 
 static void MainCB_textPrintStep_cleanup(void) {
