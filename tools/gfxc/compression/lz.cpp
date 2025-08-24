@@ -191,10 +191,6 @@ std::optional<std::vector<uint8_t>> compressLz(std::vector<uint8_t> src) {
 }
 
 std::optional<std::vector<uint8_t>> compressLz11(std::vector<uint8_t> src) {
-	// Not inherently impossible. However LZ11UnCompWram is not yet implemented
-	if (0 != src.size() % 2)
-		return std::nullopt;
-
 	auto instrs = instructions(src, 0xFFFF + 0x111);
 
 	std::vector<uint8_t> result;
