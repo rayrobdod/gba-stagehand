@@ -252,10 +252,10 @@ static void MainCB_parallaxMountainDusk_initFadeSolid(void) {
 	});
 
 	view_model->mountain_far.next_hardware_column = DISPLAY_WIDTH_TILES + 1;
-	view_model->mountain_far.next_source_column = DISPLAY_WIDTH_TILES + 1 - MOUNTAINFAR_INITIAL_OFFSET;
+	view_model->mountain_far.next_source_column = (DISPLAY_WIDTH_TILES + 1 - MOUNTAINFAR_INITIAL_OFFSET) % parallax_mountain_dusk_mountain_far.tilemap_width;
 
 	view_model->mountains.next_hardware_column = DISPLAY_WIDTH_TILES + 1;
-	view_model->mountains.next_source_column = DISPLAY_WIDTH_TILES + 1 - MOUNTAINS_INITIAL_OFFSET;
+	view_model->mountains.next_source_column = (DISPLAY_WIDTH_TILES + 1 - MOUNTAINS_INITIAL_OFFSET) % parallax_mountain_dusk_mountains.tilemap_width;
 
 	view_model->trees.next_hardware_column = DISPLAY_WIDTH_TILES + 1;
 	view_model->trees.next_source_column = DISPLAY_WIDTH_TILES + 1;
