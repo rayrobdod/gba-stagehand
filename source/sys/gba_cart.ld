@@ -275,6 +275,7 @@ SECTIONS
     {
         *(.hw_reg.lcd)
         . = 0x60;
+        *(.hw_reg.sound)
         . = 0xB0;
         *(.hw_reg.dma)
         . = 0x100;

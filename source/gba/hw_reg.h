@@ -128,36 +128,200 @@ typedef struct {
 
 extern volatile reg_lcd_t reg_lcd;
 
-#if 0
-Sound Registers
+// Sound Registers
 
-  uint16_t SOUND1CNT_L;	/* 4000060 */
-  uint16_t SOUND1CNT_H;	/* 4000062 */
-  uint16_t SOUND1CNT_X;	/* 4000064 */
-  uint16_t _unused;	/* 4000066 */
-  uint16_t SOUND2CNT_L;	/* 4000068 */
-  uint16_t _unused;	/* 400006A */
-  uint16_t SOUND2CNT_H;	/* 400006C */
-  uint16_t _unused;	/* 400006E */
-  uint16_t SOUND3CNT_L;	/* 4000070 */
-  uint16_t SOUND3CNT_H;	/* 4000072 */
-  uint16_t SOUND3CNT_X;	/* 4000074 */
-  uint16_t _unused;	/* 4000076 */
-  uint16_t SOUND4CNT_L;	/* 4000078 */
-  uint16_t _unused;	/* 400007A */
-  uint16_t SOUND4CNT_H;	/* 400007C */
-  uint16_t _unused;	/* 400007E */
-  uint16_t SOUNDCNT_L;	/* 4000080 */
-  uint16_t SOUNDCNT_H;	/* 4000082 */
-  uint16_t SOUNDCNT_X;	/* 4000084 */
-  uint16_t _unused;	/* 4000086 */
-  uint16_t SOUNDBIAS;	/* 4000088 */
-  400008Ah  ..   -    -         Not used
-  4000090h 2x10h R/W  WAVE_RAM  Channel 3 Wave Pattern RAM (2 banks!!)
-  uint32_t FIFO_A;	/* 40000A0 */
-  uint32_t FIFO_B;	/* 40000A4 */
-  uint16_t _unused;	/* 40000A8 */
-#endif
+enum sweep_direction {
+	SWEEP_INCREASE = 0,
+	SWEEP_DECREASE = 1,
+};
+
+typedef struct {
+	uint16_t shift : 3;
+	enum sweep_direction direction : 1;
+	uint16_t time : 3;
+	uint16_t : 9;
+} reg_sound_tone_sweep_t;
+
+enum envelope_direction {
+	ENVELOPE_DECREASE = 0,
+	ENVELOPE_INCREASE = 1,
+};
+
+typedef struct {
+	uint16_t length : 6;
+	uint16_t pattern_duty : 2;
+	uint16_t step_time : 3;
+	enum envelope_direction direction : 1;
+	uint16_t volume : 4;
+} reg_sound_tone_envelope_t;
+
+typedef struct {
+	uint16_t frequency : 11;
+	uint16_t : 3;
+	bool stop : 1;
+	bool restart : 1;
+} reg_sound_frequency_control_t;
+
+struct reg_sound_1 {
+	reg_sound_tone_sweep_t L;
+	reg_sound_tone_envelope_t H;
+	reg_sound_frequency_control_t X;
+	uint16_t : 16;
+};
+
+struct reg_sound_2 {
+	reg_sound_tone_envelope_t L;
+	uint16_t : 16;
+	reg_sound_frequency_control_t H;
+	uint16_t : 16;
+};
+
+typedef struct {
+	uint16_t : 5;
+	uint16_t dimension : 1;
+	uint16_t bank_no : 1;
+	bool enabled : 1;
+	uint16_t : 8;
+} reg_sound_wave_ram_select_t;
+
+enum wave_volume {
+	WAVE_VOLUME_MUTE = 0,
+	WAVE_VOLUME_100 = 2,
+	WAVE_VOLUME_50 = 4,
+	WAVE_VOLUME_25 = 6,
+	WAVE_VOLUME_75 = 1,
+	WAVE_VOLUME_75_a = 3,
+	WAVE_VOLUME_75_b = 5,
+	WAVE_VOLUME_75_c = 7,
+};
+
+typedef struct {
+	uint16_t length : 8;
+	uint16_t : 5;
+	enum wave_volume volume : 3;
+} reg_sound_wave_ram_volume_t;
+
+struct reg_sound_3 {
+	reg_sound_wave_ram_select_t L;
+	reg_sound_wave_ram_volume_t H;
+	reg_sound_frequency_control_t X;
+	uint16_t : 16;
+};
+
+typedef struct {
+	uint16_t length : 6;
+	uint16_t : 2;
+	uint16_t step_time : 3;
+	enum envelope_direction direction : 1;
+	uint16_t volume : 4;
+} reg_sound_noise_envelope_t;
+
+enum noise_counter_width {
+	NOISE_COUNTER_WIDTH_15 = 0,
+	NOISE_COUNTER_WIDTH_7 = 1,
+};
+
+typedef struct {
+	uint16_t ratio : 3;
+	enum noise_counter_width counter_width : 1;
+	uint16_t shift_frequency : 4;
+	uint16_t : 6;
+	bool stop : 1;
+	bool restart : 1;
+} reg_sound_noise_frequency_control_t;
+
+struct reg_sound_4 {
+	reg_sound_noise_envelope_t L;
+	uint16_t : 16;
+	reg_sound_noise_frequency_control_t H;
+	uint16_t : 16;
+};
+
+typedef struct {
+	uint16_t left_volume : 3;
+	uint16_t : 1;
+	uint16_t right_volume : 3;
+	uint16_t : 1;
+	bool left_1 : 1;
+	bool left_2 : 1;
+	bool left_3 : 1;
+	bool left_4 : 1;
+	bool right_1 : 1;
+	bool right_2 : 1;
+	bool right_3 : 1;
+	bool right_4 : 1;
+} reg_sound_control_dmg_t;
+
+enum sound_ratio {
+	SOUND_RATIO_25 = 0,
+	SOUND_RATIO_50 = 1,
+	SOUND_RATIO_100 = 2,
+};
+
+typedef struct {
+	enum sound_ratio ratio : 2;
+	uint16_t ratio_a : 1;
+	uint16_t ratio_b : 1;
+	uint16_t : 4;
+	bool a_right : 1;
+	bool a_left : 1;
+	bool a_timer : 1;
+	bool a_reset : 1;
+	bool b_right : 1;
+	bool b_left : 1;
+	bool b_timer : 1;
+	bool b_reset : 1;
+} reg_sound_control_direct_t;
+
+typedef struct {
+	bool status_1 : 1;
+	bool status_2 : 1;
+	bool status_3 : 1;
+	bool status_4 : 1;
+	uint16_t : 3;
+	bool enable : 1;
+	uint16_t : 8;
+} reg_sound_control_master_t;
+
+[[gnu::unused]]
+static reg_sound_control_master_t REG_SOUND_ENABLE = {.enable = true};
+
+struct reg_sound_master {
+	reg_sound_control_dmg_t L;
+	reg_sound_control_direct_t H;
+	reg_sound_control_master_t X;
+	uint16_t : 16;
+};
+
+typedef struct {
+	uint16_t : 1;
+	uint16_t bias_level : 9;
+	uint16_t : 4;
+	uint16_t amplitude_resolution : 2;
+} reg_sound_bias_t;
+
+struct reg_sound_bias {
+	reg_sound_bias_t bias;
+	uint16_t : 16;
+	uint16_t : 16;
+	uint16_t : 16;
+};
+
+struct reg_sound {
+	struct reg_sound_1 _1;
+	struct reg_sound_2 _2;
+	struct reg_sound_3 _3;
+	struct reg_sound_4 _4;
+	struct reg_sound_master master;
+	struct reg_sound_bias bias;
+	uint16_t wave_ram[8];
+	uint32_t channel_A;
+	uint32_t channel_B;
+};
+
+extern volatile struct reg_sound reg_sound;
+
+// DMA Registers
 
 typedef enum {
 	DMA_ADDR_INCREMENT = 0,

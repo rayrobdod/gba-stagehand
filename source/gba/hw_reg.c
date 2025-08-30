@@ -3,6 +3,9 @@
 __attribute__((section(".hw_reg.lcd"), used))
 volatile reg_lcd_t reg_lcd;
 
+[[gnu::section(".hw_reg.sound"), gnu::used]]
+volatile struct reg_sound reg_sound;
+
 __attribute__((section(".hw_reg.dma"), used))
 volatile struct reg_dma reg_dma[4];
 
