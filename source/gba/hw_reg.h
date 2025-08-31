@@ -41,7 +41,7 @@ enum bgcnt_size {
 typedef struct {
 	uint8_t priority: 2;
 	uint8_t charblock : 2;
-	uint8_t unused: 2;
+	uint8_t : 2;
 	bool mosaic: 1;
 	palette_mode_t palette_mode: 1;
 	uint8_t screenblock: 5;
@@ -56,7 +56,7 @@ typedef struct {
 	bool vblank_enable: 1;
 	bool hblank_enable: 1;
 	bool vcounter_enable: 1;
-	uint8_t _unused: 2;
+	uint8_t : 2;
 	uint16_t vcounter: 8;
 } dispstat_t;
 
@@ -77,8 +77,8 @@ typedef struct {
 	bool bg3: 1;
 	bool obj: 1;
 	bool color_special: 1;
-	bool _unused6: 1;
-	bool _unused7: 1;
+	bool : 1;
+	bool : 1;
 } window_enable_t;
 
 typedef struct {
@@ -86,7 +86,7 @@ typedef struct {
 	window_enable_t win1;
 } window_enable_pair_t;
 
-__attribute__((unused))
+[[gnu::unused]]
 static window_enable_t WIN_ENABLE_ALL = {true, true, true, true, true, true};
 
 struct bgofs {
@@ -94,9 +94,9 @@ struct bgofs {
 	uint16_t v;
 };
 
-typedef struct {
+struct reg_lcd {
 	dispcnt_t DISPCNT;	/* 4000000 */
-	uint16_t _unused0;	/* 4000002 */
+	uint16_t : 16;	/* 4000002 */
 	dispstat_t DISPSTAT;	/* 4000004 */
 	uint16_t VCOUNT;	/* 4000006 */
 	bgcnt_t BGCNT[4];	/* 4000008 */
@@ -120,13 +120,13 @@ typedef struct {
 	window_enable_pair_t WININ;	/* 4000048 */
 	window_enable_pair_t WINOUT;	/* 400004A */
 	uint16_t MOSAIC;	/* 400004C */
-	uint16_t _unused2;	/* 400004E */
+	uint16_t : 16;	/* 400004E */
 	uint16_t BLDCNT;	/* 4000050 */
 	uint16_t BLDALPHA;	/* 4000052 */
 	uint16_t BLDY;	/* 4000054 */
-} reg_lcd_t;
+};
 
-extern volatile reg_lcd_t reg_lcd;
+extern volatile struct reg_lcd reg_lcd;
 
 // Sound Registers
 
@@ -376,12 +376,12 @@ typedef struct {
 	uint16_t _padding2: 8;
 } timer_control_t;
 
-struct timer {
+struct reg_timer {
 	uint16_t counter;
 	timer_control_t control;
 };
 
-extern volatile struct timer reg_timer[4]; /* 4000100 */
+extern volatile struct reg_timer reg_timer[4]; /* 4000100 */
 
 #if 0
 Serial Communication (1)
@@ -426,17 +426,17 @@ typedef struct {
 	bool down : 1;
 	bool r : 1;
 	bool l : 1;
-	unsigned char _unused : 4;
+	unsigned char  : 4;
 	bool enable : 1;
 	keypad_condition_t condition : 1;
 } keypad_control_t;
 
-typedef struct {
+struct reg_keypad {
 	keypad_t KEYINPUT;	/* 4000130 */
 	keypad_control_t KEYCNT;	/* 4000132 */
-} reg_keypad_t;
+};
 
-extern volatile reg_keypad_t reg_keypad;
+extern volatile struct reg_keypad reg_keypad;
 
 #if 0
 
@@ -452,14 +452,14 @@ Serial Communication (2)
   uint16_t JOYSTAT;	/* 4000158 */
 #endif
 
-typedef struct {
+struct reg_interrupt {
   interrupt_flag_t IE;	/* 4000200 */
   interrupt_flag_t IF;	/* 4000202 */
   uint16_t WAITCNT;	/* 4000204 */
-  uint16_t _unused3;	/* 4000206 */
+  uint16_t : 16;	/* 4000206 */
   uint16_t IME;	/* 4000208 */
-} reg_interrupt_t;
+};
 
-extern volatile reg_interrupt_t reg_interrupt;
+extern volatile struct reg_interrupt reg_interrupt;
 
 #endif        //  #ifndef HW_REG_H

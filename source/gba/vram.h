@@ -17,7 +17,7 @@ typedef uint16_t tile_4bpp_t[8 * 8 * 4 / 16];
 typedef bg_tile_t screenblock_t[0x400];
 typedef tile_4bpp_t charblock_t[0x200];
 
-typedef union {
+union vram {
 	screenblock_t screenblock[32];
 	struct {
 		charblock_t bg_charblock[4];
@@ -25,8 +25,8 @@ typedef union {
 	};
 
 	rgb_t mode3[160][240];
-} vram_t;
+};
 
-extern volatile vram_t vram;
+extern volatile union vram vram;
 
 #endif
