@@ -94,6 +94,36 @@ struct bgofs {
 	uint16_t v;
 };
 
+enum color_effect {
+	COLOR_EFFECT_NONE = 0,
+	COLOR_EFFECT_BLEND = 1,
+	COLOR_EFFECT_BRIGHTEN = 2,
+	COLOR_EFFECT_DARKEN = 3,
+};
+
+typedef struct {
+	bool a_bg0 : 1;
+	bool a_bg1 : 1;
+	bool a_bg2 : 1;
+	bool a_bg3 : 1;
+	bool a_obj : 1;
+	bool a_backdrop : 1;
+	enum color_effect color_effect : 2;
+	bool b_bg0 : 1;
+	bool b_bg1 : 1;
+	bool b_bg2 : 1;
+	bool b_bg3 : 1;
+	bool b_obj : 1;
+	bool b_backdrop : 1;
+} bldcnt_t;
+
+typedef struct {
+	uint16_t a : 5;
+	uint16_t : 3;
+	uint16_t b : 5;
+	uint16_t : 3;
+} bldalpha_t;
+
 struct reg_lcd {
 	dispcnt_t DISPCNT;	/* 4000000 */
 	uint16_t : 16;	/* 4000002 */
@@ -121,8 +151,8 @@ struct reg_lcd {
 	window_enable_pair_t WINOUT;	/* 400004A */
 	uint16_t MOSAIC;	/* 400004C */
 	uint16_t : 16;	/* 400004E */
-	uint16_t BLDCNT;	/* 4000050 */
-	uint16_t BLDALPHA;	/* 4000052 */
+	bldcnt_t BLDCNT;	/* 4000050 */
+	bldalpha_t BLDALPHA;	/* 4000052 */
 	uint16_t BLDY;	/* 4000054 */
 };
 

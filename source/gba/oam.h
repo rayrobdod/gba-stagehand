@@ -5,6 +5,12 @@
 #include <stdbool.h>
 #include "gba/shared.h"
 
+enum oam_mode {
+	OAM_MODE_NORMAL = 0,
+	OAM_MODE_BLEND = 1,
+	OAM_MODE_WINDOW = 2,
+};
+
 enum oam_shape {
 	OAM_SHAPE_SQUARE = 0,
 	OAM_SHAPE_HORIZONTAL = 1,
@@ -18,7 +24,7 @@ typedef struct {
 		bool disabled : 1;
 	//	bool double_sized : 1;
 	//};
-	unsigned int mode : 2;
+	enum oam_mode mode : 2;
 	bool mosaic: 1;
 	palette_mode_t palette_mode : 1;
 	enum oam_shape shape : 2;
