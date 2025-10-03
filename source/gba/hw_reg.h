@@ -177,9 +177,16 @@ enum envelope_direction {
 	ENVELOPE_INCREASE = 1,
 };
 
+enum pattern_duty {
+	WAVE_DUTY_12 = 0,
+	WAVE_DUTY_25 = 1,
+	WAVE_DUTY_50 = 2,
+	WAVE_DUTY_75 = 3,
+};
+
 typedef struct {
 	uint16_t length : 6;
-	uint16_t pattern_duty : 2;
+	enum pattern_duty pattern_duty : 2;
 	uint16_t step_time : 3;
 	enum envelope_direction direction : 1;
 	uint16_t volume : 4;

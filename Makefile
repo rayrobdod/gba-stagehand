@@ -81,6 +81,7 @@ ROM		:= $(NAME).gba
 MAP		:= $(NAME).map
 SYM		:= $(NAME).sym
 
+DMGNOTES	:= tools/dmg_notes/dmg_notes
 GBAFIX	:= tools/gbafix/gbafix
 GFXC	:= tools/gfxc/gfxc
 METADATA	:= tools/metadata/metadata
@@ -284,6 +285,9 @@ $(TESTREPORTDIR)/%.txt : $(TESTEXEDIR)/%.elf
 
 .PHONY: all clean dump sym generated_headers
 
+$(DMGNOTES): $(wildcard tools/dmg_notes/*.c) $(wildcard tools/dmg_notes/*.h) $(wildcard tools/dmg_notes/*.cpp)
+	$(V)cd tools/dmg_notes && $(MAKE)
+
 $(GBAFIX): $(wildcard tools/gbafix/*.c)
 	$(V)cd tools/gbafix && $(MAKE)
 
@@ -292,6 +296,35 @@ $(GFXC): $(wildcard tools/gfxc/*.c) $(wildcard tools/gfxc/*.cpp) $(wildcard tool
 
 $(METADATA): $(wildcard tools/metadata/*.c) $(wildcard tools/metadata/*.h) $(wildcard tools/metadata/*.cpp) $(wildcard tools/gfxc/object.cpp) $(wildcard tools/gfxc/object.hpp)
 	$(V)cd tools/metadata && $(MAKE)
+
+generated_headers: $(BUILDSRCDIR)/dmg_music.h
+$(BUILDSRCDIR)/dmg_music.h &: $(DMGNOTES)
+	@echo "  DMG_NOTES --note-numbers"
+	@$(MKDIR) -p $(BUILDSRCDIR)
+	$(V)$(DMGNOTES) --note-numbers >$@
+
+OBJS += $(BUILDOBJDIR)/dmg_music/frequencies.c.o
+$(BUILDSRCDIR)/dmg_music/frequencies.c &: $(DMGNOTES)
+	@echo "  DMG_NOTES --frequencies"
+	@$(MKDIR) -p $(@D) # Build target's directory if it doesn't exist
+	$(V)$(DMGNOTES) --frequencies >$@
+
+$(BUILDOBJDIR)/dmg_music/frequencies.c.o : $(BUILDSRCDIR)/dmg_music/frequencies.c | generated_headers
+	@echo "  CC      $<"
+	@$(MKDIR) -p $(@D) # Build target's directory if it doesn't exist
+	$(V)$(CC) $(CFLAGS) -MMD -MP -c -o $@ $<
+
+OBJS += $(BUILDOBJDIR)/dmg_music/staff_position.c.o
+$(BUILDSRCDIR)/dmg_music/staff_position.c &: $(DMGNOTES)
+	@echo "  DMG_NOTES --staff-position"
+	@$(MKDIR) -p $(@D) # Build target's directory if it doesn't exist
+	$(V)$(DMGNOTES) --staff-position >$@
+
+$(BUILDOBJDIR)/dmg_music/staff_position.c.o : $(BUILDSRCDIR)/dmg_music/staff_position.c | generated_headers
+	@echo "  CC      $<"
+	@$(MKDIR) -p $(@D) # Build target's directory if it doesn't exist
+	$(V)$(CC) $(CFLAGS) -MMD -MP -c -o $@ $<
+
 
 generated_headers: $(BUILDSRCDIR)/graphics.h
 OBJS += $(BUILDOBJDIR)/graphics.o

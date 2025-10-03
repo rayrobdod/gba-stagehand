@@ -8,6 +8,7 @@
 #include "management/shadow_oam.h"
 #include "management/vram_op_queue.h"
 #include "scene/brick_break.h"
+#include "scene/dmg_music_using_notation.h"
 #include "scene/display_credits.h"
 #include "scene/gradient.h"
 #include "scene/mode3.h"
@@ -57,6 +58,10 @@ static const struct {
 	{
 		.label = "Parallax Mountain Dusk",
 		.startFn = &MainCB_parallaxMountainDusk,
+	},
+	{
+		.label = "DMG Music",
+		.cb = &MainCB_dmgMusicUsingNotation_init,
 	},
 	{
 		.label = "Gradient",
