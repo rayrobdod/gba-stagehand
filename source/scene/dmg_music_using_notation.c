@@ -568,8 +568,10 @@ enum note_symbol_fragments {
 	HALF_REST,
 	QUARTER_REST,
 	EIGHTH_REST,
-	TERMINATOR = 0xFF
+	NOTE_SYMBOL_MAX_PLUS_ONE
 };
+
+_Static_assert(NOTE_SYMBOL_MAX_PLUS_ONE <= 16, "note_symbols and rest_symbols bitsets are u16, but need to store more than 16 items");
 
 static const struct {
 	int8_t dx;
@@ -577,7 +579,7 @@ static const struct {
 	uint8_t tile_num;
 	enum oam_shape shape : 4;
 	uint8_t size : 4;
-} note_symbol_fragments[] = {
+} note_symbol_fragments[NOTE_SYMBOL_MAX_PLUS_ONE] = {
 	[HOLLOW_HEAD] = {
 		.dx = -4,
 		.dy = -4,
@@ -650,71 +652,48 @@ static const struct {
 	},
 };
 
-typedef enum note_symbol_fragments symfrag;
-static const enum note_symbol_fragments* note_symbols[] = {
-	[NOTE_LENGTH_WHOLE] = (symfrag[]) {HOLLOW_HEAD, TERMINATOR},
-	[NOTE_LENGTH_HALF] = (symfrag[]) {HOLLOW_HEAD, STEM, TERMINATOR},
-	[NOTE_LENGTH_QUARTER] = (symfrag[]) {FILLED_HEAD, STEM, TERMINATOR},
-	[NOTE_LENGTH_EIGHTH + NOTE_LENGTH_SIXTEENTH] = (symfrag[]) {FILLED_HEAD, DOT, STEM, FLAG, TERMINATOR},
-	[NOTE_LENGTH_EIGHTH] = (symfrag[]) {FILLED_HEAD, STEM, FLAG, TERMINATOR},
-	[NOTE_LENGTH_SIXTEENTH] = (symfrag[]) {FILLED_HEAD, STEM, FLAG, FLAG2, TERMINATOR},
+static const uint16_t note_symbols[] = {
+	[NOTE_LENGTH_WHOLE] = 1 << HOLLOW_HEAD,
+	[NOTE_LENGTH_HALF] = 1 << HOLLOW_HEAD | 1 << STEM,
+	[NOTE_LENGTH_QUARTER] = 1 << FILLED_HEAD | 1 << STEM,
+	[NOTE_LENGTH_EIGHTH + NOTE_LENGTH_SIXTEENTH] = 1 << FILLED_HEAD | 1 << DOT | 1 << STEM | 1 << FLAG,
+	[NOTE_LENGTH_EIGHTH] = 1 << FILLED_HEAD | 1 << STEM | 1 << FLAG,
+	[NOTE_LENGTH_SIXTEENTH] = 1 << FILLED_HEAD | 1 << STEM | 1 << FLAG | 1 << FLAG2,
 };
-static const enum note_symbol_fragments* rest_symbols[] = {
-	[NOTE_LENGTH_WHOLE] = (symfrag[]) {WHOLE_REST, TERMINATOR},
-	[NOTE_LENGTH_HALF] = (symfrag[]) {HALF_REST, TERMINATOR},
-	[NOTE_LENGTH_QUARTER] = (symfrag[]) {QUARTER_REST, TERMINATOR},
-	[NOTE_LENGTH_EIGHTH] = (symfrag[]) {EIGHTH_REST, TERMINATOR},
+static const uint16_t rest_symbols[] = {
+	[NOTE_LENGTH_WHOLE] = 1 << WHOLE_REST,
+	[NOTE_LENGTH_HALF] = 1 << HALF_REST,
+	[NOTE_LENGTH_QUARTER] = 1 << QUARTER_REST,
+	[NOTE_LENGTH_EIGHTH] = 1 << EIGHTH_REST,
 };
 
 static unsigned draw_note(unsigned sprite_start, struct note note, unsigned x) {
 	unsigned sprite_i = sprite_start;
 
-	const uint8_t* my_note_symbols = (note.pitch == PITCH_REST ? rest_symbols : note_symbols )[note.length];
+	const uint16_t my_note_symbols = (note.pitch == PITCH_REST ? rest_symbols : note_symbols )[note.length];
 	unsigned y = staff_positions[note.pitch];
 
-	if (NULL == my_note_symbols) {
-		vram_op_queue_enqueue((struct vram_op) {
-			.type = VRAM_QUEUE_OP_OAM_ENTRY,
-			.oam = {
-				.to_index = sprite_i++,
-				.value = {
-					.y = y,
-					.x = x,
-					.disabled = false,
-					.mode = OAM_MODE_NORMAL,
-					.mosaic = false,
-					.palette_mode = PAL_MODE_4BPP,
-					.shape = OAM_SHAPE_SQUARE,
-					.size = 0,
-					.tile_num = 0,
-					.priority = 0,
-					.palette_num = 0,
-				}
-			}
-		});
-	} else {
-		unsigned part_i = 0;
-		while (my_note_symbols[part_i] != TERMINATOR) {
+	for (unsigned part_i = 0; part_i < NOTE_SYMBOL_MAX_PLUS_ONE; part_i++) {
+		if (my_note_symbols & (1 << part_i)) {
 			vram_op_queue_enqueue((struct vram_op) {
 				.type = VRAM_QUEUE_OP_OAM_ENTRY,
 				.oam = {
 					.to_index = sprite_i++,
 					.value = {
-						.y = y + note_symbol_fragments[my_note_symbols[part_i]].dy,
-						.x = x + note_symbol_fragments[my_note_symbols[part_i]].dx,
+						.y = y + note_symbol_fragments[part_i].dy,
+						.x = x + note_symbol_fragments[part_i].dx,
 						.disabled = false,
 						.mode = OAM_MODE_NORMAL,
 						.mosaic = false,
 						.palette_mode = PAL_MODE_4BPP,
-						.shape = note_symbol_fragments[my_note_symbols[part_i]].shape,
-						.size = note_symbol_fragments[my_note_symbols[part_i]].size,
-						.tile_num = note_symbol_fragments[my_note_symbols[part_i]].tile_num,
+						.shape = note_symbol_fragments[part_i].shape,
+						.size = note_symbol_fragments[part_i].size,
+						.tile_num = note_symbol_fragments[part_i].tile_num,
 						.priority = 0,
 						.palette_num = 0,
 					}
 				}
 			});
-			part_i++;
 		}
 	}
 

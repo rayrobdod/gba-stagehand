@@ -364,6 +364,10 @@ $(TESTEXEDIR)/bench_parallax_mountain.elf : $(BUILDOBJDIR)/graphics.o
 $(TESTEXEDIR)/bench_parallax_mountain.elf : $(BUILDOBJDIR)/scene/parallax_mountain_dusk.c.o
 $(TESTEXEDIR)/bench_decompress.elf : $(patsubst $(GRAPHICSDIR)/%.png,$(TESTOBJDIR)/%.png.o,$(SOURCES_PNG))
 $(TESTEXEDIR)/bench_decompress.elf : $(TESTOBJDIR)/trivial_decompression.o
+$(TESTEXEDIR)/bench_dmgMusicUsingNotation.elf : $(BUILDOBJDIR)/graphics.o
+$(TESTEXEDIR)/bench_dmgMusicUsingNotation.elf : $(BUILDOBJDIR)/scene/dmg_music_using_notation.c.o
+$(TESTEXEDIR)/bench_dmgMusicUsingNotation.elf : $(BUILDOBJDIR)/dmg_music/frequencies.c.o
+$(TESTEXEDIR)/bench_dmgMusicUsingNotation.elf : $(BUILDOBJDIR)/dmg_music/staff_position.c.o
 
 check_host: $(patsubst $(HOSTEXEDIR)/%,$(HOSTREPORTDIR)/%.txt,$(HOST_RUNNERS))
 	@:
