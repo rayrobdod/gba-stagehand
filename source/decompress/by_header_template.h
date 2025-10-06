@@ -11,6 +11,8 @@ static UnCompFn CAT(UnCompFn, XRAM)(unsigned magic) {
 		return &HuffUnComp;
 	case 0x30:
 		return &CAT(RLUnComp, XRAM);
+	case 0x31:
+		return &RlZeroUnComp;
 	case 0x41:
 		return &CAT(Frit8UnComp, XRAM);
 	case 0x42:

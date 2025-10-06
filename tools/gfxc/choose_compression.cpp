@@ -10,12 +10,14 @@
 #include "compression/huff.hpp"
 #include "compression/lz.hpp"
 #include "compression/rl.hpp"
+#include "compression/rlzero.hpp"
 
 using namespace std::string_view_literals;
 const std::initializer_list<choosable_compression> compression_algs = {
 	{"LZ"sv,	&compressLz,	&decompressLz,},
 	{"LZ11"sv,	&compressLz11,	&decompressLz11,},
 	{"RL"sv,	&compressRl,	&decompressRl,},
+	{"RLZero"sv,	&compressRlZero,	&decompressRlZero,},
 	{"FRIT16"sv,	&compressFrit16,	&decompressFrit16,},
 	{"FRIT8"sv,	&compressFrit8,	&decompressFrit8,},
 	{"Huff8"sv,	&compressHuff8,	&decompressHuff8,},

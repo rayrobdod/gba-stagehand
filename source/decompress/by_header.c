@@ -5,6 +5,7 @@
 #include "decompress/frit.h"
 #include "decompress/identity.h"
 #include "decompress/lz11.h"
+#include "decompress/rlzero.h"
 #include "decompress/type.h"
 #include "gba/bios.h"
 #include "mgba.h"
