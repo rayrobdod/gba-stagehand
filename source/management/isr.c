@@ -6,7 +6,6 @@
 #include "gba/hw_reg_cast.h"
 #include "mgba.h"
 
-__attribute__((section(".iwram.isr_table")))
 static isr isr_table[II_COUNT] = {0};
 
 __attribute__((noinline))
