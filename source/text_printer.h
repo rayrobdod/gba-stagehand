@@ -19,7 +19,7 @@ typedef struct {
 	uint8_t shadow : 4;
 	uint8_t dark : 4;
 	bool write_background : 1;
-	uint16_t _padding : 15;
+	uint16_t : 15;
 } font_colors_t;
 
 enum text_print_step_retval {

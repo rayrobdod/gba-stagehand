@@ -49,13 +49,13 @@ static void profile_start() {
 	reg_timer[2].control = (timer_control_t) {0};
 	reg_timer[3].control = (timer_control_t) {0};
 	reg_timer[3].control = (timer_control_t) {
-		.timer_enable = true,
+		0,
 		.cascade = true,
-		0
+		.timer_enable = true,
 	};
 	reg_timer[2].control = (timer_control_t) {
+		0,
 		.timer_enable = true,
-		0
 	};
 }
 

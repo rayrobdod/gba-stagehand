@@ -407,10 +407,10 @@ enum timer_prescaler {
 typedef struct {
 	enum timer_prescaler prescaler: 2;
 	bool cascade: 1;
-	uint16_t _padding1: 3;
+	uint16_t : 3;
 	bool irq_enable : 1;
 	bool timer_enable : 1;
-	uint16_t _padding2: 8;
+	uint16_t : 8;
 } timer_control_t;
 
 struct reg_timer {
