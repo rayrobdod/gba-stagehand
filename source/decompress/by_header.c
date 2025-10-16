@@ -16,6 +16,13 @@
 
 typedef void (*UnCompFn)(const struct CompressedData*, volatile void*);
 
+typedef bool (*UnCompSuspendableFn)(struct suspended_decompression*);
+
+typedef void (*UnCompSuspendableInitFn)(
+	struct suspended_decompression*,
+	const struct CompressedData*,
+	volatile void*);
+
 #define XRAM Vram
 #include "decompress/by_header_template.h"
 #undef XRAM
@@ -23,3 +30,47 @@ typedef void (*UnCompFn)(const struct CompressedData*, volatile void*);
 #define XRAM Wram
 #include "decompress/by_header_template.h"
 #undef XRAM
+
+static UnCompSuspendableFn MagicToUnCompSuspendable(unsigned magic) {
+	switch (magic) {
+	case 0x11:
+		return &LZ11UnCompSuspendable;
+	default:
+		return NULL;
+	}
+}
+
+bool HeaderUnCompSuspendable(struct suspended_decompression* state) {
+	const uint8_t magic = state->magic;
+	UnCompSuspendableFn fn = MagicToUnCompSuspendable(magic);
+
+	if (fn) {
+		return fn(state);
+	} else {
+		MgbaPrintf(MGBA_LOG_FATAL, "Unknown compression magic: %02x", magic);
+		return true;
+	}
+}
+
+static UnCompSuspendableInitFn MagicToUnCompSuspendableInit(unsigned magic) {
+	switch (magic) {
+	case 0x11:
+		return &LZ11UnCompSuspendableInit;
+	default:
+		return NULL;
+	}
+}
+
+void HeaderUnCompSuspendableInit(
+		struct suspended_decompression* state,
+		const struct CompressedData* src,
+		volatile void* dest) {
+	const uint8_t magic = src->magic;
+	UnCompSuspendableInitFn fn = MagicToUnCompSuspendableInit(magic);
+
+	if (fn) {
+		fn(state, src, dest);
+	} else {
+		MgbaPrintf(MGBA_LOG_FATAL, "Unknown compression magic: %02x", magic);
+	}
+}

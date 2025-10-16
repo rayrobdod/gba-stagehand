@@ -1,8 +1,9 @@
 #include "decompress/lz11.h"
 
-#include <stdbool.h>
 #include <stdint.h>
 #include "decompress/type.h"
+#include "gba/hw_reg.h"
+#include "gba/screen.h"
 #include "mgba.h"
 
 static inline void parseCopyInstruction(unsigned* width, unsigned* distance, const uint8_t** src8) {
@@ -129,4 +130,42 @@ void LZ11UnCompWram(const struct CompressedData* src, volatile void* dest) {
 			}
 		}
 	}
+}
+
+bool LZ11UnCompSuspendable(struct suspended_decompression* state) {
+	while (state->dest < state->dest_end && (reg_lcd.VCOUNT < (DISPLAY_HEIGHT - 15) || reg_lcd.VCOUNT > DISPLAY_HEIGHT)) {
+		unsigned flags = *((state->src)++);
+
+		for (int i = 7; i >= 0; --i) {
+			if (state->dest >= state->dest_end)
+				return true;
+
+			if (flags & (1 << i)) {
+				unsigned width;
+				unsigned distance;
+
+				parseCopyInstruction(&width, &distance, &state->src);
+
+				volatile uint8_t* from = state->dest - distance;
+				/* ???: How much does speed matter here?
+				for (; width > 7; width -= 8, state->dest += 8, from += 8) {
+					*(state->dest + 0) = *(from + 0);
+					*(state->dest + 1) = *(from + 1);
+					*(state->dest + 2) = *(from + 2);
+					*(state->dest + 3) = *(from + 3);
+					*(state->dest + 4) = *(from + 4);
+					*(state->dest + 5) = *(from + 5);
+					*(state->dest + 6) = *(from + 6);
+					*(state->dest + 7) = *(from + 7);
+				}
+				*/
+				for (; width > 0; --width, ++(state->dest), ++from) {
+					*(state->dest) = *(from);
+				}
+			} else {
+				*((state->dest)++) = *((state->src)++);
+			}
+		}
+	}
+	return state->dest >= state->dest_end;
 }
