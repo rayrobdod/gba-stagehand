@@ -4,6 +4,7 @@
 #include <stdint.h>
 #include "decompress/frit.h"
 #include "decompress/identity.h"
+#include "decompress/lz.h"
 #include "decompress/lz11.h"
 #include "decompress/rlzero.h"
 #include "decompress/type.h"
@@ -33,6 +34,10 @@ typedef void (*UnCompSuspendableInitFn)(
 
 static UnCompSuspendableFn MagicToUnCompSuspendable(unsigned magic) {
 	switch (magic) {
+	case 0x00:
+		return &IdentityUnCompSuspendable;
+	case 0x10:
+		return &LZ77UnCompSuspendable;
 	case 0x11:
 		return &LZ11UnCompSuspendable;
 	default:
@@ -54,6 +59,10 @@ bool HeaderUnCompSuspendable(struct suspended_decompression* state) {
 
 static UnCompSuspendableInitFn MagicToUnCompSuspendableInit(unsigned magic) {
 	switch (magic) {
+	case 0x00:
+		return &IdentityUnCompSuspendableInit;
+	case 0x10:
+		return &LZ77UnCompSuspendableInit;
 	case 0x11:
 		return &LZ11UnCompSuspendableInit;
 	default:

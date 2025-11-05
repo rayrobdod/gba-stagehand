@@ -14,3 +14,12 @@ data:
 struct CompressedData;
 
 void IdentityUnComp(const struct CompressedData* src, volatile void* dest);
+
+#include <stdbool.h>
+struct suspended_decompression;
+
+bool IdentityUnCompSuspendable(struct suspended_decompression*);
+void IdentityUnCompSuspendableInit(
+	struct suspended_decompression*,
+	const struct CompressedData* src,
+	volatile void* dest);

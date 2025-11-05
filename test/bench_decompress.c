@@ -144,7 +144,7 @@ void run_decompress_benchmark(const struct decompression_suite * suite) {
 		++total;
 	}
 
-	if (suite->data->magic == 0x11) {
+	if (suite->data->magic == 0x00 || suite->data->magic == 0x10 || suite->data->magic == 0x11) {
 		struct suspended_decompression state;
 		bool currentTestFailed = false;
 		bool done = false;

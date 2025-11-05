@@ -15,4 +15,10 @@ void CommonUnCompSuspendableInit(struct suspended_decompression* state, const st
 }
 
 [[gnu::alias("CommonUnCompSuspendableInit")]]
+void IdentityUnCompSuspendableInit(struct suspended_decompression* state, const struct CompressedData* src, volatile void* dest);
+
+[[gnu::alias("CommonUnCompSuspendableInit")]]
 void LZ11UnCompSuspendableInit(struct suspended_decompression* state, const struct CompressedData* src, volatile void* dest);
+
+[[gnu::alias("CommonUnCompSuspendableInit")]]
+void LZ77UnCompSuspendableInit(struct suspended_decompression* state, const struct CompressedData* src, volatile void* dest);
