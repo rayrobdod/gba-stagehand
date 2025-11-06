@@ -3,6 +3,7 @@
 #include <stddef.h>
 #include <stdint.h>
 #include "decompress/frit.h"
+#include "decompress/huff.h"
 #include "decompress/identity.h"
 #include "decompress/lz.h"
 #include "decompress/lz11.h"
@@ -40,6 +41,9 @@ static UnCompSuspendableFn MagicToUnCompSuspendable(unsigned magic) {
 		return &LZ77UnCompSuspendable;
 	case 0x11:
 		return &LZ11UnCompSuspendable;
+	case 0x24:
+	case 0x28:
+		return &HuffUnCompSuspendable;
 	default:
 		return NULL;
 	}
@@ -65,6 +69,9 @@ static UnCompSuspendableInitFn MagicToUnCompSuspendableInit(unsigned magic) {
 		return &LZ77UnCompSuspendableInit;
 	case 0x11:
 		return &LZ11UnCompSuspendableInit;
+	case 0x24:
+	case 0x28:
+		return &HuffUnCompSuspendableInit;
 	default:
 		return NULL;
 	}
