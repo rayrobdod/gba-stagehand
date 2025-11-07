@@ -28,3 +28,9 @@ void RLUnCompSuspendableInit(struct suspended_decompression* state, const struct
 
 [[gnu::alias("CommonUnCompSuspendableInit")]]
 void RlZeroUnCompSuspendableInit(struct suspended_decompression* state, const struct CompressedData* src, volatile void* dest);
+
+[[gnu::alias("CommonUnCompSuspendableInit")]]
+void Frit8UnCompSuspendableInit(struct suspended_decompression* state, const struct CompressedData* src, volatile void* dest);
+
+[[gnu::alias("CommonUnCompSuspendableInit")]]
+void Frit16UnCompSuspendableInit(struct suspended_decompression* state, const struct CompressedData* src, volatile void* dest);

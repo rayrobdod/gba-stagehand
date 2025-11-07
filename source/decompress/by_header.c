@@ -49,6 +49,10 @@ static UnCompSuspendableFn MagicToUnCompSuspendable(unsigned magic) {
 		return &RLUnCompSuspendable;
 	case 0x31:
 		return &RlZeroUnCompSuspendable;
+	case 0x41:
+		return &Frit8UnCompSuspendable;
+	case 0x42:
+		return &Frit16UnCompSuspendable;
 	default:
 		return NULL;
 	}
@@ -81,6 +85,10 @@ static UnCompSuspendableInitFn MagicToUnCompSuspendableInit(unsigned magic) {
 		return &RLUnCompSuspendableInit;
 	case 0x31:
 		return &RlZeroUnCompSuspendableInit;
+	case 0x41:
+		return &Frit8UnCompSuspendableInit;
+	case 0x42:
+		return &Frit16UnCompSuspendableInit;
 	default:
 		return NULL;
 	}
