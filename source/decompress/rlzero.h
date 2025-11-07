@@ -10,4 +10,18 @@ frame:
 
 */
 
+#include <stdbool.h>
+
+struct CompressedData;
+
 void RlZeroUnComp(const struct CompressedData* src, volatile void* dest);
+
+struct suspended_decompression;
+
+bool RlZeroUnCompSuspendable(struct suspended_decompression*);
+
+[[gnu::access(write_only, 1), gnu::access(read_only, 2), gnu::access(write_only, 3)]]
+void RlZeroUnCompSuspendableInit(
+	struct suspended_decompression*,
+	const struct CompressedData* src,
+	volatile void* dest);

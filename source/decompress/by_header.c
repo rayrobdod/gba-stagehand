@@ -7,6 +7,7 @@
 #include "decompress/identity.h"
 #include "decompress/lz.h"
 #include "decompress/lz11.h"
+#include "decompress/rl.h"
 #include "decompress/rlzero.h"
 #include "decompress/type.h"
 #include "gba/bios.h"
@@ -44,6 +45,10 @@ static UnCompSuspendableFn MagicToUnCompSuspendable(unsigned magic) {
 	case 0x24:
 	case 0x28:
 		return &HuffUnCompSuspendable;
+	case 0x30:
+		return &RLUnCompSuspendable;
+	case 0x31:
+		return &RlZeroUnCompSuspendable;
 	default:
 		return NULL;
 	}
@@ -72,6 +77,10 @@ static UnCompSuspendableInitFn MagicToUnCompSuspendableInit(unsigned magic) {
 	case 0x24:
 	case 0x28:
 		return &HuffUnCompSuspendableInit;
+	case 0x30:
+		return &RLUnCompSuspendableInit;
+	case 0x31:
+		return &RlZeroUnCompSuspendableInit;
 	default:
 		return NULL;
 	}
