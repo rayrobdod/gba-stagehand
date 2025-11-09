@@ -207,10 +207,52 @@ static void MainCB_parallaxMountainDusk_initFadeSolid(void) {
 		},
 	});
 
+	bg_tile_t* map_far = malloc(sizeof(bg_tile_t) * 20 * 32);
+	bg_tile_t* map_mountains = malloc(sizeof(bg_tile_t) * 20 * 32);
+	bg_tile_t* map_trees = malloc(sizeof(bg_tile_t) * 20 * 32);
+
+	if (!map_far || !map_mountains || !map_trees) {
+		MgbaPrintf(MGBA_LOG_ERROR, "Out of memory: parallaxMountainDusk map_far");
+		exit(1);
+	}
+
+	for (unsigned i = 0; i < 20 * 32; i++) {
+		map_far[i] = (bg_tile_t) {transparent_tile_index};
+		map_mountains[i] = (bg_tile_t) {transparent_tile_index};
+		map_trees[i] = (bg_tile_t) {transparent_tile_index};
+	}
+
+	for (unsigned x = MOUNTAINFAR_INITIAL_OFFSET; x < DISPLAY_WIDTH_TILES + 1; x++) {
+		for (unsigned y = 0; y < parallax_mountain_dusk_mountain_far.tilemap_height; y++) {
+			unsigned to_y = DISPLAY_HEIGHT_TILES - parallax_mountain_dusk_mountain_far.tilemap_height + y;
+
+			map_far[x + 32 * to_y] = parallax_mountain_dusk_mountain_far.tilemap[
+				(x - MOUNTAINFAR_INITIAL_OFFSET) * parallax_mountain_dusk_mountain_far.tilemap_height + y];
+		}
+	}
+
+	for (unsigned x = 0; x < DISPLAY_WIDTH_TILES + 1; x++) {
+		for (unsigned y = 0; y < parallax_mountain_dusk_mountains.tilemap_height; y++) {
+			unsigned to_y = DISPLAY_HEIGHT_TILES - parallax_mountain_dusk_mountains.tilemap_height + y;
+
+			map_mountains[x + 32 * to_y] = parallax_mountain_dusk_mountains.tilemap[
+				(x - MOUNTAINS_INITIAL_OFFSET) * parallax_mountain_dusk_mountains.tilemap_height + y];
+		}
+	}
+
+	for (unsigned x = 0; x < DISPLAY_WIDTH_TILES + 1; x++) {
+		for (unsigned y = 0; y < parallax_mountain_dusk_trees.tilemap_height; y++) {
+			unsigned to_y = 20 - parallax_mountain_dusk_trees.tilemap_height + y;
+
+			map_trees[x + 32 * to_y] = parallax_mountain_dusk_trees.tilemap[
+				x * parallax_mountain_dusk_trees.tilemap_height + y];
+		}
+	}
+
 	vram_op_queue_enqueue((struct vram_op) {
-		.type = VRAM_QUEUE_OP_BG_MAP_FILL,
-		.map_fill = {
-			.value = {transparent_tile_index},
+		.type = VRAM_QUEUE_OP_BG_MAP_FREE,
+		.map_free = {
+			.from = map_far,
 			.to_block = MOUNTAIN_FAR_SCREENBLOCK,
 			.to_tile = 0,
 			.count = 20 * 32,
@@ -218,59 +260,24 @@ static void MainCB_parallaxMountainDusk_initFadeSolid(void) {
 	});
 
 	vram_op_queue_enqueue((struct vram_op) {
-		.type = VRAM_QUEUE_OP_BG_MAP_FILL,
-		.map_fill = {
-			.value = {transparent_tile_index},
+		.type = VRAM_QUEUE_OP_BG_MAP_FREE,
+		.map_free = {
+			.from = map_mountains,
 			.to_block = MOUNTAINS_SCREENBLOCK,
 			.to_tile = 0,
-			.count = (20 - parallax_mountain_dusk_mountains.tilemap_height) * 32,
+			.count = 20 * 32,
 		},
 	});
 
 	vram_op_queue_enqueue((struct vram_op) {
-		.type = VRAM_QUEUE_OP_BG_MAP_FILL,
-		.map_fill = {
-			.value = {transparent_tile_index},
+		.type = VRAM_QUEUE_OP_BG_MAP_FREE,
+		.map_free = {
+			.from = map_trees,
 			.to_block = TREES_SCREENBLOCK,
 			.to_tile = 0,
-			.count = (20 - parallax_mountain_dusk_trees.tilemap_height) * 32,
+			.count = 20 * 32,
 		},
 	});
-
-	for (unsigned x = 0; x < DISPLAY_WIDTH_TILES + 1; x++) {
-		if (x >= MOUNTAINFAR_INITIAL_OFFSET) {
-			vram_op_queue_enqueue((struct vram_op) {
-				.type = VRAM_QUEUE_OP_BG_MAP_COLUMN,
-				.map = {
-					.from = parallax_mountain_dusk_mountain_far.tilemap + (x - MOUNTAINFAR_INITIAL_OFFSET) * parallax_mountain_dusk_mountain_far.tilemap_height,
-					.to_block = MOUNTAIN_FAR_SCREENBLOCK,
-					.to_tile = x + (20 - parallax_mountain_dusk_mountain_far.tilemap_height) * 32,
-					.count = parallax_mountain_dusk_mountain_far.tilemap_height,
-				},
-			});
-		}
-
-		unsigned mountains_source_x = (x + parallax_mountain_dusk_mountains.tilemap_width - MOUNTAINS_INITIAL_OFFSET) % parallax_mountain_dusk_mountains.tilemap_width;
-		vram_op_queue_enqueue((struct vram_op) {
-			.type = VRAM_QUEUE_OP_BG_MAP_COLUMN,
-			.map = {
-				.from = parallax_mountain_dusk_mountains.tilemap + mountains_source_x * parallax_mountain_dusk_mountains.tilemap_height,
-				.to_block = MOUNTAINS_SCREENBLOCK,
-				.to_tile = x + (20 - parallax_mountain_dusk_mountains.tilemap_height) * 32,
-				.count = parallax_mountain_dusk_mountains.tilemap_height,
-			},
-		});
-
-		vram_op_queue_enqueue((struct vram_op) {
-			.type = VRAM_QUEUE_OP_BG_MAP_COLUMN,
-			.map = {
-				.from = parallax_mountain_dusk_trees.tilemap + x * parallax_mountain_dusk_trees.tilemap_height,
-				.to_block = TREES_SCREENBLOCK,
-				.to_tile = x + (20 - parallax_mountain_dusk_trees.tilemap_height) * 32,
-				.count = parallax_mountain_dusk_trees.tilemap_height,
-			},
-		});
-	}
 
 	vram_op_queue_enqueue((struct vram_op) {
 		.type = VRAM_QUEUE_OP_DISABLE_ALL_OAM,
