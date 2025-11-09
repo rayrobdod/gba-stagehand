@@ -33,10 +33,19 @@ struct tree_sprite {
 	int16_t offset;
 };
 
-[[gnu::section(".sbss.decompress_tileset_buffer")]]
-static tile_4bpp_t* decompress_tileset_buffer = NULL;
+[[gnu::section(".sbss.decompress_bg_tileset_buffer")]]
+static tile_4bpp_t* decompress_bg_tileset_buffer = NULL;
+[[gnu::section(".sbss.decompress_oam_tileset_buffer")]]
+static tile_4bpp_t* decompress_oam_tileset_buffer = NULL;
 [[gnu::section(".sbss.suspended_decompression")]]
 static struct suspended_decompression* decompress_state = NULL;
+
+[[gnu::section(".sbss.suspended_decompression_1")]]
+static enum {
+	SUSPENDED_DECOMP_NONE = 0,
+	SUSPENDED_DECOMP_BG_TILES,
+	SUSPENDED_DECOMP_OAM_TILES,
+} decompress_state_state = SUSPENDED_DECOMP_NONE;
 
 __attribute__((section(".sbss")))
 static struct {
@@ -90,24 +99,40 @@ void MainCB_parallaxMountainDusk(void (*_fadeCb)(void)) {
 	fade_to_initialize(rgb(21, 13, 17));
 	fadeCb = _fadeCb;
 	scene_onframe_callback = &MainCB_parallaxMountainDusk_initFadeOut;
-	decompress_tileset_buffer = calloc((sizeof(tile_4bpp_t) - 1) + (parallax_mountain_dusk_bg.tileset->size / sizeof(tile_4bpp_t)), sizeof(tile_4bpp_t));
+	decompress_bg_tileset_buffer = calloc((sizeof(tile_4bpp_t) - 1) + (parallax_mountain_dusk_bg.tileset->size / sizeof(tile_4bpp_t)), sizeof(tile_4bpp_t));
+	decompress_oam_tileset_buffer = calloc((sizeof(tile_4bpp_t) - 1) + (parallax_mountain_dusk_foreground_trees.tileset->size / sizeof(tile_4bpp_t)), sizeof(tile_4bpp_t));
 	decompress_state = calloc(sizeof(struct suspended_decompression), 1);
-	HeaderUnCompSuspendableInit(decompress_state, parallax_mountain_dusk_bg.tileset, decompress_tileset_buffer);
+	HeaderUnCompSuspendableInit(decompress_state, parallax_mountain_dusk_bg.tileset, decompress_bg_tileset_buffer);
+	decompress_state_state = SUSPENDED_DECOMP_BG_TILES;
 }
 
 static void MainCB_parallaxMountainDusk_initFadeOut(void) {
-	if (fade_step()) {
+	if (fade_step() && decompress_state_state == SUSPENDED_DECOMP_NONE) {
 		scene_onframe_callback = &MainCB_parallaxMountainDusk_initFadeSolid;
 	} else {
-		HeaderUnCompSuspendable(decompress_state);
 		fadeCb();
+		if (decompress_state_state != SUSPENDED_DECOMP_NONE) {
+			if (HeaderUnCompSuspendable(decompress_state)) {
+				switch (decompress_state_state) {
+					case SUSPENDED_DECOMP_BG_TILES:
+						HeaderUnCompSuspendableInit(decompress_state,
+							parallax_mountain_dusk_foreground_trees.tileset, decompress_oam_tileset_buffer);
+						decompress_state_state = SUSPENDED_DECOMP_OAM_TILES;
+						break;
+					case SUSPENDED_DECOMP_OAM_TILES:
+						free(decompress_state);
+						decompress_state = NULL;
+						decompress_state_state = SUSPENDED_DECOMP_NONE;
+						break;
+					case SUSPENDED_DECOMP_NONE:
+						break;
+				}
+			}
+		}
 	}
 }
 
 static void MainCB_parallaxMountainDusk_initFadeSolid(void) {
-	free(decompress_state);
-	decompress_state = NULL;
-
 	view_model = calloc(sizeof(view_model[0]), 1);
 
 	vram_op_queue_enqueue((struct vram_op) {
@@ -151,22 +176,24 @@ static void MainCB_parallaxMountainDusk_initFadeSolid(void) {
 	vram_op_queue_enqueue((struct vram_op) {
 		.type = VRAM_QUEUE_OP_BG_TILES_FREE,
 		.tiles_free = {
-			.from = decompress_tileset_buffer,
+			.from = decompress_bg_tileset_buffer,
 			.to_block = MY_CHARBLOCK,
 			.to_tile = 0,
 			.count = parallax_mountain_dusk_bg.tileset_count,
 		},
 	});
-	decompress_tileset_buffer = NULL;
+	decompress_bg_tileset_buffer = NULL;
 
 	vram_op_queue_enqueue((struct vram_op) {
-		.type = VRAM_QUEUE_OP_OAM_TILES_COMPRESSED,
-		.tiles_compressed = {
-			.from = parallax_mountain_dusk_foreground_trees.tileset,
+		.type = VRAM_QUEUE_OP_OAM_TILES_FREE,
+		.tiles_free = {
+			.from = decompress_oam_tileset_buffer,
 			.to_block = MY_CHARBLOCK,
 			.to_tile = 0,
+			.count = parallax_mountain_dusk_foreground_trees.tileset_count,
 		},
 	});
+	decompress_oam_tileset_buffer = NULL;
 
 	unsigned transparent_tile_index = parallax_mountain_dusk_bg.tileset_count;
 
