@@ -1,8 +1,9 @@
 #include "decompress/frit.h"
 
-#include <stdbool.h>
 #include <stdint.h>
 #include "decompress/type.h"
+#include "gba/hw_reg.h"
+#include "gba/screen.h"
 
 static inline unsigned bit_mask_and_shift(unsigned value, unsigned keep, unsigned shift) {
 	unsigned retval = value;
@@ -12,15 +13,19 @@ static inline unsigned bit_mask_and_shift(unsigned value, unsigned keep, unsigne
 }
 
 #define FUNCTION_NAME Frit16UnComp
+#define FUNCTION_NAME_SUSPEND Frit16UnCompSuspendable
 #define WORD uint16_t
 #include "decompress/frit_template.h"
 #undef FUNCTION_NAME
+#undef FUNCTION_NAME_SUSPEND
 #undef WORD
 
 #define FUNCTION_NAME Frit8UnCompWram
+#define FUNCTION_NAME_SUSPEND Frit8UnCompSuspendable
 #define WORD uint8_t
 #include "decompress/frit_template.h"
 #undef FUNCTION_NAME
+#undef FUNCTION_NAME_SUSPEND
 #undef WORD
 
 __attribute__((optimize("-O3")))

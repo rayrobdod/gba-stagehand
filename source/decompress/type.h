@@ -9,4 +9,13 @@ struct CompressedData {
 	uint8_t data[];
 };
 
+struct suspended_decompression {
+	const uint8_t* src;
+	const uint8_t* src_start;
+	volatile uint8_t* dest;
+	volatile uint8_t* dest_end;
+	uint8_t magic;
+	uint16_t regs[4];
+};
+
 #endif        //  #ifndef DECOMPRESS_TYPE_H

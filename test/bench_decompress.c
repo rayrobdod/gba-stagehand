@@ -87,7 +87,7 @@ static const char* UnCompFnName(unsigned magic) {
 }
 
 void run_decompress_benchmark(const struct decompression_suite * suite) {
-	uint32_t raw_length = *((uint32_t*) suite->data) >> 8;
+	uint32_t raw_length = suite->data->size;
 
 	if (0 == raw_length % 2) {
 		setUp();
@@ -99,10 +99,10 @@ void run_decompress_benchmark(const struct decompression_suite * suite) {
 		tearDown();
 		if (currentTestFailed) {
 			++failed;
-			MgbaPrintf(MGBA_LOG_INFO, "Decompress  Vram: %s %6s: \033[41mFAIL\033[0m: %s",
+			MgbaPrintf(MGBA_LOG_INFO, "Decompress    Vram: %s %6s: \033[41mFAIL\033[0m: %s",
 				suite->label, UnCompFnName(suite->data->magic), fail_detail);
 		} else {
-			MgbaPrintf(MGBA_LOG_INFO, "Decompress  Vram: %s %6s: \033[44mBENCH\033[0m: %8ld cycles = %2ld.%03ld frames (%6ld bytes)",
+			MgbaPrintf(MGBA_LOG_INFO, "Decompress    Vram: %s %6s: \033[44mBENCH\033[0m: %8ld cycles = %2ld.%03ld frames (%6ld bytes)",
 				suite->label, UnCompFnName(suite->data->magic), time, time / CYCLES_PER_FRAME, (time * 1000 / CYCLES_PER_FRAME) % 1000, suite->size);
 		}
 		++total;
@@ -118,10 +118,10 @@ void run_decompress_benchmark(const struct decompression_suite * suite) {
 		tearDown();
 		if (currentTestFailed) {
 			++failed;
-			MgbaPrintf(MGBA_LOG_INFO, "Decompress IWram: %s %6s: \033[41mFAIL\033[0m: %s",
+			MgbaPrintf(MGBA_LOG_INFO, "Decompress   IWram: %s %6s: \033[41mFAIL\033[0m: %s",
 				suite->label, UnCompFnName(suite->data->magic), fail_detail);
 		} else {
-			MgbaPrintf(MGBA_LOG_INFO, "Decompress IWram: %s %6s: \033[44mBENCH\033[0m: %8ld cycles = %2ld.%03ld frames (%6ld bytes)",
+			MgbaPrintf(MGBA_LOG_INFO, "Decompress   IWram: %s %6s: \033[44mBENCH\033[0m: %8ld cycles = %2ld.%03ld frames (%6ld bytes)",
 				suite->label, UnCompFnName(suite->data->magic), time, time / CYCLES_PER_FRAME, (time * 1000 / CYCLES_PER_FRAME) % 1000, suite->size);
 		}
 		++total;
@@ -135,16 +135,45 @@ void run_decompress_benchmark(const struct decompression_suite * suite) {
 		tearDown();
 		if (currentTestFailed) {
 			++failed;
-			MgbaPrintf(MGBA_LOG_INFO, "Decompress EWram: %s %6s: \033[41mFAIL\033[0m: %s",
+			MgbaPrintf(MGBA_LOG_INFO, "Decompress   EWram: %s %6s: \033[41mFAIL\033[0m: %s",
 				suite->label, UnCompFnName(suite->data->magic), fail_detail);
 		} else {
-			MgbaPrintf(MGBA_LOG_INFO, "Decompress EWram: %s %6s: \033[44mBENCH\033[0m: %8ld cycles = %2ld.%03ld frames (%6ld bytes)",
+			MgbaPrintf(MGBA_LOG_INFO, "Decompress   EWram: %s %6s: \033[44mBENCH\033[0m: %8ld cycles = %2ld.%03ld frames (%6ld bytes)",
 				suite->label, UnCompFnName(suite->data->magic), time, time / CYCLES_PER_FRAME, (time * 1000 / CYCLES_PER_FRAME) % 1000, suite->size);
 		}
 		++total;
 	}
-}
 
+	{
+		struct suspended_decompression state;
+		bool currentTestFailed = false;
+		bool done = false;
+		setUp();
+		HeaderUnCompSuspendableInit(&state, suite->data, ewram_buffer);
+		while (!done && !currentTestFailed) {
+			VBlankIntrWait();
+			benchmark_start();
+			done = HeaderUnCompSuspendable(&state);
+			uint32_t time = benchmark_stop();
+			if (time >= CYCLES_PER_FRAME) {
+				snprintf(fail_detail, arraycount(fail_detail), "did not suspend");
+				currentTestFailed = true;
+			}
+		}
+		if (!currentTestFailed)
+			currentTestFailed |= assert_equal_array_bound(suite->raw, ewram_buffer, raw_length);
+		tearDown();
+		if (currentTestFailed) {
+			++failed;
+			MgbaPrintf(MGBA_LOG_INFO, "Decompress Suspend: %s %6s: \033[41mFAIL\033[0m: %s",
+				suite->label, UnCompFnName(suite->data->magic), fail_detail);
+		} else {
+			MgbaPrintf(MGBA_LOG_INFO, "Decompress Suspend: %s %6s: \033[42mOK\033[0m",
+				suite->label, UnCompFnName(suite->data->magic));
+		}
+		++total;
+	}
+}
 
 int main() {
 	total = 0;

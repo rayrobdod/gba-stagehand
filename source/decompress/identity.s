@@ -11,6 +11,11 @@ IdentityUnComp:
 	// r2 - length remaining
 	ldmia	r0!, {r2}
 	lsrs	r2, r2, #8
+	// fallthrough
+
+	.type	IdentityUnComp_FastCopy, %function
+	.global IdentityUnComp_FastCopy
+IdentityUnComp_FastCopy:
 	cmp	r2, #31
 	bls	.L_32LoopEnd
 	push	{r4, r5, r6}
@@ -58,3 +63,4 @@ IdentityUnComp:
 	strb	r3, [r1]
 	bx	lr
 	.size	IdentityUnComp, .-IdentityUnComp
+	.size	IdentityUnComp_FastCopy, .-IdentityUnComp_FastCopy
