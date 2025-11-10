@@ -23,18 +23,13 @@ void FUNCTION_NAME(const struct CompressedData* srcV, volatile void* destV) {
 			unsigned to = bit_mask_and_shift(op, 2, 2);
 			unsigned hi = (op & 0x2);
 			unsigned low = (op & 0x1);
-			unsigned hiValue;
-			if (2 == sizeof(WORD)) {
-				hiValue = (hi ? *(src8++) << 8 : 0);
-			} else if (1 == sizeof(WORD)) {
-				if (hi) {
-					src8++;
-				}
-				hiValue = 0;
-			} else {
-				// I want "if this else branch is not constant-folded away"
-				_Static_assert(2 == sizeof(WORD) || 1 == sizeof(WORD), "word size must be 1 or 2");
-			}
+			unsigned hiValue = _Generic(
+				(WORD) 1,
+				uint16_t :
+					(hi ? *(src8++) << 8 : 0),
+				uint8_t :
+					(hi ? src8++, 0 : 0)
+			);
 			unsigned lowValue = (low ? *(src8++) : 0);
 			unsigned operand = hiValue | lowValue;
 
@@ -115,18 +110,13 @@ bool FUNCTION_NAME_SUSPEND(struct suspended_decompression* state) {
 			unsigned to = bit_mask_and_shift(op, 2, 2);
 			unsigned hi = (op & 0x2);
 			unsigned low = (op & 0x1);
-			unsigned hiValue;
-			if (2 == sizeof(WORD)) {
-				hiValue = (hi ? *(src++) << 8 : 0);
-			} else if (1 == sizeof(WORD)) {
-				if (hi) {
-					src++;
-				}
-				hiValue = 0;
-			} else {
-				// I want "if this else branch is not constant-folded away"
-				_Static_assert(2 == sizeof(WORD) || 1 == sizeof(WORD), "word size must be 1 or 2");
-			}
+			unsigned hiValue = _Generic(
+				(WORD) 1,
+				uint16_t :
+					(hi ? *(src++) << 8 : 0),
+				uint8_t :
+					(hi ? src++, 0 : 0)
+			);
 			unsigned lowValue = (low ? *(src++) : 0);
 			unsigned operand = hiValue | lowValue;
 
