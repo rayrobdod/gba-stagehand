@@ -34,7 +34,7 @@ static void run_parallaxMountainDusk_initialization_benchmark() {
 	unsigned frameNo = 0;
 	MgbaPrintf(MGBA_LOG_INFO, "parallaxMountainDusk: \033[44mBENCH\033[0m");
 
-	MainCB_parallaxMountainDusk(fadeCb);
+	ChangeScene_parallaxMountainDusk(fadeCb);
 
 	while (MainCB_parallaxMountainDusk_main != scene_onframe_callback) {
 		VBlankIntrWait();

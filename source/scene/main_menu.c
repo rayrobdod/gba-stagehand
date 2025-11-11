@@ -57,7 +57,7 @@ static const struct {
 	},
 	{
 		.label = "Parallax Mountain Dusk",
-		.startFn = &MainCB_parallaxMountainDusk,
+		.startFn = &ChangeScene_parallaxMountainDusk,
 	},
 	{
 		.label = "DMG Music",

@@ -86,7 +86,7 @@ static const bgcnt_t my_bgcnts[4] = {
 	}
 };
 
-void MainCB_parallaxMountainDusk(void (*_fadeCb)(void)) {
+void ChangeScene_parallaxMountainDusk(void (*_fadeCb)(void)) {
 	fade_to_initialize(rgb(21, 13, 17));
 	fadeCb = _fadeCb;
 	scene_onframe_callback = &MainCB_parallaxMountainDusk_initFadeOut;
