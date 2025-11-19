@@ -2,7 +2,7 @@
 
 #include <cstdio>
 
-struct CopyInstruction {
+struct LzCopyInstruction {
 	unsigned length;
 	union {
 		unsigned offset;
@@ -120,20 +120,20 @@ std::vector<uint8_t> decompressLz11(std::vector<uint8_t> src, bool disassemble) 
 	return dest;
 }
 
-static std::vector<CopyInstruction> instructions(std::vector<uint8_t> src, std::vector<uint8_t>::size_type max_length) {
+static std::vector<LzCopyInstruction> instructions(std::vector<uint8_t> src, std::vector<uint8_t>::size_type max_length) {
 	static const unsigned max_offset = 0xFFF;
 	static const std::vector<uint8_t>::size_type min_length = 3;
 
-	std::vector<CopyInstruction> instrs;
+	std::vector<LzCopyInstruction> instrs;
 
 	if (src.size() == 0)
 		return instrs;
 
 	unsigned src_pos = 1;
 
-	instrs.push_back((CopyInstruction){.length = 1, .value = src[0]});
+	instrs.push_back((LzCopyInstruction){.length = 1, .value = src[0]});
 	while (src_pos < src.size()) {
-		CopyInstruction best;
+		LzCopyInstruction best;
 		best.length = 1;
 		best.value = src[src_pos];
 		// GBA Bios LzUncompVram doesn't write correctly with offset = 1

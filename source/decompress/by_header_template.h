@@ -21,6 +21,14 @@ static UnCompFn CAT(UnCompFn, XRAM)(unsigned magic) {
 		return &CAT(Diff8UnFilter, XRAM);
 	case 0x82:
 		return &Diff16UnFilter;
+	case 0xF1:
+	case 0xF2:
+	case 0xF3:
+	case 0xF4:
+	case 0xF5:
+	case 0xF6:
+	case 0xF7:
+		return &SmolUnComp;
 	default:
 		return NULL;
 	}

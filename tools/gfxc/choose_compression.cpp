@@ -11,6 +11,8 @@
 #include "compression/lz.hpp"
 #include "compression/rl.hpp"
 #include "compression/rlzero.hpp"
+#include "compression/smol.hpp"
+#include "compare_mismatch_error_message.hpp"
 
 using namespace std::string_view_literals;
 const std::initializer_list<choosable_compression> compression_algs = {
@@ -22,6 +24,7 @@ const std::initializer_list<choosable_compression> compression_algs = {
 	{"FRIT8"sv,	&compressFrit8,	&decompressFrit8,},
 	{"Huff8"sv,	&compressHuff8,	&decompressHuff8,},
 	{"Huff4"sv,	&compressHuff4,	&decompressHuff4,},
+	{"Smol1"sv,	&compressSmol,	&decompressSmol,},
 };
 
 choosen_compression choose_compression(std::string tiles_name, std::vector<uint8_t> data) {
@@ -43,41 +46,7 @@ choosen_compression choose_compression(std::string tiles_name, std::vector<uint8
 		std::vector<uint8_t> round = alg.decompress(compressed, false && tiles_name == "tile.1002" && alg.alg_name == "FRIT8"sv);
 
 		if (data != round) {
-			std::string msg;
-			msg += "Compressing ";
-			msg += tiles_name;
-			msg += " using ";
-			msg += alg.alg_name;
-			msg += " failed to round trip\n";
-			auto diff = std::mismatch(data.begin(), data.end(), round.begin(), round.end());
-			std::vector<unsigned char>::size_type at = diff.first - data.begin();
-			std::vector<unsigned char>::size_type range_start = (at > 2 ? at - 2 : 0);
-			msg += "    at: " + std::to_string(at) + "\n";
-			msg += "    data : {";
-			msg += (range_start != 0 ? "... " : "");
-			for (unsigned i = range_start; i < std::min(range_start + 5, data.size()); i++) {
-				char s[8];
-				sprintf(s, "%02X, ", data[i]);
-				msg += s;
-			}
-			msg += "}\n";
-			msg += "    round: {";
-			msg += (range_start != 0 ? "... " : "");
-			for (unsigned i = range_start; i < std::min(range_start + 5, round.size()); i++) {
-				char s[8];
-				sprintf(s, "%02X, ", round[i]);
-				msg += s;
-			}
-			msg += "}\n";
-			msg += "    compressed: {";
-			for (unsigned i = 0; i < data.size(); i++) {
-				char s[8];
-				sprintf(s, "%02X, ", compressed[i]);
-				msg += s;
-			}
-			msg += "}\n";
-
-			throw std::logic_error(msg);
+			throw std::logic_error(compareMismatchErrorMessage(data, compressed, round, alg.alg_name, tiles_name));
 		}
 		if (data == round && compressed.size() < retval.data.size()) {
 			retval.alg_name = alg.alg_name;

@@ -126,6 +126,7 @@ $(TEST_RUNNER_DIR)/test_huff: $(BUILDOBJDIR)/ints.cpp.o
 $(TEST_RUNNER_DIR)/test_subword_output_iterator: $(BUILDOBJDIR)/ints.cpp.o
 $(TEST_RUNNER_DIR)/test_lz: $(BUILDOBJDIR)/ints.cpp.o $(BUILDOBJDIR)/compression/lz.cpp.o
 $(TEST_RUNNER_DIR)/test_frit: $(BUILDOBJDIR)/ints.cpp.o $(BUILDOBJDIR)/compression/frit.cpp.o
+$(TEST_RUNNER_DIR)/test_smol: $(BUILDOBJDIR)/ints.cpp.o $(BUILDOBJDIR)/compression/smol.cpp.o
 
 check: $(TEST_REPORTS)
 	@:

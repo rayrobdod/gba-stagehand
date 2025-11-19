@@ -1,0 +1,99 @@
+#include <cstdio>
+#include <string>
+#include "compression/smol.hpp"
+#include "test/_shared.hpp"
+
+void test_decompSmol1_Increment_Nibbles(void) {
+	const std::vector<uint8_t> input{
+		0x00, 0x00, 0x00, 0x00,
+		0x21, 0x00, 0x10, 0x00, 0x00, 0x00, 0x10, 0x00,
+		0x01, 0x23, 0x45, 0x67, 0x89, 0xab, 0xcd, 0xef, 0x00, 0x04, 0x00, 0x00
+	};
+	std::optional<std::vector<uint8_t>> result_opt = decompressSmol(input, false);
+
+	const std::vector<uint8_t> expected{
+		0x01, 0x23, 0x45, 0x67, 0x89, 0xab, 0xcd, 0xef,
+	};
+
+	if (result_opt) {
+		std::vector<uint8_t> result = *result_opt;
+		TEST_ASSERT_EQUAL_VECTOR_HEX8(expected, result);
+	} else {
+		TEST_FAIL("Compression failed");
+	}
+}
+
+void test_decompSmol1_Zeros_8(void) {
+	const std::vector<uint8_t> input{
+		0x00, 0x00, 0x00, 0x00,
+		0x21, 0x00, 0x04, 0x00, 0x00, 0x00, 0x10, 0x00,
+		0x00, 0x00, 0x03, 0x01, 0x00, 0x00, 0x00, 0x00
+	};
+	std::optional<std::vector<uint8_t>> result_opt = decompressSmol(input, false);
+
+	const std::vector<uint8_t> expected{
+		0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+	};
+
+	if (result_opt) {
+		std::vector<uint8_t> result = *result_opt;
+		TEST_ASSERT_EQUAL_VECTOR_HEX8(expected, result);
+	} else {
+		TEST_FAIL("Compression failed");
+	}
+}
+
+void test_decompSmol1_Zeros_1024(void) {
+	const std::vector<uint8_t> input{
+		0x00, 0x00, 0x00, 0x00,
+		0x01, 0x20, 0x04, 0x00, 0x00, 0x00, 0x18, 0x00,
+		0x00, 0x00, 0xff, 0x07, 0x01, 0x00, 0x00, 0x00
+	};
+	std::optional<std::vector<uint8_t>> result_opt = decompressSmol(input, false);
+
+	const std::vector<uint8_t> expected(2048);
+
+	if (result_opt) {
+		std::vector<uint8_t> result = *result_opt;
+		TEST_ASSERT_EQUAL_VECTOR_HEX8(expected, result);
+	} else {
+		TEST_FAIL("Compression failed");
+	}
+}
+
+void test_decompSmol1_withMultipleLengthOffsets(void) {
+	const std::vector<uint8_t> input{
+		0x00, 0x00, 0x00, 0x00,
+		0x61, 0x00, 0x20, 0x00, 0x00, 0x00, 0x40, 0x00,
+		0x61, 0x62, 0x63, 0x64, 0x30, 0x30, 0x30, 0x30, 0x65, 0x66, 0x67, 0x68,
+		0x69, 0x6a, 0x6b, 0x6c, 0x00, 0x05, 0x02, 0x04, 0x00, 0x01, 0x02, 0x04,
+		0x00, 0x00, 0x00, 0x00,
+	};
+	std::optional<std::vector<uint8_t>> result_opt = decompressSmol(input, false);
+
+	const std::vector<uint8_t> expected{
+		0x61, 0x62, 0x63, 0x64, 0x30, 0x30, 0x30, 0x30,
+		0x65, 0x66, 0x67, 0x68, 0x30, 0x30, 0x30, 0x30,
+		0x69, 0x6a, 0x6b, 0x6c, 0x30, 0x30, 0x30, 0x30,
+	};
+
+	if (result_opt) {
+		std::vector<uint8_t> result = *result_opt;
+		TEST_ASSERT_EQUAL_VECTOR_HEX8(expected, result);
+	} else {
+		TEST_FAIL("Compression failed");
+	}
+}
+
+int main() {
+	total = 0;
+	failed = 0;
+
+	RUN_TEST(test_decompSmol1_Increment_Nibbles);
+	RUN_TEST(test_decompSmol1_Zeros_8);
+	RUN_TEST(test_decompSmol1_Zeros_1024);
+	RUN_TEST(test_decompSmol1_withMultipleLengthOffsets);
+
+	printf("Total: %d; Failing: %d\n", total, failed);
+	return 0 != failed;
+}

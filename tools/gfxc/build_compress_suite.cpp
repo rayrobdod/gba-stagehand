@@ -4,6 +4,7 @@
 #include "resource_type/background.hpp"
 #include "resource_type/tileset.hpp"
 #include "choose_compression.hpp"
+#include "compare_mismatch_error_message.hpp"
 #include "image.hpp"
 #include "object.hpp"
 #include "png_deserialize.hpp"
@@ -61,6 +62,12 @@ void suite_1(std::string_view variable_name, std::string_view label, std::vector
 			continue;
 
 		std::vector<uint8_t> compressed = *compressedOpt;
+
+		std::vector<uint8_t> round = compression_alg.decompress(compressed, false);
+		if (raw != round) {
+			throw std::logic_error(compareMismatchErrorMessage(raw, compressed, round, compression_alg.alg_name, variable_name));
+		}
+
 		std::string choice_name(variable_name);
 		choice_name += ".";
 		choice_name += compression_alg.alg_name;

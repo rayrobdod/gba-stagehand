@@ -81,6 +81,8 @@ static const char* UnCompFnName(unsigned magic) {
 		return "Diff8";
 	case 0x82:
 		return "Diff16";
+	case 0xF1:
+		return "Smol1";
 	default:
 		return "???";
 	}
@@ -144,6 +146,7 @@ void run_decompress_benchmark(const struct decompression_suite * suite) {
 		++total;
 	}
 
+	if (suite->data->magic < 0xF0)
 	{
 		struct suspended_decompression state;
 		bool currentTestFailed = false;

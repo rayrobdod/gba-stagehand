@@ -9,6 +9,7 @@
 #include "decompress/lz11.h"
 #include "decompress/rl.h"
 #include "decompress/rlzero.h"
+#include "decompress/smol.h"
 #include "decompress/type.h"
 #include "gba/bios.h"
 #include "mgba.h"
