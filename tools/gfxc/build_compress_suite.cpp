@@ -138,6 +138,17 @@ int build_trivial_decompression_suite(std::filesystem::path objfile) {
 	}
 
 	{
+		for (unsigned i = 32; i < 2048; i++) {
+			data.push_back(0);
+		}
+		std::string var("zeros_");
+		std::string label(" zeros");
+		std::string count("2048");
+
+		suite_1(var + count, count + label, data, elf);
+	}
+
+	{
 		unsigned i;
 		data.clear();
 		for (i = 0; i < 7; i++) {
