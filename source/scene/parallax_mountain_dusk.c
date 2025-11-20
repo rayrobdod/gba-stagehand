@@ -95,12 +95,16 @@ static const bgcnt_t my_bgcnts[4] = {
 	}
 };
 
+static inline size_t divceilmul(size_t numerator, size_t denominator) {
+	return denominator * ((numerator / denominator) + (numerator % denominator ? 1 : 0));
+}
+
 void MainCB_parallaxMountainDusk(void (*_fadeCb)(void)) {
 	fade_to_initialize(rgb(21, 13, 17));
 	fadeCb = _fadeCb;
 	scene_onframe_callback = &MainCB_parallaxMountainDusk_initFadeOut;
-	decompress_bg_tileset_buffer = calloc((sizeof(tile_4bpp_t) - 1) + (parallax_mountain_dusk_bg.tileset->size / sizeof(tile_4bpp_t)), sizeof(tile_4bpp_t));
-	decompress_oam_tileset_buffer = calloc((sizeof(tile_4bpp_t) - 1) + (parallax_mountain_dusk_foreground_trees.tileset->size / sizeof(tile_4bpp_t)), sizeof(tile_4bpp_t));
+	decompress_bg_tileset_buffer = malloc(divceilmul(parallax_mountain_dusk_bg.tileset->size, sizeof(bg_tile_t)));
+	decompress_oam_tileset_buffer = malloc(divceilmul(parallax_mountain_dusk_foreground_trees.tileset->size, sizeof(bg_tile_t)));
 	decompress_state = calloc(sizeof(struct suspended_decompression), 1);
 	HeaderUnCompSuspendableInit(decompress_state, parallax_mountain_dusk_bg.tileset, decompress_bg_tileset_buffer);
 	decompress_state_state = SUSPENDED_DECOMP_BG_TILES;
