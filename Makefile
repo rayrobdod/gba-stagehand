@@ -291,7 +291,7 @@ $(DMGNOTES): $(wildcard tools/dmg_notes/*.c) $(wildcard tools/dmg_notes/*.h) $(w
 $(GBAFIX): $(wildcard tools/gbafix/*.c)
 	$(V)cd tools/gbafix && $(MAKE)
 
-$(GFXC): $(wildcard tools/gfxc/*.c) $(wildcard tools/gfxc/*.cpp) $(wildcard tools/gfxc/**/*.cpp)
+$(GFXC): $(wildcard tools/gfxc/*.c) $(wildcard tools/gfxc/*.cpp) $(wildcard tools/gfxc/**/*.cpp) $(wildcard tools/gfxc/*.hpp) $(wildcard tools/gfxc/**/*.hpp)
 	$(V)cd tools/gfxc && $(MAKE)
 
 $(METADATA): $(wildcard tools/metadata/*.c) $(wildcard tools/metadata/*.h) $(wildcard tools/metadata/*.cpp) $(wildcard tools/gfxc/object.cpp) $(wildcard tools/gfxc/object.hpp)

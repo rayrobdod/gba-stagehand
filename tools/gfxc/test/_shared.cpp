@@ -10,10 +10,10 @@ static void print_vector_hex8(std::vector<uint8_t> value) {
 	printf("{");
 	auto i = value.begin();
 	if (i != value.end()) {
-		printf("%X", *i);
+		printf("%02X", *i);
 		i++;
 		for (; i != value.end(); i++) {
-			printf(", %X", *i);
+			printf(", %02X", *i);
 		}
 	}
 	printf("}");
@@ -22,9 +22,9 @@ static void print_vector_hex8(std::vector<uint8_t> value) {
 void TEST_ASSERT_EQUAL_VECTOR_HEX8(std::vector<uint8_t> expected, std::vector<uint8_t> actual) {
 	if (expected != actual) {
 		currentTestFailed = 1;
-		printf("\033[41mFAIL\033[0m: Expected ");
+		printf("\033[41mFAIL\033[0m: Expected \n  ");
 		print_vector_hex8(expected);
-		printf("; was ");
+		printf("; was \n  ");
 		print_vector_hex8(actual);
 	}
 }

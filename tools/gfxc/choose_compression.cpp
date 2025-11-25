@@ -24,7 +24,8 @@ const std::initializer_list<choosable_compression> compression_algs = {
 	{"FRIT8"sv,	&compressFrit8,	&decompressFrit8,},
 	{"Huff8"sv,	&compressHuff8,	&decompressHuff8,},
 	{"Huff4"sv,	&compressHuff4,	&decompressHuff4,},
-	{"Smol1"sv,	&compressSmol,	&decompressSmol,},
+	{"Smol1"sv,	&compressSmol1,	&decompressSmol,},
+	{"Smol2"sv,	&compressSmol2,	&decompressSmol,},
 };
 
 choosen_compression choose_compression(std::string tiles_name, std::vector<uint8_t> data) {
@@ -43,7 +44,7 @@ choosen_compression choose_compression(std::string tiles_name, std::vector<uint8
 			continue;
 
 		std::vector<uint8_t> compressed = *compressedOpt;
-		std::vector<uint8_t> round = alg.decompress(compressed, false && tiles_name == "tile.1002" && alg.alg_name == "FRIT8"sv);
+		std::vector<uint8_t> round = alg.decompress(compressed, false && alg.alg_name == "Smol2"sv);
 
 		if (data != round) {
 			throw std::logic_error(compareMismatchErrorMessage(data, compressed, round, alg.alg_name, tiles_name));

@@ -83,6 +83,12 @@ static const char* UnCompFnName(unsigned magic) {
 		return "Diff16";
 	case 0xF1:
 		return "Smol1";
+	case 0xF2:
+		return "Smol2";
+	case 0xF3:
+		return "Smol3";
+	case 0xF4:
+		return "Smol4";
 	default:
 		return "???";
 	}
