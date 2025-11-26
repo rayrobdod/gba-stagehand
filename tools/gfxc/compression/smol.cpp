@@ -375,16 +375,10 @@ public:
 	}
 };
 
-std::optional<std::vector<uint8_t>> compressSmol(std::vector<uint8_t> src, SmolMode mode) {
+static std::vector<SmolCopyInstruction> calculate_instructions(const std::vector<uint8_t> src) {
 	static const unsigned max_offset = 0x3FFF;
 	static const std::vector<unsigned char>::size_type max_length = 0x3FFF;
 	static const std::vector<unsigned char>::size_type min_length = 2;
-
-	uint32_t tansState = 0;
-
-	if (0 != src.size() % 4)
-		return std::nullopt;
-	const uint32_t imageSize = src.size() / 4;
 
 	std::vector<uint16_t> src16;
 	for (size_t i = 0; i < src.size(); i += 2) {
@@ -438,88 +432,200 @@ std::optional<std::vector<uint8_t>> compressSmol(std::vector<uint8_t> src, SmolM
 			instrs.emplace_back(my_symbols);
 		}
 	}
+	return instrs;
+}
 
-	std::vector<uint16_t> symbols;
+static std::vector<uint16_t> list_symbols(const std::vector<SmolCopyInstruction> instrs) {
+	std::vector<uint16_t> retval;
 	for (SmolCopyInstruction instr : instrs) {
 		for (uint16_t symbol : instr.symbols) {
-			symbols.push_back(symbol);
+			retval.push_back(symbol);
+		}
+	}
+	return retval;
+}
+
+static std::array<uint8_t, 16> calculate_normalized_symbol_frequencies(const std::vector<uint16_t> symbols) {
+	std::array<unsigned, 16> symbolFrequencies_L{0};
+	for (uint16_t symbol : symbols) {
+		for (int i = 0; i < 4; i++) {
+			symbolFrequencies_L[(symbol >> (4 * i)) & 0xF] += 1;
 		}
 	}
 
 	std::array<uint8_t, 16> symbolFrequencies{0};
-	if (SymbolEncoding::TANS == mode.symbolEncoding()) {
-		std::array<unsigned, 16> symbolFrequencies_L{0};
-		for (uint16_t symbol : symbols) {
-			for (int i = 0; i < 4; i++) {
-				symbolFrequencies_L[(symbol >> (4 * i)) & 0xF] += 1;
-			}
+	for (unsigned i = 0; i < symbolFrequencies_L.size(); i++) {
+		// `ceil` because we can't have symbol counts round down to zero
+		symbolFrequencies[i] = std::ceil((symbolFrequencies_L[i] * (64.0 / 4)) / (symbols.size()));
+	}
+
+	unsigned symbolFrequencies_sum = std::accumulate(
+			symbolFrequencies.begin(), symbolFrequencies.end(), 0);
+
+	std::multimap<unsigned, unsigned> ordered_frequencies;
+	for (unsigned i = 0; i < symbolFrequencies.size(); i++) {
+		ordered_frequencies.emplace(symbolFrequencies[i], i);
+	}
+
+	std::multimap<unsigned, unsigned>::iterator ordered_frequencies_it = ordered_frequencies.begin();
+	while (symbolFrequencies_sum > 64) {
+		if (symbolFrequencies[ordered_frequencies_it->second] > 1) {
+			symbolFrequencies[ordered_frequencies_it->second]--;
+			symbolFrequencies_sum--;
 		}
+		++ordered_frequencies_it;
+		if (ordered_frequencies_it == ordered_frequencies.end())
+			ordered_frequencies_it = ordered_frequencies.begin();
+	}
+	while (symbolFrequencies_sum < 64) {
+		++symbolFrequencies[ordered_frequencies_it->second];
+		++symbolFrequencies_sum;
 
-		for (unsigned i = 0; i < symbolFrequencies_L.size(); i++) {
-			// `ceil` because we can't have symbol counts round down to zero
-			symbolFrequencies[i] = std::ceil((symbolFrequencies_L[i] * (64.0 / 4)) / (symbols.size()));
-		}
+		++ordered_frequencies_it;
+		if (ordered_frequencies_it == ordered_frequencies.end())
+			ordered_frequencies_it = ordered_frequencies.begin();
+	}
 
-		unsigned symbolFrequencies_sum = std::accumulate(
-				symbolFrequencies.begin(), symbolFrequencies.end(), 0);
-
-		std::multimap<unsigned, unsigned> ordered_frequencies;
-		for (unsigned i = 0; i < symbolFrequencies.size(); i++) {
-			ordered_frequencies.emplace(symbolFrequencies[i], i);
-		}
-
-		std::multimap<unsigned, unsigned>::iterator ordered_frequencies_it = ordered_frequencies.begin();
-		while (symbolFrequencies_sum > 64) {
-			if (symbolFrequencies[ordered_frequencies_it->second] > 1) {
-				symbolFrequencies[ordered_frequencies_it->second]--;
-				symbolFrequencies_sum--;
-			}
-			++ordered_frequencies_it;
-			if (ordered_frequencies_it == ordered_frequencies.end())
-				ordered_frequencies_it = ordered_frequencies.begin();
-		}
-		while (symbolFrequencies_sum < 64) {
-			++symbolFrequencies[ordered_frequencies_it->second];
-			++symbolFrequencies_sum;
-
-			++ordered_frequencies_it;
-			if (ordered_frequencies_it == ordered_frequencies.end())
-				ordered_frequencies_it = ordered_frequencies.begin();
-		}
-
-		for (unsigned i = 0; i < symbolFrequencies.size(); i++) {
-			while (symbolFrequencies[i] >= 64) {
-				symbolFrequencies[i]--;
-				symbolFrequencies[(i + 1) % symbolFrequencies.size()]++;
-			}
+	for (unsigned i = 0; i < symbolFrequencies.size(); i++) {
+		while (symbolFrequencies[i] >= 64) {
+			symbolFrequencies[i]--;
+			symbolFrequencies[(i + 1) % symbolFrequencies.size()]++;
 		}
 	}
+
+	return symbolFrequencies;
+}
+
+static std::vector<uint1_t> calculate_reversed_tans_bitstream(unsigned& tansState, const std::vector<uint16_t> symbols, const std::array<uint8_t, 16> frequencies) {
+	std::vector<uint1_t> retval;
+
+	std::array<DecodingTansCell, 64> decodeTansTable = genDecodingTansTable<16, 64>(frequencies);
+	std::array<std::array<EncodingTansCell, 16>, 64> encodeTansTable = genEncodingTansTable<16, 64>(decodeTansTable);
+
+	for (auto i = symbols.rbegin(); i != symbols.rend(); ++i)
+	{
+		uint16_t symbol16 = *i;
+		for (unsigned j = 0; j < 4; ++j) {
+			uint8_t symbol = (symbol16 >> (4 * (3 - j))) & 0xF;
+
+			EncodingTansCell ec = encodeTansTable[tansState][symbol];
+			tansState = ec.next_state;
+			for (unsigned bit_i = ec.bits; bit_i != 0; --bit_i)
+			{
+				uint1_t b = static_cast<uint1_t>(ec.value >> (bit_i - 1));
+				if (PRINT_ENCODER_TANS) std::cout << (b ? "1" : "0");
+				retval.push_back(b);
+			}
+			if (PRINT_ENCODER_TANS) std::cout << "," << static_cast<int>(ec.next_state) << " ";
+		}
+	}
+	return retval;
+}
+
+static std::array<uint8_t, 12> pack_frequencies(std::array<uint8_t, 16> frequencies) {
+	std::array<uint8_t, 12> retval;
+	for (int i = 0; i < 3; ++i) {
+		uint32_t packed = 0;
+		for (int j = 0; j < 5; ++j) {
+			packed |= frequencies[i * 5 + j] << (6 * j);
+		}
+		packed |= ((frequencies[15] >> (2 * i)) & 0x3) << 30;
+		for (int j = 0; j < 4; j++) {
+			retval[i * 4 + j] = packed >> (j * 8);
+		}
+	}
+	return retval;
+}
+
+static std::optional<std::vector<uint8_t>> pack_header(
+		SmolMode mode, size_t imageSize, size_t symbolsSize,
+		uint32_t tansState, size_t bitstreamSize, size_t instructionsSize)
+{
+	if (imageSize >= 1 << 14)
+		return std::nullopt;
+	if (symbolsSize >= 1 << 14)
+		return std::nullopt;
+	if (tansState >= 1 << 6)
+		return std::nullopt;
+	if (bitstreamSize >= 1 << 13)
+		return std::nullopt;
+	if (instructionsSize >= 1 << 13)
+		return std::nullopt;
+
+	std::vector<uint8_t> retval;
+	retval.push_back(mode | 0xF0);
+	retval.push_back(imageSize * 4);
+	retval.push_back((imageSize * 4) >> 8);
+	retval.push_back((imageSize * 4) >> 16);
+
+	retval.push_back(mode | imageSize << 4);
+	retval.push_back(imageSize >> 4);
+	retval.push_back(imageSize >> 12 | symbolsSize << 2);
+	retval.push_back(symbolsSize >> 6);
+	retval.push_back(tansState | bitstreamSize << 6);
+	retval.push_back(bitstreamSize >> 2);
+	retval.push_back(bitstreamSize >> 10 | instructionsSize << 3);
+	retval.push_back(instructionsSize >> 5);
+	return std::make_optional(retval);
+}
+
+std::optional<std::vector<uint8_t>> compressSmol1(std::vector<uint8_t> src) {
+	if (0 != src.size() % 4)
+		return std::nullopt;
+
+	const SmolMode mode = SmolMode::BASE_ONLY;
+	const uint32_t imageSize = src.size() / 4;
+	const uint32_t tansState = 0;
+	const uint32_t bitstreamSize = 0;
+
+	const std::vector<SmolCopyInstruction> instrs = calculate_instructions(src);
+	const std::vector<uint16_t> symbols = list_symbols(instrs);
+
+	std::vector<uint8_t> instrBytes;
+	for (SmolCopyInstruction instr : instrs) {
+		for (uint8_t b : instr.varintBytes()) {
+			instrBytes.push_back(b);
+		}
+	}
+
+	std::optional<std::vector<uint8_t>> retval_opt = pack_header(
+			mode, imageSize, symbols.size(), tansState, bitstreamSize, instrBytes.size());
+	if (! retval_opt)
+		return std::nullopt;
+	std::vector<uint8_t> retval = *retval_opt;
+
+	for (uint16_t symbol : symbols) {
+		retval.push_back(symbol);
+		retval.push_back(symbol >> 8);
+	}
+
+	for (uint8_t b : instrBytes) {
+		retval.push_back(b);
+	}
+
+	while (0 != retval.size() % 4) {
+		retval.push_back(0);
+	}
+
+	return std::make_optional(retval);
+}
+
+std::optional<std::vector<uint8_t>> compressSmol2(std::vector<uint8_t> src) {
+	if (0 != src.size() % 4)
+		return std::nullopt;
+
+	const SmolMode mode = SmolMode::ENCODE_SYMS;
+	uint32_t tansState = 0;
+
+	const uint32_t imageSize = src.size() / 4;
+
+	const std::vector<SmolCopyInstruction> instrs = calculate_instructions(src);
+	const std::vector<uint16_t> symbols = list_symbols(instrs);
+	const std::array<uint8_t, 16> symbolFrequencies = calculate_normalized_symbol_frequencies(symbols);
 
 	// Want the start of the bitstream to be aligned with the beginning of the word.
 	// Can't do that until knowing how many items are in the bitstream.
-	std::vector<uint1_t> reversed_symbol_bitstream;
-	if (SymbolEncoding::TANS == mode.symbolEncoding()) {
-		std::array<DecodingTansCell, 64> decodeTansTable = genDecodingTansTable<16, 64>(symbolFrequencies);
-		std::array<std::array<EncodingTansCell, 16>, 64> encodeTansTable = genEncodingTansTable<16, 64>(decodeTansTable);
-
-		for (auto i = symbols.rbegin(); i != symbols.rend(); ++i)
-		{
-			uint16_t symbol16 = *i;
-			for (unsigned j = 0; j < 4; ++j) {
-				uint8_t symbol = (symbol16 >> (4 * (3 - j))) & 0xF;
-
-				EncodingTansCell ec = encodeTansTable[tansState][symbol];
-				tansState = ec.next_state;
-				for (unsigned bit_i = ec.bits; bit_i != 0; --bit_i)
-				{
-					uint1_t b = static_cast<uint1_t>(ec.value >> (bit_i - 1));
-					if (PRINT_ENCODER_TANS) std::cout << (b ? "1" : "0");
-					reversed_symbol_bitstream.push_back(b);
-				}
-				if (PRINT_ENCODER_TANS) std::cout << "," << static_cast<int>(ec.next_state) << " ";
-			}
-		}
-	}
+	std::vector<uint1_t> reversed_symbol_bitstream = calculate_reversed_tans_bitstream(tansState, symbols, symbolFrequencies);
 
 	subword_output_iterator<uint32_t, uint1_t, DIRECTION_INC> symbol_bitstream;
 	for (auto i = reversed_symbol_bitstream.rbegin(); i != reversed_symbol_bitstream.rend(); i++) {
@@ -534,65 +640,22 @@ std::optional<std::vector<uint8_t>> compressSmol(std::vector<uint8_t> src, SmolM
 		}
 	}
 
-	if (imageSize >= 1 << 14)
+	std::optional<std::vector<uint8_t>> retval_opt = pack_header(
+			mode, imageSize, symbols.size(), tansState, symbol_bitstream.size(), instrBytes.size());
+	if (! retval_opt)
 		return std::nullopt;
-	if (symbols.size() >= 1 << 14)
-		return std::nullopt;
-	if (tansState >= 1 << 6)
-		return std::nullopt;
-	if (symbol_bitstream.size() >= 1 << 13)
-		return std::nullopt;
-	if (instrBytes.size() >= 1 << 13)
-		return std::nullopt;
+	std::vector<uint8_t> retval = *retval_opt;
 
-	std::vector<uint8_t> retval;
-	retval.push_back(mode | 0xF0);
-	retval.push_back(imageSize * 4);
-	retval.push_back((imageSize * 4) >> 8);
-	retval.push_back((imageSize * 4) >> 16);
-
-	retval.push_back(mode | imageSize << 4);
-	retval.push_back(imageSize >> 4);
-	retval.push_back(imageSize >> 12 | symbols.size() << 2);
-	retval.push_back(symbols.size() >> 6);
-	retval.push_back(tansState | symbol_bitstream.size() << 6);
-	retval.push_back(symbol_bitstream.size() >> 2);
-	retval.push_back(symbol_bitstream.size() >> 10 | instrBytes.size() << 3);
-	retval.push_back(instrBytes.size() >> 5);
-
-	if (SymbolEncoding::TANS == mode.symbolEncoding()) {
-		for (int i = 0; i < 3; ++i) {
-			uint32_t packed = 0;
-			for (int j = 0; j < 5; ++j) {
-				packed |= symbolFrequencies[i * 5 + j] << (6 * j);
-			}
-			packed |= ((symbolFrequencies[15] >> (2 * i)) & 0x3) << 30;
-			for (int i = 0; i < 4; i++) {
-				retval.push_back(packed >> (i * 8));
-			}
-		}
+	std::array<uint8_t, 12> packed_symbol_frequencies = pack_frequencies(symbolFrequencies);
+	for (uint8_t b : packed_symbol_frequencies) {
+		retval.push_back(b);
 	}
 
-	switch (mode.symbolEncoding()) {
-		case SymbolEncoding::IDENT : {
-			for (uint16_t symbol : symbols) {
-				retval.push_back(symbol);
-				retval.push_back(symbol >> 8);
-			}
-		}
-		break;
-		case SymbolEncoding::TANS : {
-			for (uint32_t symbol : symbol_bitstream.result()) {
-				retval.push_back(symbol);
-				retval.push_back(symbol >> 8);
-				retval.push_back(symbol >> 16);
-				retval.push_back(symbol >> 24);
-			}
-		}
-		break;
-		case SymbolEncoding::TANS_DELTA : {
-		}
-		break;
+	for (uint32_t symbol : symbol_bitstream.result()) {
+		retval.push_back(symbol);
+		retval.push_back(symbol >> 8);
+		retval.push_back(symbol >> 16);
+		retval.push_back(symbol >> 24);
 	}
 
 	for (uint8_t b : instrBytes) {
@@ -604,12 +667,4 @@ std::optional<std::vector<uint8_t>> compressSmol(std::vector<uint8_t> src, SmolM
 	}
 
 	return std::make_optional(retval);
-}
-
-std::optional<std::vector<uint8_t>> compressSmol1(std::vector<uint8_t> src) {
-	return compressSmol(src, SmolMode::BASE_ONLY);
-}
-
-std::optional<std::vector<uint8_t>> compressSmol2(std::vector<uint8_t> src) {
-	return compressSmol(src, SmolMode::ENCODE_SYMS);
 }
