@@ -10,7 +10,7 @@ void test_decompSmol1_Increment_Nibbles(void) {
 		0x01, 0x23, 0x45, 0x67, 0x89, 0xab, 0xcd, 0xef,
 		0x00, 0x04, 0x00, 0x00
 	};
-	std::optional<std::vector<uint8_t>> result_opt = decompressSmol(input, false);
+	std::optional<std::vector<uint8_t>> result_opt = decompressSmol1(input, false);
 
 	const std::vector<uint8_t> expected{
 		0x01, 0x23, 0x45, 0x67, 0x89, 0xab, 0xcd, 0xef,
@@ -31,7 +31,7 @@ void test_decompSmol1_Zeros_8(void) {
 		0x00, 0x00,
 		0x03, 0x01,
 	};
-	std::optional<std::vector<uint8_t>> result_opt = decompressSmol(input, false);
+	std::optional<std::vector<uint8_t>> result_opt = decompressSmol1(input, false);
 
 	const std::vector<uint8_t> expected{
 		0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
@@ -52,7 +52,7 @@ void test_decompSmol1_Zeros_1024(void) {
 		0x00, 0x00,
 		0xff, 0x07, 0x01,
 	};
-	std::optional<std::vector<uint8_t>> result_opt = decompressSmol(input, false);
+	std::optional<std::vector<uint8_t>> result_opt = decompressSmol1(input, false);
 
 	const std::vector<uint8_t> expected(2048);
 
@@ -71,7 +71,7 @@ void test_decompSmol2_Zeros_1024(void) {
 		0x7f, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
 		0xff, 0x07, 0x01, 0x00,
 	};
-	std::optional<std::vector<uint8_t>> result_opt = decompressSmol(input, false);
+	std::optional<std::vector<uint8_t>> result_opt = decompressSmol2(input, false);
 
 	const std::vector<uint8_t> expected(2048);
 
@@ -98,7 +98,7 @@ void test_compSmol2_Zeros_8(void) {
 		std::vector<uint8_t> compressed = *compressed_opt;
 		TEST_ASSERT_EQUAL_VECTOR_HEX8(expected, compressed);
 
-		std::vector<uint8_t> round = decompressSmol(compressed, false);
+		std::vector<uint8_t> round = decompressSmol2(compressed, false);
 		TEST_ASSERT_EQUAL_VECTOR_HEX8(input, round);
 	} else {
 		TEST_FAIL("Compression failed");
@@ -123,7 +123,7 @@ void test_compSmol2_7ZerosAnd1One(void) {
 		TEST_ASSERT_EQUAL_VECTOR_HEX8(expected, compressed);
 
 		//decompressSmol(expected, false);
-		std::vector<uint8_t> round = decompressSmol(compressed, false);
+		std::vector<uint8_t> round = decompressSmol2(compressed, false);
 		TEST_ASSERT_EQUAL_VECTOR_HEX8(input, round);
 	} else {
 		TEST_FAIL("Compression failed");
@@ -138,7 +138,7 @@ void test_decompSmol1_withMultipleLengthOffsets(void) {
 		0x69, 0x6a, 0x6b, 0x6c,
 		0x00, 0x05, 0x02, 0x04, 0x00, 0x01, 0x02, 0x04,
 	};
-	std::optional<std::vector<uint8_t>> result_opt = decompressSmol(input, false);
+	std::optional<std::vector<uint8_t>> result_opt = decompressSmol1(input, false);
 
 	const std::vector<uint8_t> expected{
 		0x61, 0x62, 0x63, 0x64, 0x30, 0x30, 0x30, 0x30,
@@ -203,7 +203,7 @@ void test_decompSmol1_dialogBox(void) {
 		0x00, 0x01, 0x04, 0x58, 0x00, 0x01, 0x04, 0x64, 0x03, 0x10, 0x05, 0x58,
 		0x00, 0x01, 0x02, 0x62, 0x00, 0x03, 0x02, 0x10,
 	};
-	std::optional<std::vector<uint8_t>> result_opt = decompressSmol(input, false);
+	std::optional<std::vector<uint8_t>> result_opt = decompressSmol1(input, false);
 
 	if (result_opt) {
 		std::vector<uint8_t> result = *result_opt;
@@ -235,7 +235,7 @@ void test_decompSmol2_dialogBox(void) {
 		0x04, 0x64, 0x03, 0x10, 0x05, 0x58, 0x00, 0x02, 0x03, 0x02, 0x00, 0x04,
 
 	};
-	std::optional<std::vector<uint8_t>> result_opt = decompressSmol(input, false);
+	std::optional<std::vector<uint8_t>> result_opt = decompressSmol2(input, false);
 
 	if (result_opt) {
 		std::vector<uint8_t> result = *result_opt;
@@ -251,7 +251,7 @@ void test_compSmol2_dialogBox(void) {
 	if (compressed_opt) {
 		std::vector<uint8_t> compressed = *compressed_opt;
 
-		std::vector<uint8_t> round = decompressSmol(compressed, false);
+		std::vector<uint8_t> round = decompressSmol2(compressed, false);
 		TEST_ASSERT_EQUAL_VECTOR_HEX8(dialogBoxExpected, round);
 	} else {
 		TEST_FAIL("Compression failed");

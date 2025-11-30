@@ -11,24 +11,18 @@ template<class IN, class OUT, enum Direction DIR>
 	requires BitsizeIsMultiple<OUT, IN>
 class subword_input_iterator {
 private:
-	const std::vector<IN>& _backing;
-	unsigned _word;
+	std::vector<IN>::const_iterator _backing;
 	unsigned _subword;
-	subword_input_iterator(
-		std::vector<IN>& backing,
-		unsigned word,
-		unsigned subword) :
-			_backing(backing),
-			_word(word),
-			_subword(subword) {}
 
 public:
 	subword_input_iterator(const std::vector<IN>& backing) :
-		_backing(backing), _word(0), _subword(0) {}
+		_backing(backing.begin()), _subword(0) {}
+
+	subword_input_iterator(const std::vector<IN>::const_iterator& backing) :
+		_backing(backing), _subword(0) {}
 
 	subword_input_iterator(const subword_input_iterator& other) :
 			_backing(other._backing),
-			_word(other._word),
 			_subword(other._subword) {}
 
 	~subword_input_iterator() {}
@@ -45,7 +39,7 @@ public:
 		}
 
 		const uint8_t mask = (1 << bitsize<OUT>) - 1;
-		IN buffer = (this->_backing)[_word];
+		IN buffer = *(this->_backing);
 		buffer &= mask << directional_offset;
 		buffer >>= directional_offset;
 		OUT retval(buffer);
@@ -56,7 +50,7 @@ public:
 		_subword += bitsize<OUT>;
 		if (_subword >= bitsize<IN>) {
 			_subword = 0;
-			++_word;
+			++_backing;
 		}
 		return *this;
 	}
@@ -66,7 +60,7 @@ public:
 		_subword += bitsize<OUT>;
 		if (_subword >= bitsize<IN>) {
 			_subword = 0;
-			++_word;
+			++_backing;
 		}
 		return retval;
 	}
@@ -74,7 +68,6 @@ public:
 	bool operator==(const subword_input_iterator<IN, OUT, DIR>& other) const {
 		return
 			this->_backing == other._backing &&
-			this->_word == other._word &&
 			this->_subword == other._subword;
 	}
 
@@ -85,7 +78,7 @@ public:
 	subword_input_iterator<IN, OUT, DIR> operator+(unsigned delta) const {
 		subword_input_iterator<IN, OUT, DIR> retval(*this);
 		retval._subword += bitsize<OUT> * delta;
-		retval._word += retval._subword / bitsize<IN>;
+		retval._backing += retval._subword / bitsize<IN>;
 		retval._subword %= bitsize<IN>;
 		return retval;
 	}

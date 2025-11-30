@@ -106,8 +106,7 @@ std::ostream& operator<<(std::ostream& os, const SmolMode& mode) {
 
 class varint_input_iterator {
 private:
-	const std::vector<uint8_t>& _backing;
-	size_t _byte_offset;
+	std::vector<uint8_t>::const_iterator _backing;
 
 	static const unsigned CONTINUE_MASK = 0x80;
 	static const unsigned DATA_MASK = 0x7F;
@@ -116,47 +115,46 @@ public:
 	varint_input_iterator(
 		std::vector<uint8_t>& backing,
 		size_t byte_offset) :
-			_backing(backing),
-			_byte_offset(byte_offset) {}
+			_backing(backing.begin() + byte_offset)
+			{}
 
 	~varint_input_iterator() {}
 
 	unsigned operator*() const {
 		unsigned retval = 0;
-		size_t byte_offset = this->_byte_offset;
+		std::vector<uint8_t>::const_iterator backing = this->_backing;
 		unsigned shift = 0;
 
-		retval = (this->_backing[byte_offset] & DATA_MASK);
-		while (this->_backing[byte_offset] & CONTINUE_MASK) {
-			++byte_offset;
+		retval = (*backing & DATA_MASK);
+		while (*backing & CONTINUE_MASK) {
+			++backing;
 			shift += DATA_SHIFT;
-			retval |= (this->_backing[byte_offset] & DATA_MASK) << shift;
+			retval |= (*backing & DATA_MASK) << shift;
 		}
 
 		return retval;
 	}
 
 	varint_input_iterator& operator++() {
-		while (this->_backing[this->_byte_offset] & CONTINUE_MASK) {
-			++this->_byte_offset;
+		while (*this->_backing & CONTINUE_MASK) {
+			++this->_backing;
 		}
-		++this->_byte_offset;
+		++this->_backing;
 		return *this;
 	}
 
 	varint_input_iterator operator++(int) {
 		varint_input_iterator retval = *this;
-		while (this->_backing[this->_byte_offset] & CONTINUE_MASK) {
-			++this->_byte_offset;
+		while (*this->_backing & CONTINUE_MASK) {
+			++this->_backing;
 		}
-		++this->_byte_offset;
+		++this->_backing;
 		return retval;
 	}
 
 	bool operator==(const varint_input_iterator& other) const {
 		return
-			this->_backing == other._backing &&
-			this->_byte_offset == other._byte_offset;
+			this->_backing == other._backing;
 	}
 
 	bool operator!=(const varint_input_iterator& other) const {
@@ -164,128 +162,175 @@ public:
 	}
 
 	bool operator<(const varint_input_iterator& other) const {
-		return this->_byte_offset < other._byte_offset;
+		return this->_backing < other._backing;
 	}
 };
 
-std::vector<uint8_t> decompressSmol(std::vector<uint8_t> src, bool disassemble) {
-	static const unsigned WRAPPER_SIZE = 4;
-	unsigned src_pos = WRAPPER_SIZE;
+class packing_input_iterator {
+private:
+	std::vector<uint8_t>::const_iterator _backing;
+public:
+	packing_input_iterator(const std::vector<uint8_t>::const_iterator& backing) :
+		_backing(backing) {}
+	packing_input_iterator(const packing_input_iterator& other) :
+		_backing(other._backing) {}
 
-	SmolMode mode(src[src_pos + 0] & 0xF);
-	uint32_t imageSize = (src[src_pos + 0] >> 4) | (src[src_pos + 1] << 4) | ((src[src_pos + 2] & 0x3) << 12);
-	uint32_t symbolsSize = (src[src_pos + 2] >> 2) | (src[src_pos + 3] << 6);
-	uint32_t tansState = src[src_pos + 4] & 0x3F;
-	uint32_t bitstreamSize = (src[src_pos + 4] >> 6) | (src[src_pos + 5] << 2) | ((src[src_pos + 6] & 0x7) << 10);
-	uint32_t lengthoffsetSize = (src[src_pos + 6] >> 3) | (src[src_pos + 7] << 5);
-	src_pos += 8;
+	uint16_t operator*() {
+		return (*_backing | (*(_backing + 1) << 8));
+	}
+
+	packing_input_iterator& operator++() {
+		_backing += 2;
+		return *this;
+	}
+
+	bool operator==(const packing_input_iterator& other) const {
+		return this->_backing == other._backing;
+	}
+	bool operator!=(const packing_input_iterator& other) const {
+		return !(*this == other);
+	}
+};
+
+class tans_decoding_nibble_input_iterator {
+private:
+	const std::array<DecodingTansCell, 64> _table;
+	subword_input_iterator<uint8_t, uint1_t, DIRECTION_INC> _bitstream;
+	unsigned _state;
+
+public:
+	tans_decoding_nibble_input_iterator(
+		const std::array<DecodingTansCell, 64>& table,
+		subword_input_iterator<uint8_t, uint1_t, DIRECTION_INC> bitstream,
+		unsigned state)
+		: _table(table), _bitstream(bitstream), _state(state) {}
+
+	uint4_t operator*() {
+		return static_cast<uint4_t>(this->_table[this->_state].symbol);
+	}
+
+	tans_decoding_nibble_input_iterator& operator++() {
+		DecodingTansCell column = this->_table[this->_state];
+		unsigned offset = 0;
+		for (unsigned k = 0; k < column.bits; ++k) {
+			offset |= (*this->_bitstream) << k;
+			++this->_bitstream;
+		}
+		this->_state = column.next_state;
+		this->_state |= offset;
+		this->_state %= this->_table.size();
+		return *this;
+	}
+
+	unsigned state() const { return this->_state; }
+};
+
+class tans_decoding_u16_input_iterator {
+private:
+	tans_decoding_nibble_input_iterator _backing;
+public:
+	tans_decoding_u16_input_iterator(
+		tans_decoding_nibble_input_iterator backing)
+		: _backing(backing) {}
+
+	tans_decoding_u16_input_iterator(
+		const std::array<DecodingTansCell, 64>& table,
+		subword_input_iterator<uint8_t, uint1_t, DIRECTION_INC> bitstream,
+		unsigned state)
+		: _backing(table, bitstream, state) {}
+
+	uint16_t operator*() {
+		tans_decoding_nibble_input_iterator backing = this->_backing;
+		uint16_t symbol(0);
+		for (unsigned j = 0; j < 4; j++) {
+			symbol |= *backing << (j * 4);
+			++backing;
+		}
+		return symbol;
+	}
+
+	tans_decoding_u16_input_iterator operator++() {
+		++this->_backing;
+		++this->_backing;
+		++this->_backing;
+		++this->_backing;
+		return *this;
+	}
+
+	unsigned state() const { return this->_backing.state(); }
+};
+
+struct SmolHeader {
+	SmolMode mode;
+	uint32_t imageSize;
+	uint32_t symbolsSize;
+	uint32_t initialTansState;
+	uint32_t bitstreamSize;
+	uint32_t lengthOffsetSize;
+
+	SmolHeader(const std::vector<uint8_t>& src, unsigned src_pos) : mode(1) {
+		this->mode = src[src_pos + 0] & 0xF;
+		this->imageSize = (src[src_pos + 0] >> 4) | (src[src_pos + 1] << 4) | ((src[src_pos + 2] & 0x3) << 12);
+		this->symbolsSize = (src[src_pos + 2] >> 2) | (src[src_pos + 3] << 6);
+		this->initialTansState = src[src_pos + 4] & 0x3F;
+		this->bitstreamSize = (src[src_pos + 4] >> 6) | (src[src_pos + 5] << 2) | ((src[src_pos + 6] & 0x7) << 10);
+		this->lengthOffsetSize = (src[src_pos + 6] >> 3) | (src[src_pos + 7] << 5);
+	}
+};
+
+std::ostream& operator<<(std::ostream& os, const SmolHeader& h) {
+	os << std::endl;
+	os << "### Header " << std::endl;
+	os << "  mode: " << h.mode << std::endl;
+	os << "  imageSize: " << h.imageSize << std::endl;
+	os << "  symbolsSize: " << h.symbolsSize << std::endl;
+	os << "  initialTansState: " << h.initialTansState << std::endl;
+	os << "  bitstreamSize: " << h.bitstreamSize << std::endl;
+	os << "  lengthoffsetSize: " << h.lengthOffsetSize << std::endl;
+	os << std::endl;
+	return os;
+}
+
+std::array<DecodingTansCell, 64> unpack_frequencies_tans_table(const std::vector<uint8_t>& src, unsigned src_pos, bool disassemble) {
+	std::array<DecodingTansCell, 64> tansTable;
+	std::array<uint8_t, 16> frequencies;
+	frequencies[15] = 0;
+	for (unsigned i = 0; i < 3; i += 1, src_pos += 4) {
+		uint32_t tmp = src[src_pos] | (src[src_pos+1] << 8) | (src[src_pos+2] << 16) | (src[src_pos+3] << 24);
+
+		for (unsigned j = 0; j < 5; j++) {
+			frequencies[i*5+j] = (tmp >> (6*j)) & 0x3F;
+		}
+		frequencies[15] |= ((tmp >> 30) & 0x3) << (2 * i);
+	}
 
 	if (disassemble) {
-		std::cout << std::endl;
-		std::cout << "### Header " << std::endl;
-		std::cout << "  mode: " << mode << std::endl;
-		std::cout << "  imageSize: " << imageSize << std::endl;
-		std::cout << "  symbolsSize: " << symbolsSize << std::endl;
-		std::cout << "  initialTansState: " << tansState << std::endl;
-		std::cout << "  bitstreamSize: " << bitstreamSize << std::endl;
-		std::cout << "  lengthoffsetSize: " << lengthoffsetSize << std::endl;
+		std::cout << "### Symbol Frequencies " << std::endl;
+		for (unsigned i = 0; i < frequencies.size(); i++) {
+			std::cout << "  [" << i << "] = " << static_cast<int>(frequencies[i]) << std::endl;
+		}
 		std::cout << std::endl;
 	}
 
-	std::array<DecodingTansCell, 64> tansTable;
-	if (SymbolEncoding::TANS == mode.symbolEncoding()) {
-		std::array<uint8_t, 16> frequencies;
-		frequencies[15] = 0;
-		for (unsigned i = 0; i < 3; i += 1, src_pos += 4) {
-			uint32_t tmp = src[src_pos] | (src[src_pos+1] << 8) | (src[src_pos+2] << 16) | (src[src_pos+3] << 24);
+	tansTable = genDecodingTansTable<16, 64>(frequencies);
 
-			for (unsigned j = 0; j < 5; j++) {
-				frequencies[i*5+j] = (tmp >> (6*j)) & 0x3F;
-			}
-			frequencies[15] |= ((tmp >> 30) & 0x3) << (2 * i);
+	if (PRINT_DECODER_TANS && disassemble) {
+		std::cout << "### Symbol tansTable " << std::endl;
+		for (unsigned i = 0; i < tansTable.size(); i++) {
+			std::cout
+				<< std::format("  {:2d} ({:3d}) {:1x} {:3d} {:3d}",
+					i, i + 64, tansTable[i].symbol, tansTable[i].next_state,
+					tansTable[i].bits)
+				<< std::endl;
 		}
-
-		if (disassemble) {
-			std::cout << "### Symbol Frequencies " << std::endl;
-			for (unsigned i = 0; i < frequencies.size(); i++) {
-				std::cout << "  [" << i << "] = " << static_cast<int>(frequencies[i]) << std::endl;
-			}
-			std::cout << std::endl;
-		}
-
-		tansTable = genDecodingTansTable<16, 64>(frequencies);
-
-		if (PRINT_DECODER_TANS && disassemble) {
-			std::cout << "### Symbol tansTable " << std::endl;
-			for (unsigned i = 0; i < tansTable.size(); i++) {
-				std::cout
-					<< std::format("  {:2d} ({:3d}) {:1x} {:3d} {:3d}",
-						i, i + 64, tansTable[i].symbol, tansTable[i].next_state,
-						tansTable[i].bits)
-					<< std::endl;
-			}
-			std::cout << std::endl;
-		}
+		std::cout << std::endl;
 	}
+	return tansTable;
+}
 
-	std::vector<uint32_t> bitstream_words;
-	bitstream_words.reserve(bitstreamSize);
-	for (size_t i = 0; i < bitstreamSize; ++i, src_pos+=4) {
-		uint32_t tmp = src[src_pos] | (src[src_pos+1] << 8) | (src[src_pos+2] << 16) | (src[src_pos+3] << 24);
-		bitstream_words.push_back(tmp);
-	}
-	subword_input_iterator<uint32_t, uint1_t, DIRECTION_INC> bitstream(bitstream_words);
-
-	std::vector<uint16_t> symbols;
-	switch (mode.symbolEncoding()) {
-		case SymbolEncoding::IDENT : {
-			for (size_t i = 0; i < symbolsSize; i++) {
-				symbols.push_back(src[src_pos + i * 2] | (src[src_pos + i * 2 + 1] << 8));
-			}
-			src_pos += symbolsSize * 2;
-			break;
-		}
-		case SymbolEncoding::TANS : {
-			if (PRINT_DECODER_BITSTREAM && disassemble) {
-				std::cout << "### symbol bitstream " << std::endl;
-			}
-			for (size_t i = 0; i < symbolsSize; i++) {
-				uint16_t symbol = 0;
-				for (size_t j = 0; j < 4; j++) {
-					DecodingTansCell column = tansTable[tansState];
-					symbol |= column.symbol << (j * 4);
-					tansState = column.next_state;
-					unsigned offset = 0;
-					for (unsigned k = 0; k < column.bits; ++k) {
-						offset |= (*bitstream) << k;
-						++bitstream;
-					}
-					tansState |= offset;
-					tansState %= tansTable.size();
-					if (PRINT_DECODER_BITSTREAM && disassemble) {
-						for (unsigned bit_i = 0; bit_i < column.bits; bit_i++) {
-							std::cout << (offset & (1 << bit_i) ? "1" : "0");
-						}
-						std::cout << "," << tansState << " ";
-					}
-				}
-				symbols.push_back(symbol);
-			}
-			if (PRINT_DECODER_BITSTREAM && disassemble) {
-				std::cout << std::endl;
-			}
-			break;
-		}
-		case SymbolEncoding::TANS_DELTA : {
-			break;
-		}
-	}
-
-	varint_input_iterator lengthOffsets(src, src_pos);
-	varint_input_iterator lengthOffsetsEnd(src, src_pos + lengthoffsetSize);
-
+template<class SYMBOL_ITERATOR, class INSTRUCTION_ITERATOR>
+std::vector<uint8_t> decompress_smol_from_iterators(SYMBOL_ITERATOR symbols, INSTRUCTION_ITERATOR lengthOffsets, INSTRUCTION_ITERATOR lengthOffsetsEnd, bool disassemble) {
 	std::vector<uint16_t> retval16;
-	size_t symbolIndex = 0;
 
 	if (disassemble) {
 		std::cout << "### Length-Offsets " << std::endl;
@@ -303,14 +348,14 @@ std::vector<uint8_t> decompressSmol(std::vector<uint8_t> src, bool disassemble) 
 
 		if (0 == length) {
 			for (unsigned j = 0; j < offset; j++) {
-				if (disassemble) printf("%04x ", symbols[symbolIndex]);
-				retval16.push_back(symbols[symbolIndex]);
-				symbolIndex++;
+				if (disassemble) printf("%04x ", *symbols);
+				retval16.push_back(*symbols);
+				++symbols;
 			}
 		} else {
-			if (disassemble) printf("%04x # ", symbols[symbolIndex]);
-			retval16.push_back(symbols[symbolIndex]);
-			symbolIndex++;
+			if (disassemble) printf("%04x # ", *symbols);
+			retval16.push_back(*symbols);
+			++symbols;
 			for (unsigned j = 0; j < length; j++) {
 				if (false && disassemble) printf("%04x ", retval16[retval16.size() - offset]);
 				retval16.push_back(retval16[retval16.size() - offset]);
@@ -322,10 +367,6 @@ std::vector<uint8_t> decompressSmol(std::vector<uint8_t> src, bool disassemble) 
 		}
 	}
 
-	if (disassemble) {
-		std::cout << "Final tansState: " << static_cast<int>(tansState) << std::endl;
-	}
-
 	std::vector<uint8_t> retval;
 	for (uint16_t v : retval16) {
 		retval.push_back(v);
@@ -333,6 +374,49 @@ std::vector<uint8_t> decompressSmol(std::vector<uint8_t> src, bool disassemble) 
 	}
 
 	return retval;
+}
+
+std::vector<uint8_t> decompressSmol1(std::vector<uint8_t> src, bool disassemble) {
+	static const unsigned WRAPPER_SIZE = 4;
+	unsigned src_pos = WRAPPER_SIZE;
+
+	SmolHeader header(src, src_pos);
+	src_pos += 8;
+	if (disassemble) {
+		std::cout << header;
+	}
+
+	packing_input_iterator symbols(src.begin() + src_pos);
+	src_pos += header.symbolsSize * 2;
+
+	varint_input_iterator lengthOffsets(src, src_pos);
+	varint_input_iterator lengthOffsetsEnd(src, src_pos + header.lengthOffsetSize);
+
+	return decompress_smol_from_iterators(symbols, lengthOffsets, lengthOffsetsEnd, disassemble);
+}
+
+std::vector<uint8_t> decompressSmol2(std::vector<uint8_t> src, bool disassemble) {
+	static const unsigned WRAPPER_SIZE = 4;
+	unsigned src_pos = WRAPPER_SIZE;
+
+	SmolHeader header(src, src_pos);
+	src_pos += 8;
+	if (disassemble) {
+		std::cout << header;
+	}
+
+	std::array<DecodingTansCell, 64> tansTable = unpack_frequencies_tans_table(src, src_pos, disassemble);
+	src_pos += 12;
+
+	subword_input_iterator<uint8_t, uint1_t, DIRECTION_INC> bitstream(src.begin() + src_pos);
+	src_pos += header.bitstreamSize * 4;
+
+	tans_decoding_u16_input_iterator symbols(tansTable, bitstream, header.initialTansState);
+
+	varint_input_iterator lengthOffsets(src, src_pos);
+	varint_input_iterator lengthOffsetsEnd(src, src_pos + header.lengthOffsetSize);
+
+	return decompress_smol_from_iterators(symbols, lengthOffsets, lengthOffsetsEnd, disassemble);
 }
 
 struct SmolCopyInstruction1 {

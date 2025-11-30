@@ -24,8 +24,8 @@ const std::initializer_list<choosable_compression> compression_algs = {
 	{"FRIT8"sv,	&compressFrit8,	&decompressFrit8,},
 	{"Huff8"sv,	&compressHuff8,	&decompressHuff8,},
 	{"Huff4"sv,	&compressHuff4,	&decompressHuff4,},
-	{"Smol1"sv,	&compressSmol1,	&decompressSmol,},
-	{"Smol2"sv,	&compressSmol2,	&decompressSmol,},
+	{"Smol1"sv,	&compressSmol1,	&decompressSmol1,},
+	{"Smol2"sv,	&compressSmol2,	&decompressSmol2,},
 };
 
 choosen_compression choose_compression(std::string tiles_name, std::vector<uint8_t> data) {
