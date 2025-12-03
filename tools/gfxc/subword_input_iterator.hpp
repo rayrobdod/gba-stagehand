@@ -75,6 +75,14 @@ public:
 		return !(*this == other);
 	}
 
+	bool operator<(const subword_input_iterator<IN, OUT, DIR>& other) const {
+		if (this->_backing != other._backing) {
+			return this->_backing < other._backing;
+		} else {
+			return this->_subword < other._subword;
+		}
+	}
+
 	subword_input_iterator<IN, OUT, DIR> operator+(unsigned delta) const {
 		subword_input_iterator<IN, OUT, DIR> retval(*this);
 		retval._subword += bitsize<OUT> * delta;

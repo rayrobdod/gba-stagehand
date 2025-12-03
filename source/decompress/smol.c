@@ -56,30 +56,56 @@ static void generate_decoding_tans_table(struct decoding_tans_cell retval[TANS_F
 
 struct bitstream {
 	const uint32_t* bits;
-	unsigned offset;
+	unsigned bits_offset;
+	unsigned lo_bytes_read;
 };
 
-static uint16_t parseTansBitstream(
+static uint16_t parseTansBitstream_Nibble(
+			struct bitstream* bitstream,
+			uint32_t* tansState,
+			const struct decoding_tans_cell tans_table[TANS_FREQUENCIES]) {
+	struct decoding_tans_cell cell = tans_table[*tansState];
+	unsigned retval = cell.symbol;
+	*tansState = cell.next_state;
+	unsigned offset = 0;
+	for (unsigned k = 0; k < cell.bits; ++k) {
+		offset |= ((((*bitstream->bits) >> bitstream->bits_offset) & 1) << k);
+		bitstream->bits_offset += 1;
+		if (bitstream->bits_offset >= 32) {
+			bitstream->bits_offset -= 32;
+			bitstream->bits += 1;
+		}
+	}
+	*tansState |= offset;
+	*tansState %= TANS_FREQUENCIES;
+	return retval;
+}
+
+static uint16_t parseTansBitstream_u16(
 			struct bitstream* bitstream,
 			uint32_t* tansState,
 			const struct decoding_tans_cell tans_table[TANS_FREQUENCIES]) {
 	uint16_t retval = 0;
 	#pragma GCC unroll 4
 	for (unsigned nibble_i = 0; nibble_i < 4; ++nibble_i) {
-		struct decoding_tans_cell cell = tans_table[*tansState];
-		retval |= cell.symbol << (nibble_i * 4);
-		*tansState = cell.next_state;
-		unsigned offset = 0;
-		for (unsigned k = 0; k < cell.bits; ++k) {
-			offset |= ((((*bitstream->bits) >> bitstream->offset) & 1) << k);
-			bitstream->offset += 1;
-			if (bitstream->offset >= 32) {
-				bitstream->offset -= 32;
-				bitstream->bits += 1;
-			}
-		}
-		*tansState |= offset;
-		*tansState %= TANS_FREQUENCIES;
+		retval |= parseTansBitstream_Nibble(bitstream, tansState, tans_table) << (nibble_i * 4);
+	}
+	return retval;
+}
+
+static uint16_t parseTansBitstream_Varint(
+			struct bitstream* bitstream,
+			uint32_t* tansState,
+			const struct decoding_tans_cell tans_table[TANS_FREQUENCIES]) {
+	unsigned retval = 0;
+	retval |= parseTansBitstream_Nibble(bitstream, tansState, tans_table);
+	retval |= parseTansBitstream_Nibble(bitstream, tansState, tans_table) << 4;
+	bitstream->lo_bytes_read += 1;
+	if (retval & 0x80) {
+		retval &= 0x7F;
+		retval |= parseTansBitstream_Nibble(bitstream, tansState, tans_table) << 7;
+		retval |= parseTansBitstream_Nibble(bitstream, tansState, tans_table) << 11;
+		bitstream->lo_bytes_read += 1;
 	}
 	return retval;
 }
@@ -135,7 +161,8 @@ void Smol2UnComp(const struct CompressedData* src, volatile void* dest) {
 
 	struct bitstream bitstream = {
 		.bits = (const uint32_t*) (src->data + 8 + 12),
-		.offset = 0,
+		.bits_offset = 0,
+		.lo_bytes_read = 0,
 	};
 
 	const uint8_t* lenOffs = (src->data + 8 + 12 + 4 * bitstreamSize);
@@ -147,12 +174,55 @@ void Smol2UnComp(const struct CompressedData* src, volatile void* dest) {
 
 		if (0 == length) {
 			for (unsigned j = 0; j < offset; j++) {
-				*dest16 = parseTansBitstream(&bitstream, &tansState, symbol_tans_table);
+				*dest16 = parseTansBitstream_u16(&bitstream, &tansState, symbol_tans_table);
 				++dest16;
 			}
 		} else {
-			*dest16 = parseTansBitstream(&bitstream, &tansState, symbol_tans_table);
+			*dest16 = parseTansBitstream_u16(&bitstream, &tansState, symbol_tans_table);
 			++dest16;
+			for (unsigned j = 0; j < length; j++) {
+				*dest16 = *(dest16 - offset);
+				++dest16;
+			}
+		}
+	}
+}
+
+void Smol4UnComp(const struct CompressedData* src, volatile void* dest) {
+	//const uint32_t mode = src->data[0] & 0xF;
+	//const uint32_t imageSize = (src->data[0] >> 4) | (src->data[1] << 4) | ((src->data[2] & 0x3) << 12);
+	//const uint32_t symbolsSize = (src->data[2] >> 2) | (src->data[3] << 6);
+	uint32_t tansState = src->data[4] & 0x3F;
+	const uint32_t bitstreamSize = (src->data[4] >> 6) | (src->data[5] << 2) | ((src->data[6] & 0x7) << 10);
+	const uint32_t lengthoffsetSize = (src->data[6] >> 3) | (src->data[7] << 5);
+
+	volatile uint16_t* dest16 = (volatile uint16_t*) dest;
+
+	struct decoding_tans_cell lo_tans_table[TANS_FREQUENCIES];
+	generate_decoding_tans_table(lo_tans_table, (const uint32_t*) (src->data + 8));
+
+	struct bitstream bitstream = {
+		.bits = (const uint32_t*) (src->data + 8 + 12),
+		.bits_offset = 0,
+		.lo_bytes_read = 0,
+	};
+
+	const uint16_t* symbols = (const uint16_t*) (src->data + 8 + 12 + 4 * bitstreamSize);
+
+	while (bitstream.lo_bytes_read < lengthoffsetSize) {
+		const unsigned length = parseTansBitstream_Varint(&bitstream, &tansState, lo_tans_table);
+		const unsigned offset = parseTansBitstream_Varint(&bitstream, &tansState, lo_tans_table);
+
+		if (0 == length) {
+			for (unsigned j = 0; j < offset; j++) {
+				*dest16 = *symbols;
+				++dest16;
+				++symbols;
+			}
+		} else {
+			*dest16 = *symbols;
+			++dest16;
+			++symbols;
 			for (unsigned j = 0; j < length; j++) {
 				*dest16 = *(dest16 - offset);
 				++dest16;

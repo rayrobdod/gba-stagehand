@@ -26,6 +26,7 @@ const std::initializer_list<choosable_compression> compression_algs = {
 	{"Huff4"sv,	&compressHuff4,	&decompressHuff4,},
 	{"Smol1"sv,	&compressSmol1,	&decompressSmol1,},
 	{"Smol2"sv,	&compressSmol2,	&decompressSmol2,},
+	{"Smol4"sv,	&compressSmol4,	&decompressSmol4,},
 };
 
 choosen_compression choose_compression(std::string tiles_name, std::vector<uint8_t> data) {
