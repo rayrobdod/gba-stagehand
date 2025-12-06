@@ -361,3 +361,67 @@ void Smol5UnComp(const struct CompressedData* src, volatile void* dest) {
 
 	free(instructions_start);
 }
+
+void Smol6UnComp(const struct CompressedData* src, volatile void* dest) {
+	//const uint32_t mode = src->data[0] & 0xF;
+	//const uint32_t imageSize = (src->data[0] >> 4) | (src->data[1] << 4) | ((src->data[2] & 0x3) << 12);
+	//const uint32_t symbolsSize = (src->data[2] >> 2) | (src->data[3] << 6);
+	uint32_t tansState = src->data[4] & 0x3F;
+	//const uint32_t bitstreamSize = (src->data[4] >> 6) | (src->data[5] << 2) | ((src->data[6] & 0x7) << 10);
+	const uint32_t lengthoffsetSize = (src->data[6] >> 3) | (src->data[7] << 5);
+
+	volatile uint16_t* dest16 = (volatile uint16_t*) dest;
+
+	struct decoding_tans_cell lo_tans_table[TANS_FREQUENCIES];
+	generate_decoding_tans_table(lo_tans_table, (const uint32_t*) (src->data + 8));
+
+	struct decoding_tans_cell symbol_tans_table[TANS_FREQUENCIES];
+	generate_decoding_tans_table(symbol_tans_table, (const uint32_t*) (src->data + 8 + 12));
+
+	struct bitstream bitstream = {
+		.bits = (const uint32_t*) (src->data + 8 + 12 + 12),
+		.bits_offset = 0,
+		.lo_bytes_read = 0,
+	};
+
+	uint16_t* const instructions_start = malloc(2 * lengthoffsetSize);
+	if (NULL == instructions_start) {
+		MgbaPrintf(MGBA_LOG_FATAL, "Smol6UnComp: Out of memory");
+		return;
+	}
+
+	uint16_t* instructions = instructions_start;
+	while (bitstream.lo_bytes_read < lengthoffsetSize) {
+		*instructions = parseTansBitstream_Varint(&bitstream, &tansState, lo_tans_table);
+		instructions++;
+		*instructions = parseTansBitstream_Varint(&bitstream, &tansState, lo_tans_table);
+		instructions++;
+	}
+	uint16_t* const instructions_end = instructions;
+	instructions = instructions_start;
+
+	uint32_t previousNibble = 0;
+
+	while (instructions < instructions_end) {
+		const unsigned length = *instructions;
+		instructions++;
+		const unsigned offset = *instructions;
+		instructions++;
+
+		if (0 == length) {
+			for (unsigned j = 0; j < offset; j++) {
+				*dest16 = parseTansBitstream_Deltau16(&bitstream, &tansState, &previousNibble, symbol_tans_table);
+				++dest16;
+			}
+		} else {
+			*dest16 = parseTansBitstream_Deltau16(&bitstream, &tansState, &previousNibble, symbol_tans_table);
+			++dest16;
+			for (unsigned j = 0; j < length; j++) {
+				*dest16 = *(dest16 - offset);
+				++dest16;
+			}
+		}
+	}
+
+	free(instructions_start);
+}

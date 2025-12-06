@@ -31,6 +31,8 @@ static UnCompFn CAT(UnCompFn, XRAM)(unsigned magic) {
 		return &Smol4UnComp;
 	case 0xF5:
 		return &Smol5UnComp;
+	case 0xF6:
+		return &Smol6UnComp;
 	default:
 		return NULL;
 	}
