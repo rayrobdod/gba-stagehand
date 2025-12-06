@@ -16,7 +16,7 @@
 
 static const bool PRINT_ENCODER_TANS(false);
 static const bool PRINT_DECODER_TANS(false);
-static const bool PRINT_DECODER_BITSTREAM(false);
+static const bool PRINT_DECODER_COPIES(false);
 
 enum class SymbolEncoding {
 	IDENT,
@@ -34,7 +34,7 @@ private:
 	char _code;
 public:
 	SmolMode(char code) : _code(code) {
-		if ((code < 1 || code > 2) && (code < 4 || code > 5)) {
+		if ((code < 1 || code > 6)) {
 			throw std::invalid_argument("SmolMode unknown code");
 		}
 	}
@@ -96,13 +96,17 @@ public:
 
 	static const SmolMode BASE_ONLY;
 	static const SmolMode ENCODE_SYMS;
+	static const SmolMode ENCODE_SYMS_DELTA;
 	static const SmolMode ENCODE_LO;
 	static const SmolMode ENCODE_BOTH;
+	static const SmolMode ENCODE_BOTH_DELTA;
 };
 const SmolMode SmolMode::BASE_ONLY(1);
 const SmolMode SmolMode::ENCODE_SYMS(2);
+const SmolMode SmolMode::ENCODE_SYMS_DELTA(3);
 const SmolMode SmolMode::ENCODE_LO(4);
 const SmolMode SmolMode::ENCODE_BOTH(5);
+const SmolMode SmolMode::ENCODE_BOTH_DELTA(6);
 
 std::ostream& operator<<(std::ostream& os, const SmolMode& mode) {
 	return os << static_cast<int>(mode.code()) << " (" << mode.name() << ")";
@@ -234,6 +238,35 @@ public:
 	subword_input_iterator<uint8_t, uint1_t, DIRECTION_INC> bitstream() const { return this->_bitstream; }
 };
 
+class tans_decoding_delta_nibble_input_iterator {
+private:
+	uint4_t _previous;
+	tans_decoding_nibble_input_iterator _backing;
+public:
+	tans_decoding_delta_nibble_input_iterator(
+		tans_decoding_nibble_input_iterator backing)
+		: _previous(0), _backing(backing) {}
+
+	tans_decoding_delta_nibble_input_iterator(
+		const std::array<DecodingTansCell, 64>& table,
+		subword_input_iterator<uint8_t, uint1_t, DIRECTION_INC> bitstream,
+		unsigned state)
+		: _previous(0), _backing(table, bitstream, state) {}
+
+	uint4_t operator*() {
+		return this->_previous + *(this->_backing);
+	}
+
+	tans_decoding_delta_nibble_input_iterator operator++() {
+		this->_previous += *(this->_backing);
+		++this->_backing;
+		return *this;
+	}
+
+	unsigned state() const { return this->_backing.state(); }
+	subword_input_iterator<uint8_t, uint1_t, DIRECTION_INC> bitstream() const { return this->_backing.bitstream(); }
+};
+
 class tans_decoding_u16_input_iterator {
 private:
 	tans_decoding_nibble_input_iterator _backing;
@@ -259,6 +292,42 @@ public:
 	}
 
 	tans_decoding_u16_input_iterator operator++() {
+		++this->_backing;
+		++this->_backing;
+		++this->_backing;
+		++this->_backing;
+		return *this;
+	}
+
+	unsigned state() const { return this->_backing.state(); }
+	subword_input_iterator<uint8_t, uint1_t, DIRECTION_INC> bitstream() const { return this->_backing.bitstream(); }
+};
+
+class tans_decoding_delta4_u16_input_iterator {
+private:
+	tans_decoding_delta_nibble_input_iterator _backing;
+public:
+	tans_decoding_delta4_u16_input_iterator(
+		tans_decoding_delta_nibble_input_iterator backing)
+		: _backing(backing) {}
+
+	tans_decoding_delta4_u16_input_iterator(
+		const std::array<DecodingTansCell, 64>& table,
+		subword_input_iterator<uint8_t, uint1_t, DIRECTION_INC> bitstream,
+		unsigned state)
+		: _backing(table, bitstream, state) {}
+
+	uint16_t operator*() {
+		tans_decoding_delta_nibble_input_iterator backing = this->_backing;
+		uint16_t symbol(0);
+		for (unsigned j = 0; j < 4; j++) {
+			symbol |= *backing << (j * 4);
+			++backing;
+		}
+		return symbol;
+	}
+
+	tans_decoding_delta4_u16_input_iterator operator++() {
 		++this->_backing;
 		++this->_backing;
 		++this->_backing;
@@ -425,7 +494,7 @@ std::vector<uint8_t> decompress_smol_from_iterators(SYMBOL_ITERATOR symbols, INS
 			retval16.push_back(*symbols);
 			++symbols;
 			for (unsigned j = 0; j < length; j++) {
-				if (false && disassemble) printf("%04x ", retval16[retval16.size() - offset]);
+				if (PRINT_DECODER_COPIES && disassemble) printf("%04x ", retval16[retval16.size() - offset]);
 				retval16.push_back(retval16[retval16.size() - offset]);
 			}
 		}
@@ -480,6 +549,30 @@ std::vector<uint8_t> decompressSmol2(std::vector<uint8_t> src, bool disassemble)
 	src_pos += header.bitstreamSize * 4;
 
 	tans_decoding_u16_input_iterator symbols(tansTable, bitstream, header.initialTansState);
+
+	varint_input_iterator lengthOffsets(src, src_pos);
+	varint_input_iterator lengthOffsetsEnd(src, src_pos + header.lengthOffsetSize);
+
+	return decompress_smol_from_iterators(symbols, lengthOffsets, lengthOffsetsEnd, disassemble);
+}
+
+std::vector<uint8_t> decompressSmol3(std::vector<uint8_t> src, bool disassemble) {
+	static const unsigned WRAPPER_SIZE = 4;
+	unsigned src_pos = WRAPPER_SIZE;
+
+	SmolHeader header(src, src_pos);
+	src_pos += 8;
+	if (disassemble) {
+		std::cout << header;
+	}
+
+	std::array<DecodingTansCell, 64> tansTable = unpack_frequencies_tans_table(src, src_pos, disassemble);
+	src_pos += 12;
+
+	subword_input_iterator<uint8_t, uint1_t, DIRECTION_INC> bitstream(src.begin() + src_pos);
+	src_pos += header.bitstreamSize * 4;
+
+	tans_decoding_delta4_u16_input_iterator symbols(tansTable, bitstream, header.initialTansState);
 
 	varint_input_iterator lengthOffsets(src, src_pos);
 	varint_input_iterator lengthOffsetsEnd(src, src_pos + header.lengthOffsetSize);
@@ -725,7 +818,7 @@ static std::vector<uint1_t> calculate_reversed_tans_bitstream_u4(unsigned& tansS
 	return retval;
 }
 
-static std::vector<uint1_t> calculate_reversed_tans_bitstream(unsigned& tansState, const std::vector<uint16_t> symbols, const std::array<uint8_t, 16> frequencies) {
+static std::vector<uint1_t> calculate_reversed_tans_bitstream_u16(unsigned& tansState, const std::vector<uint16_t> symbols, const std::array<uint8_t, 16> frequencies) {
 	std::vector<uint1_t> retval;
 
 	std::array<DecodingTansCell, 64> decodeTansTable = genDecodingTansTable<16, 64>(frequencies);
@@ -857,7 +950,77 @@ std::optional<std::vector<uint8_t>> compressSmol2(std::vector<uint8_t> src) {
 
 	// Want the start of the bitstream to be aligned with the beginning of the word.
 	// Can't do that until knowing how many items are in the bitstream.
-	std::vector<uint1_t> reversed_symbol_bitstream = calculate_reversed_tans_bitstream(tansState, symbols16, symbolFrequencies);
+	std::vector<uint1_t> reversed_symbol_bitstream = calculate_reversed_tans_bitstream_u16(tansState, symbols16, symbolFrequencies);
+
+	subword_output_iterator<uint32_t, uint1_t, DIRECTION_INC> symbol_bitstream;
+	for (auto i = reversed_symbol_bitstream.rbegin(); i != reversed_symbol_bitstream.rend(); i++) {
+		*symbol_bitstream = *i;
+		++symbol_bitstream;
+	}
+
+	std::vector<uint8_t> instrBytes;
+	for (SmolCopyInstruction instr : instrs) {
+		for (uint8_t b : instr.varintBytes()) {
+			instrBytes.push_back(b);
+		}
+	}
+
+	std::optional<std::vector<uint8_t>> retval_opt = pack_header(
+			mode, imageSize, symbols16.size(), tansState, symbol_bitstream.size(), instrBytes.size());
+	if (! retval_opt)
+		return std::nullopt;
+	std::vector<uint8_t> retval = *retval_opt;
+
+	std::array<uint8_t, 12> packed_symbol_frequencies = pack_frequencies(symbolFrequencies);
+	for (uint8_t b : packed_symbol_frequencies) {
+		retval.push_back(b);
+	}
+
+	for (uint32_t symbol : symbol_bitstream.result()) {
+		retval.push_back(symbol);
+		retval.push_back(symbol >> 8);
+		retval.push_back(symbol >> 16);
+		retval.push_back(symbol >> 24);
+	}
+
+	for (uint8_t b : instrBytes) {
+		retval.push_back(b);
+	}
+
+	while (0 != retval.size() % 4) {
+		retval.push_back(0);
+	}
+
+	return std::make_optional(retval);
+}
+
+std::optional<std::vector<uint8_t>> compressSmol3(std::vector<uint8_t> src) {
+	if (0 != src.size() % 4)
+		return std::nullopt;
+
+	const SmolMode mode = SmolMode::ENCODE_SYMS_DELTA;
+	uint32_t tansState = 0;
+
+	const uint32_t imageSize = src.size() / 4;
+
+	const std::vector<SmolCopyInstruction> instrs = calculate_instructions(src);
+
+	const std::vector<uint16_t> symbols16 = list_symbols(instrs);
+	const subword_input_iterator<uint16_t, uint4_t, DIRECTION_INC> symbols4(symbols16.begin());
+	const subword_input_iterator<uint16_t, uint4_t, DIRECTION_INC> symbols4_end(symbols16.end());
+
+	std::vector<uint4_t> symbolsDelta4;
+	uint4_t previous(0);
+	for (auto i = symbols4; i != symbols4_end; i++) {
+		symbolsDelta4.push_back(*i - previous);
+		previous = *i;
+	}
+
+	const std::array<uint8_t, 16> symbolFrequencies = calculate_normalized_u4_frequencies(symbolsDelta4.begin(), symbolsDelta4.end());
+
+	// Want the start of the bitstream to be aligned with the beginning of the word.
+	// Can't do that until knowing how many items are in the bitstream.
+	std::vector<uint1_t> reversed_symbol_bitstream = calculate_reversed_tans_bitstream_u4(tansState, symbolsDelta4, symbolFrequencies);
 
 	subword_output_iterator<uint32_t, uint1_t, DIRECTION_INC> symbol_bitstream;
 	for (auto i = reversed_symbol_bitstream.rbegin(); i != reversed_symbol_bitstream.rend(); i++) {
@@ -991,7 +1154,7 @@ std::optional<std::vector<uint8_t>> compressSmol5(std::vector<uint8_t> src) {
 
 	// Want the start of the bitstream to be aligned with the beginning of the word.
 	// Can't do that until knowing how many items are in the bitstream.
-	std::vector<uint1_t> reversed_sym_bitstream = calculate_reversed_tans_bitstream(tansState, symbols16, symbolFrequencies);
+	std::vector<uint1_t> reversed_sym_bitstream = calculate_reversed_tans_bitstream_u16(tansState, symbols16, symbolFrequencies);
 	std::vector<uint1_t> reversed_instr_bitstream = calculate_reversed_tans_bitstream_u4(tansState, instrNibbles, instrFrequencies);
 
 	subword_output_iterator<uint32_t, uint1_t, DIRECTION_INC> bitstream;

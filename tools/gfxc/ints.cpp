@@ -33,6 +33,26 @@ uint4_t::uint4_t(unsigned long long int x)
 		: value(x & 0xF) {
 }
 
+uint4_t uint4_t::operator+(uint4_t other) const {
+	uint4_t retval(this->value + other.value);
+	return retval;
+}
+uint4_t uint4_t::operator+=(uint4_t other) {
+	this->value += other.value;
+	this->value &= 0xF;
+	return *this;
+}
+
+uint4_t uint4_t::operator-(uint4_t other) const {
+	uint4_t retval(this->value - other.value);
+	return retval;
+}
+uint4_t uint4_t::operator-=(uint4_t other) {
+	this->value -= other.value;
+	this->value &= 0xF;
+	return *this;
+}
+
 uint4_t operator""_u4(unsigned long long int x) {
 	uint4_t retval(x);
 	return retval;

@@ -26,6 +26,7 @@ const std::initializer_list<choosable_compression> compression_algs = {
 	{"Huff4"sv,	&compressHuff4,	&decompressHuff4,},
 	{"Smol1"sv,	&compressSmol1,	&decompressSmol1,},
 	{"Smol2"sv,	&compressSmol2,	&decompressSmol2,},
+	{"Smol3"sv,	&compressSmol3,	&decompressSmol3,},
 	{"Smol4"sv,	&compressSmol4,	&decompressSmol4,},
 	{"Smol5"sv,	&compressSmol5,	&decompressSmol5,},
 };

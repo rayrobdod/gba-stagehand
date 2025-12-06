@@ -22,6 +22,10 @@ uint2_t operator""_u2(unsigned long long int);
 struct uint4_t {
 	uint8_t value : 4;
 	operator uint8_t() const;
+	uint4_t operator+(uint4_t) const;
+	uint4_t operator-(uint4_t) const;
+	uint4_t operator+=(uint4_t);
+	uint4_t operator-=(uint4_t);
 	explicit uint4_t(unsigned long long int);
 };
 
