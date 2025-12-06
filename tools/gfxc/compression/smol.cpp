@@ -34,7 +34,7 @@ private:
 	char _code;
 public:
 	SmolMode(char code) : _code(code) {
-		if ((code < 1 || code > 6)) {
+		if ((code < 1 || code > 6) && (code != 8)) {
 			throw std::invalid_argument("SmolMode unknown code");
 		}
 	}
@@ -100,6 +100,7 @@ public:
 	static const SmolMode ENCODE_LO;
 	static const SmolMode ENCODE_BOTH;
 	static const SmolMode ENCODE_BOTH_DELTA;
+	static const SmolMode TILEMAP;
 };
 const SmolMode SmolMode::BASE_ONLY(1);
 const SmolMode SmolMode::ENCODE_SYMS(2);
@@ -107,6 +108,7 @@ const SmolMode SmolMode::ENCODE_SYMS_DELTA(3);
 const SmolMode SmolMode::ENCODE_LO(4);
 const SmolMode SmolMode::ENCODE_BOTH(5);
 const SmolMode SmolMode::ENCODE_BOTH_DELTA(6);
+const SmolMode SmolMode::TILEMAP(8);
 
 std::ostream& operator<<(std::ostream& os, const SmolMode& mode) {
 	return os << static_cast<int>(mode.code()) << " (" << mode.name() << ")";
@@ -428,6 +430,32 @@ std::ostream& operator<<(std::ostream& os, const SmolHeader& h) {
 	return os;
 }
 
+struct SmolTilemapHeader {
+	SmolMode mode;
+	uint32_t imageSize;
+	uint32_t symbolsSize;
+	uint32_t lengthOffsetSize;
+
+	SmolTilemapHeader(const std::vector<uint8_t>& src, unsigned src_pos) : mode(1) {
+		this->mode = src[src_pos + 0] & 0xF;
+		this->imageSize = (src[src_pos + 0] >> 4) | (src[src_pos + 1] << 4) | ((src[src_pos + 2] & 0x3) << 12);
+		this->symbolsSize = (src[src_pos + 2] >> 2) | (src[src_pos + 3] << 6);
+		// I believe lengthOffsetSize is still limited to 13 bits, but haven't verified.
+		this->lengthOffsetSize = src[src_pos + 4] | (src[src_pos + 5] << 8) | (src[src_pos + 6] << 16) | (src[src_pos + 7] << 24);
+	}
+};
+
+std::ostream& operator<<(std::ostream& os, const SmolTilemapHeader& h) {
+	os << std::endl;
+	os << "### Header " << std::endl;
+	os << "  mode: " << h.mode << std::endl;
+	os << "  imageSize: " << h.imageSize << std::endl;
+	os << "  symbolsSize: " << h.symbolsSize << std::endl;
+	os << "  lengthoffsetSize: " << h.lengthOffsetSize << std::endl;
+	os << std::endl;
+	return os;
+}
+
 std::array<DecodingTansCell, 64> unpack_frequencies_tans_table(const std::vector<uint8_t>& src, unsigned src_pos, bool disassemble) {
 	std::array<DecodingTansCell, 64> tansTable;
 	std::array<uint8_t, 16> frequencies;
@@ -653,6 +681,37 @@ std::vector<uint8_t> decompressSmol6(std::vector<uint8_t> src, bool disassemble)
 	tans_decoding_delta4_u16_input_iterator symbols(symbolTansTable, lengthOffsetsEnd.bitstream(), lengthOffsetsEnd.state());
 
 	return decompress_smol_from_iterators(symbols, lengthOffsets, lengthOffsetsEnd, disassemble);
+}
+
+std::vector<uint8_t> decompressSmol8(std::vector<uint8_t> src, bool disassemble) {
+	static const unsigned WRAPPER_SIZE = 4;
+	unsigned src_pos = WRAPPER_SIZE;
+
+	SmolTilemapHeader header(src, src_pos);
+	src_pos += 8;
+	if (disassemble) {
+		std::cout << header;
+	}
+
+	packing_input_iterator symbols(src.begin() + src_pos);
+	src_pos += header.symbolsSize * 2;
+
+	varint_input_iterator lengthOffsets(src, src_pos);
+	varint_input_iterator lengthOffsetsEnd(src, src_pos + header.lengthOffsetSize);
+
+	std::vector<uint8_t> deltas = decompress_smol_from_iterators(symbols, lengthOffsets, lengthOffsetsEnd, disassemble);
+
+	std::vector<uint8_t> retval;
+	uint16_t prev(0);
+	for (auto i = deltas.begin(); i != deltas.end();) {
+		uint16_t delta(0);
+		delta |= *i++;
+		delta |= (*i++) << 8;
+		prev += delta;
+		retval.push_back(prev);
+		retval.push_back(prev >> 8);
+	}
+	return retval;
 }
 
 struct SmolCopyInstruction1 {
@@ -1290,6 +1349,74 @@ std::optional<std::vector<uint8_t>> compressSmol6(std::vector<uint8_t> src) {
 		retval.push_back(symbol >> 8);
 		retval.push_back(symbol >> 16);
 		retval.push_back(symbol >> 24);
+	}
+
+	return std::make_optional(retval);
+}
+
+std::optional<std::vector<uint8_t>> compressSmol8(std::vector<uint8_t> src) {
+	if (0 != src.size() % 4)
+		return std::nullopt;
+
+	const SmolMode mode = SmolMode::TILEMAP;
+	const uint32_t imageSize = src.size() / 4;
+
+	std::vector<uint8_t> deltas;
+	uint16_t prev(0);
+	for (auto i = src.begin(); i != src.end();) {
+		uint16_t current(0);
+		current |= *i++;
+		current |= (*i++) << 8;
+		uint16_t delta = current - prev;
+		prev = current;
+		deltas.push_back(delta);
+		deltas.push_back(delta >> 8);
+	}
+
+	const std::vector<SmolCopyInstruction> instrs = calculate_instructions(deltas);
+	const std::vector<uint16_t> symbols = list_symbols(instrs);
+
+	std::vector<uint8_t> instrBytes;
+	for (SmolCopyInstruction instr : instrs) {
+		for (uint8_t b : instr.varintBytes()) {
+			instrBytes.push_back(b);
+		}
+	}
+
+	if (imageSize >= 1 << 14)
+		return std::nullopt;
+	if (symbols.size() >= 1 << 14)
+		return std::nullopt;
+	if (instrBytes.size() >= 1 << 13)
+		return std::nullopt;
+
+	std::vector<uint8_t> retval;
+	retval.push_back(mode | 0xF0);
+	retval.push_back(imageSize * 4);
+	retval.push_back((imageSize * 4) >> 8);
+	retval.push_back((imageSize * 4) >> 16);
+
+	retval.push_back(mode | imageSize << 4);
+	retval.push_back(imageSize >> 4);
+	retval.push_back(imageSize >> 12 | symbols.size() << 2);
+	retval.push_back(symbols.size() >> 6);
+	retval.push_back(instrBytes.size());
+	retval.push_back(instrBytes.size() >> 8);
+	retval.push_back(instrBytes.size() >> 16);
+	retval.push_back(instrBytes.size() >> 24);
+
+
+	for (uint16_t symbol : symbols) {
+		retval.push_back(symbol);
+		retval.push_back(symbol >> 8);
+	}
+
+	for (uint8_t b : instrBytes) {
+		retval.push_back(b);
+	}
+
+	while (0 != retval.size() % 4) {
+		retval.push_back(0);
 	}
 
 	return std::make_optional(retval);

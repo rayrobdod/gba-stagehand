@@ -425,3 +425,45 @@ void Smol6UnComp(const struct CompressedData* src, volatile void* dest) {
 
 	free(instructions_start);
 }
+
+void Smol8UnComp(const struct CompressedData* src, volatile void* dest) {
+	//const uint32_t mode = src->data[0] & 0xF;
+	//const uint32_t imageSize = (src->data[0] >> 4) | (src->data[1] << 4) | ((src->data[2] & 0x3) << 12);
+	const uint32_t symbolsSize = (src->data[2] >> 2) | (src->data[3] << 6);
+	const uint32_t lengthoffsetSize = (src->data[4]) | (src->data[5] << 8) | (src->data[6] << 16) | (src->data[7] << 24);
+
+	volatile uint16_t* const dest16Begin = (volatile uint16_t*) dest;
+	volatile uint16_t* dest16 = dest16Begin;
+
+	const uint16_t* symbols = (const uint16_t*) (src->data + 8);
+	const uint8_t* lenOffs = (src->data + 8 + 2 * symbolsSize);
+	const uint8_t* const lenOffs_end = lenOffs + lengthoffsetSize;
+
+	while (lenOffs < lenOffs_end) {
+		const unsigned length = parseVarint(&lenOffs);
+		const unsigned offset = parseVarint(&lenOffs);
+
+		if (0 == length) {
+			for (unsigned j = 0; j < offset; j++) {
+				*dest16 = *symbols;
+				++dest16;
+				++symbols;
+			}
+		} else {
+			*dest16 = *symbols;
+			++dest16;
+			++symbols;
+			for (unsigned j = 0; j < length; j++) {
+				*dest16 = *(dest16 - offset);
+				++dest16;
+			}
+		}
+	}
+
+	volatile uint16_t* const dest16End = dest16;
+	dest16 = dest16Begin + 1;
+	while (dest16 < dest16End) {
+		*dest16 += *(dest16 - 1);
+		dest16++;
+	}
+}
