@@ -58,7 +58,6 @@ static void generate_decoding_tans_table(struct decoding_tans_cell retval[TANS_F
 struct bitstream {
 	const uint32_t* bits;
 	unsigned bits_offset;
-	unsigned lo_bytes_read;
 };
 
 static uint16_t parseTansBitstream_Nibble(
@@ -121,16 +120,17 @@ static uint16_t parseTansBitstream_Deltau16(
 static uint16_t parseTansBitstream_Varint(
 			struct bitstream* bitstream,
 			uint32_t* tansState,
+			uint32_t* lo_bytes_read,
 			const struct decoding_tans_cell tans_table[TANS_FREQUENCIES]) {
 	unsigned retval = 0;
 	retval |= parseTansBitstream_Nibble(bitstream, tansState, tans_table);
 	retval |= parseTansBitstream_Nibble(bitstream, tansState, tans_table) << 4;
-	bitstream->lo_bytes_read += 1;
+	*lo_bytes_read += 1;
 	if (retval & 0x80) {
 		retval &= 0x7F;
 		retval |= parseTansBitstream_Nibble(bitstream, tansState, tans_table) << 7;
 		retval |= parseTansBitstream_Nibble(bitstream, tansState, tans_table) << 11;
-		bitstream->lo_bytes_read += 1;
+		*lo_bytes_read += 1;
 	}
 	return retval;
 }
@@ -187,7 +187,6 @@ void Smol2UnComp(const struct CompressedData* src, volatile void* dest) {
 	struct bitstream bitstream = {
 		.bits = (const uint32_t*) (src->data + 8 + 12),
 		.bits_offset = 0,
-		.lo_bytes_read = 0,
 	};
 
 	const uint8_t* lenOffs = (src->data + 8 + 12 + 4 * bitstreamSize);
@@ -229,7 +228,6 @@ void Smol3UnComp(const struct CompressedData* src, volatile void* dest) {
 	struct bitstream bitstream = {
 		.bits = (const uint32_t*) (src->data + 8 + 12),
 		.bits_offset = 0,
-		.lo_bytes_read = 0,
 	};
 
 	const uint8_t* lenOffs = (src->data + 8 + 12 + 4 * bitstreamSize);
@@ -273,14 +271,15 @@ void Smol4UnComp(const struct CompressedData* src, volatile void* dest) {
 	struct bitstream bitstream = {
 		.bits = (const uint32_t*) (src->data + 8 + 12),
 		.bits_offset = 0,
-		.lo_bytes_read = 0,
 	};
 
 	const uint16_t* symbols = (const uint16_t*) (src->data + 8 + 12 + 4 * bitstreamSize);
 
-	while (bitstream.lo_bytes_read < lengthoffsetSize) {
-		const unsigned length = parseTansBitstream_Varint(&bitstream, &tansState, lo_tans_table);
-		const unsigned offset = parseTansBitstream_Varint(&bitstream, &tansState, lo_tans_table);
+	uint32_t lo_bytes_read = 0;
+
+	while (lo_bytes_read < lengthoffsetSize) {
+		const unsigned length = parseTansBitstream_Varint(&bitstream, &tansState, &lo_bytes_read, lo_tans_table);
+		const unsigned offset = parseTansBitstream_Varint(&bitstream, &tansState, &lo_bytes_read, lo_tans_table);
 
 		if (0 == length) {
 			for (unsigned j = 0; j < offset; j++) {
@@ -319,7 +318,6 @@ void Smol5UnComp(const struct CompressedData* src, volatile void* dest) {
 	struct bitstream bitstream = {
 		.bits = (const uint32_t*) (src->data + 8 + 12 + 12),
 		.bits_offset = 0,
-		.lo_bytes_read = 0,
 	};
 
 	uint16_t* const instructions_start = malloc(2 * lengthoffsetSize);
@@ -328,11 +326,13 @@ void Smol5UnComp(const struct CompressedData* src, volatile void* dest) {
 		return;
 	}
 
+	uint32_t lo_bytes_read = 0;
+
 	uint16_t* instructions = instructions_start;
-	while (bitstream.lo_bytes_read < lengthoffsetSize) {
-		*instructions = parseTansBitstream_Varint(&bitstream, &tansState, lo_tans_table);
+	while (lo_bytes_read < lengthoffsetSize) {
+		*instructions = parseTansBitstream_Varint(&bitstream, &tansState, &lo_bytes_read, lo_tans_table);
 		instructions++;
-		*instructions = parseTansBitstream_Varint(&bitstream, &tansState, lo_tans_table);
+		*instructions = parseTansBitstream_Varint(&bitstream, &tansState, &lo_bytes_read, lo_tans_table);
 		instructions++;
 	}
 	uint16_t* const instructions_end = instructions;
@@ -381,7 +381,6 @@ void Smol6UnComp(const struct CompressedData* src, volatile void* dest) {
 	struct bitstream bitstream = {
 		.bits = (const uint32_t*) (src->data + 8 + 12 + 12),
 		.bits_offset = 0,
-		.lo_bytes_read = 0,
 	};
 
 	uint16_t* const instructions_start = malloc(2 * lengthoffsetSize);
@@ -390,11 +389,13 @@ void Smol6UnComp(const struct CompressedData* src, volatile void* dest) {
 		return;
 	}
 
+	uint32_t lo_bytes_read = 0;
+
 	uint16_t* instructions = instructions_start;
-	while (bitstream.lo_bytes_read < lengthoffsetSize) {
-		*instructions = parseTansBitstream_Varint(&bitstream, &tansState, lo_tans_table);
+	while (lo_bytes_read < lengthoffsetSize) {
+		*instructions = parseTansBitstream_Varint(&bitstream, &tansState, &lo_bytes_read, lo_tans_table);
 		instructions++;
-		*instructions = parseTansBitstream_Varint(&bitstream, &tansState, lo_tans_table);
+		*instructions = parseTansBitstream_Varint(&bitstream, &tansState, &lo_bytes_read, lo_tans_table);
 		instructions++;
 	}
 	uint16_t* const instructions_end = instructions;
