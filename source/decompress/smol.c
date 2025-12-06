@@ -56,26 +56,29 @@ static void generate_decoding_tans_table(struct decoding_tans_cell retval[TANS_F
 }
 
 struct bitstream {
-	const uint32_t* bits;
-	unsigned bits_offset;
+	const uint16_t* src;
+	unsigned buffer;
+	unsigned buffer_size;
 };
 
 static uint16_t parseTansBitstream_Nibble(
 			struct bitstream* bitstream,
 			uint32_t* tansState,
 			const struct decoding_tans_cell tans_table[TANS_FREQUENCIES]) {
+	if (bitstream->buffer_size < 16) {
+		bitstream->buffer |= (*bitstream->src) << (bitstream->buffer_size);
+		bitstream->buffer_size += 16;
+		++(bitstream->src);
+	}
+
 	struct decoding_tans_cell cell = tans_table[*tansState];
 	unsigned retval = cell.symbol;
 	*tansState = cell.next_state;
-	unsigned offset = 0;
-	for (unsigned k = 0; k < cell.bits; ++k) {
-		offset |= ((((*bitstream->bits) >> bitstream->bits_offset) & 1) << k);
-		bitstream->bits_offset += 1;
-		if (bitstream->bits_offset >= 32) {
-			bitstream->bits_offset -= 32;
-			bitstream->bits += 1;
-		}
-	}
+
+	unsigned offset = ((bitstream->buffer << (32 - cell.bits)) >> (32 - cell.bits));
+	bitstream->buffer >>= cell.bits;
+	bitstream->buffer_size -= cell.bits;
+
 	*tansState |= offset;
 	*tansState %= TANS_FREQUENCIES;
 	return retval;
@@ -185,8 +188,9 @@ void Smol2UnComp(const struct CompressedData* src, volatile void* dest) {
 	generate_decoding_tans_table(symbol_tans_table, (const uint32_t*) (src->data + 8));
 
 	struct bitstream bitstream = {
-		.bits = (const uint32_t*) (src->data + 8 + 12),
-		.bits_offset = 0,
+		.src = (const uint16_t*) (src->data + 8 + 12),
+		.buffer = 0,
+		.buffer_size = 0,
 	};
 
 	const uint8_t* lenOffs = (src->data + 8 + 12 + 4 * bitstreamSize);
@@ -226,8 +230,9 @@ void Smol3UnComp(const struct CompressedData* src, volatile void* dest) {
 	generate_decoding_tans_table(symbol_tans_table, (const uint32_t*) (src->data + 8));
 
 	struct bitstream bitstream = {
-		.bits = (const uint32_t*) (src->data + 8 + 12),
-		.bits_offset = 0,
+		.src = (const uint16_t*) (src->data + 8 + 12),
+		.buffer = 0,
+		.buffer_size = 0,
 	};
 
 	const uint8_t* lenOffs = (src->data + 8 + 12 + 4 * bitstreamSize);
@@ -269,8 +274,9 @@ void Smol4UnComp(const struct CompressedData* src, volatile void* dest) {
 	generate_decoding_tans_table(lo_tans_table, (const uint32_t*) (src->data + 8));
 
 	struct bitstream bitstream = {
-		.bits = (const uint32_t*) (src->data + 8 + 12),
-		.bits_offset = 0,
+		.src = (const uint16_t*) (src->data + 8 + 12),
+		.buffer = 0,
+		.buffer_size = 0,
 	};
 
 	const uint16_t* symbols = (const uint16_t*) (src->data + 8 + 12 + 4 * bitstreamSize);
@@ -316,8 +322,9 @@ void Smol5UnComp(const struct CompressedData* src, volatile void* dest) {
 	generate_decoding_tans_table(symbol_tans_table, (const uint32_t*) (src->data + 8 + 12));
 
 	struct bitstream bitstream = {
-		.bits = (const uint32_t*) (src->data + 8 + 12 + 12),
-		.bits_offset = 0,
+		.src = (const uint16_t*) (src->data + 8 + 12 + 12),
+		.buffer = 0,
+		.buffer_size = 0,
 	};
 
 	uint16_t* const instructions_start = malloc(2 * lengthoffsetSize);
@@ -379,8 +386,9 @@ void Smol6UnComp(const struct CompressedData* src, volatile void* dest) {
 	generate_decoding_tans_table(symbol_tans_table, (const uint32_t*) (src->data + 8 + 12));
 
 	struct bitstream bitstream = {
-		.bits = (const uint32_t*) (src->data + 8 + 12 + 12),
-		.bits_offset = 0,
+		.src = (const uint16_t*) (src->data + 8 + 12 + 12),
+		.buffer = 0,
+		.buffer_size = 0,
 	};
 
 	uint16_t* const instructions_start = malloc(2 * lengthoffsetSize);
