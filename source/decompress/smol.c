@@ -5,6 +5,7 @@
 #include "decompress/type.h"
 #include "gba/hw_reg.h"
 #include "gba/screen.h"
+#include "utils/comptime_for.h"
 #include "mgba.h"
 
 static inline unsigned parseVarint(const uint8_t** lenOffs) {
@@ -22,14 +23,29 @@ static inline unsigned parseVarint(const uint8_t** lenOffs) {
 	return retval;
 }
 
-struct decoding_tans_cell {
+struct [[gnu::aligned(4)]] decoding_tans_cell {
 	uint8_t symbol;
 	uint8_t bits;
 	uint8_t next_state;
+	uint8_t mask;
 };
+_Static_assert(4 == sizeof(struct decoding_tans_cell));
 
 #define TANS_FREQUENCIES (64)
 #define TANS_SYMBOLS (16)
+
+#define TANS_TABLE_TEMPLATE_ENTRY(j) \
+	[j] = { \
+		.symbol = 0, \
+		.bits = __builtin_clz(j) - __builtin_clz(TANS_FREQUENCIES), \
+		.next_state = (j << (__builtin_clz(j) - __builtin_clz(TANS_FREQUENCIES))) % TANS_FREQUENCIES, \
+		.mask = (1 << (__builtin_clz(j) - __builtin_clz(TANS_FREQUENCIES))) - 1, \
+	},
+
+static const struct decoding_tans_cell decoding_tans_template[128] = {
+	[0] = {0},
+	FOR_1_TO_127(TANS_TABLE_TEMPLATE_ENTRY)
+};
 
 [[gnu::access(write_only, 1), gnu::access(read_only, 2)]]
 static void generate_decoding_tans_table(struct decoding_tans_cell retval[TANS_FREQUENCIES], const uint32_t* packed_frequencies) {
@@ -47,10 +63,8 @@ static void generate_decoding_tans_table(struct decoding_tans_cell retval[TANS_F
 	unsigned table_index = 0;
 	for (unsigned i = 0; i < TANS_SYMBOLS; ++i) {
 		for (unsigned j = 0; j < frequencies[i]; ++j, ++table_index) {
+			retval[table_index] = decoding_tans_template[frequencies[i] + j];
 			retval[table_index].symbol = i;
-			retval[table_index].next_state = frequencies[i] + j;
-			retval[table_index].bits = __builtin_clz(frequencies[i] + j) - __builtin_clz(TANS_FREQUENCIES);
-			retval[table_index].next_state <<= retval[table_index].bits;
 		}
 	}
 }
@@ -75,7 +89,7 @@ static uint16_t parseTansBitstream_Nibble(
 	unsigned retval = cell.symbol;
 	*tansState = cell.next_state;
 
-	unsigned offset = ((bitstream->buffer << (32 - cell.bits)) >> (32 - cell.bits));
+	unsigned offset = bitstream->buffer & cell.mask;
 	bitstream->buffer >>= cell.bits;
 	bitstream->buffer_size -= cell.bits;
 
