@@ -79,7 +79,7 @@ static uint16_t parseTansBitstream_Nibble(
 			struct bitstream* bitstream,
 			uint32_t* tansState,
 			const struct decoding_tans_cell tans_table[TANS_FREQUENCIES]) {
-	if (bitstream->buffer_size < 16) {
+	if (__builtin_expect(bitstream->buffer_size < 16, 0)) {
 		bitstream->buffer |= (*bitstream->src) << (bitstream->buffer_size);
 		bitstream->buffer_size += 16;
 		++(bitstream->src);
