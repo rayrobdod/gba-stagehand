@@ -114,7 +114,6 @@ static uint16_t parseTansBitstream_u16(
 			uint32_t* tansState,
 			const struct decoding_tans_cell tans_table[TANS_FREQUENCIES]) {
 	uint16_t retval = 0;
-	#pragma GCC unroll 4
 	for (unsigned nibble_i = 0; nibble_i < 4; ++nibble_i) {
 		retval |= parseTansBitstream_Nibble(bitstream, tansState, tans_table) << (nibble_i * 4);
 	}
@@ -127,7 +126,6 @@ static uint16_t parseTansBitstream_Deltau16(
 			uint32_t* previousNibble,
 			const struct decoding_tans_cell tans_table[TANS_FREQUENCIES]) {
 	uint16_t retval = 0;
-	#pragma GCC unroll 4
 	for (unsigned nibble_i = 0; nibble_i < 4; ++nibble_i) {
 		retval |= parseTansBitstream_DeltaNibble(bitstream, tansState, previousNibble, tans_table) << (nibble_i * 4);
 	}
