@@ -1,19 +1,16 @@
-GBA Bootstrap
+Stagehand
 =============
 
-This is an example of a minimal project for GBA that can be built with a
-vanilla ``gcc-arm-none-eabi`` toolchain. This repository contains all the source
-you need to get started.
+You say "just use a pre-existing engine to make your game."
+I say "Making the engine is the fun part."
 
-There is an example of the codebase using just C and an example of using C and
-C++. Feel free to modify anything as you wish to suit your needs. This is meant
-to be a relatively simple to understand template for anyone to use as base.
+Basically, doing my own thing while writing a GBA game.
+Where "my one thing" includes things like describing hardware registers with real ``volatile struct`` variables
+instead of macros casting integers to ``uint16_t *`` and building values with bitshift macros.
 
-The license of the files in this repository is CC0 1.0 Universal, so you can
-treat all the files as if they were in the public domain.
-
-For an up-to-date version of this repository, check the GitHub repository:
-https://github.com/AntonioND/gba-bootstrap
+Aside from the gbafix tool,
+the license of the files in this repository is CC0 1.0 Universal,
+so you can treat all the files as if they were in the public domain.
 
 Instructions
 ------------
@@ -31,37 +28,12 @@ You can also download prebuilt binaries from `Arm's GNU toolchain downloads
 website`_. In this case, you will need to manually add this toolchain to your
 ``PATH``.
 
-Then, from the folder of either of the samples, type:
+Then, from the root folder, type:
 
 .. code:: bash
 
     make
 
 That's all!
-
-Organization
-------------
-
-For both samples the organization is the same:
-
-- ``Makefile``: Global makefile.
-
-- ``gbafix``: Tool used to fill the checksums and other required fields of the
-  ROM header.
-
-- ``source``: All the source code of the game goes here, including yours.
-
-- ``source/sys``: Files required by the C/C++ runtime.
-
-- ``source/sys/gba_cart.ld``: Linker script that describes how code and data
-  sections are placed in the ROM and at runtime on the GBA.
-
-- ``source/sys/gba_crt0.s``: Initialization code that loads each section into
-  the right location in RAM.
-
-- ``source/sys/syscalls.c``: Implementation of system calls. They are all
-  stubbed, so you can't use things like ``printf()`` or ``fopen()`` unless you
-  implement them, which isn't usually worth the effort on GBA. For more
-  information, check: https://sourceware.org/newlib/libc.html#Syscalls
 
 .. _Arm's GNU toolchain downloads website: https://developer.arm.com/tools-and-software/open-source-software/developer-tools/gnu-toolchain/gnu-rm/downloads
