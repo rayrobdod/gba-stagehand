@@ -19,7 +19,7 @@ struct EncodingTansCell {
 
 template<size_t SYMBOL_COUNT, size_t FREQUENCY_SUM>
 std::array<DecodingTansCell, FREQUENCY_SUM> genDecodingTansTable(std::array<uint8_t, SYMBOL_COUNT> frequencies) {
-	static_assert(1 == __builtin_popcount(FREQUENCY_SUM));
+	static_assert(std::has_single_bit(FREQUENCY_SUM));
 
 	unsigned frequency_sum = std::accumulate<typename std::array<uint8_t, SYMBOL_COUNT>::iterator, unsigned>(frequencies.begin(), frequencies.end(), 0);
 	if (frequency_sum != FREQUENCY_SUM) {
@@ -36,7 +36,7 @@ std::array<DecodingTansCell, FREQUENCY_SUM> genDecodingTansTable(std::array<uint
 		for (unsigned j = 0; j < frequencies[i]; j++, tableIndex++) {
 			retval[tableIndex].symbol = i;
 			retval[tableIndex].next_state = frequencies[i] + j;
-			retval[tableIndex].bits = __builtin_clz(frequencies[i] + j) - __builtin_clz(retval.size());
+			retval[tableIndex].bits = std::countl_zero<size_t>(frequencies[i] + j) - std::countl_zero<size_t>(retval.size());
 			retval[tableIndex].next_state <<= retval[tableIndex].bits;
 		}
 	}
@@ -45,7 +45,7 @@ std::array<DecodingTansCell, FREQUENCY_SUM> genDecodingTansTable(std::array<uint
 
 template<size_t SYMBOL_COUNT, size_t FREQUENCY_SUM>
 std::array<std::array<EncodingTansCell, SYMBOL_COUNT>, FREQUENCY_SUM> genEncodingTansTable(std::array<DecodingTansCell, FREQUENCY_SUM> decodingTansTable) {
-	static_assert(1 == __builtin_popcount(FREQUENCY_SUM));
+	static_assert(std::has_single_bit(FREQUENCY_SUM));
 
 	std::array<std::array<EncodingTansCell, SYMBOL_COUNT>, FREQUENCY_SUM> retval{0};
 	for (uint8_t j = 0; j < decodingTansTable.size(); ++j) {
