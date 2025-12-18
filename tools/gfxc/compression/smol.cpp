@@ -839,8 +839,12 @@ static std::array<uint8_t, 16> calculate_normalized_u4_frequencies(IT begin, IT 
 
 	std::array<uint8_t, 16> symbolFrequencies{0};
 	for (unsigned i = 0; i < symbolFrequencies_L.size(); i++) {
-		// `ceil` because we can't have symbol counts round down to zero
-		symbolFrequencies[i] = std::ceil((symbolFrequencies_L[i] * 64.0) / symbolsCount);
+		if (0 == symbolFrequencies_L[i]) {
+			symbolFrequencies[i] = 0;
+		} else {
+			symbolFrequencies[i] = std::max<uint8_t>(1,
+				std::round((symbolFrequencies_L[i] * 64.0) / symbolsCount));
+		}
 	}
 
 	unsigned symbolFrequencies_sum = std::accumulate(
