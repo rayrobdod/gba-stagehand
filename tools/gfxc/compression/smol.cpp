@@ -754,10 +754,11 @@ public:
 	}
 };
 
-static std::vector<SmolCopyInstruction> calculate_instructions(const std::vector<uint8_t> src) {
+static std::vector<SmolCopyInstruction> calculate_instructions(
+		const std::vector<uint8_t> src,
+		const std::vector<unsigned char>::size_type min_length) {
 	static const unsigned max_offset = 0x3FFF;
 	static const std::vector<unsigned char>::size_type max_length = 0x3FFF;
-	static const std::vector<unsigned char>::size_type min_length = 2;
 
 	std::vector<uint16_t> src16;
 	for (size_t i = 0; i < src.size(); i += 2) {
@@ -986,7 +987,7 @@ std::optional<std::vector<uint8_t>> compressSmol1(std::vector<uint8_t> src) {
 	const uint32_t tansState = 0;
 	const uint32_t bitstreamSize = 0;
 
-	const std::vector<SmolCopyInstruction> instrs = calculate_instructions(src);
+	const std::vector<SmolCopyInstruction> instrs = calculate_instructions(src, 2);
 	const std::vector<uint16_t> symbols = list_symbols(instrs);
 
 	std::vector<uint8_t> instrBytes;
@@ -1029,7 +1030,7 @@ std::optional<std::vector<uint8_t>> compressSmol2(std::vector<uint8_t> src) {
 
 	const uint32_t imageSize = src.size() / 4;
 
-	const std::vector<SmolCopyInstruction> instrs = calculate_instructions(src);
+	const std::vector<SmolCopyInstruction> instrs = calculate_instructions(src, 4);
 
 	const std::vector<uint16_t> symbols16 = list_symbols(instrs);
 	const subword_input_iterator<uint16_t, uint4_t, DIRECTION_INC> symbols4(symbols16.begin());
@@ -1093,7 +1094,7 @@ std::optional<std::vector<uint8_t>> compressSmol3(std::vector<uint8_t> src) {
 
 	const uint32_t imageSize = src.size() / 4;
 
-	const std::vector<SmolCopyInstruction> instrs = calculate_instructions(src);
+	const std::vector<SmolCopyInstruction> instrs = calculate_instructions(src, 4);
 
 	const std::vector<uint16_t> symbols16 = list_symbols(instrs);
 	const subword_input_iterator<uint16_t, uint4_t, DIRECTION_INC> symbols4(symbols16.begin());
@@ -1165,7 +1166,7 @@ std::optional<std::vector<uint8_t>> compressSmol4(std::vector<uint8_t> src) {
 
 	const uint32_t imageSize = src.size() / 4;
 
-	const std::vector<SmolCopyInstruction> instrs = calculate_instructions(src);
+	const std::vector<SmolCopyInstruction> instrs = calculate_instructions(src, 1);
 	const std::vector<uint16_t> symbols = list_symbols(instrs);
 
 	std::vector<uint4_t> instrNibbles;
@@ -1229,7 +1230,7 @@ std::optional<std::vector<uint8_t>> compressSmol5(std::vector<uint8_t> src) {
 
 	const uint32_t imageSize = src.size() / 4;
 
-	const std::vector<SmolCopyInstruction> instrs = calculate_instructions(src);
+	const std::vector<SmolCopyInstruction> instrs = calculate_instructions(src, 2);
 	const std::vector<uint16_t> symbols = list_symbols(instrs);
 
 	std::vector<uint4_t> instrNibbles;
@@ -1299,7 +1300,7 @@ std::optional<std::vector<uint8_t>> compressSmol6(std::vector<uint8_t> src) {
 
 	const uint32_t imageSize = src.size() / 4;
 
-	const std::vector<SmolCopyInstruction> instrs = calculate_instructions(src);
+	const std::vector<SmolCopyInstruction> instrs = calculate_instructions(src, 2);
 	const std::vector<uint16_t> symbols = list_symbols(instrs);
 
 	std::vector<uint4_t> instrNibbles;
@@ -1387,7 +1388,7 @@ std::optional<std::vector<uint8_t>> compressSmol8(std::vector<uint8_t> src) {
 		deltas.push_back(delta >> 8);
 	}
 
-	const std::vector<SmolCopyInstruction> instrs = calculate_instructions(deltas);
+	const std::vector<SmolCopyInstruction> instrs = calculate_instructions(deltas, 2);
 	const std::vector<uint16_t> symbols = list_symbols(instrs);
 
 	std::vector<uint8_t> instrBytes;
