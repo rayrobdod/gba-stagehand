@@ -5,6 +5,7 @@
 #include "decompress/type.h"
 #include "gba/hw_reg.h"
 #include "gba/screen.h"
+#include "utils/arraycount.h"
 #include "utils/comptime_for.h"
 #include "mgba.h"
 
@@ -170,20 +171,66 @@ void Smol1UnComp(const struct CompressedData* src, volatile void* dest) {
 
 		if (0 == length) {
 			for (unsigned j = 0; j < offset; j++) {
-				*dest16 = *symbols;
-				++dest16;
-				++symbols;
+				*dest16++ = *symbols++;
 			}
 		} else {
-			*dest16 = *symbols;
-			++dest16;
-			++symbols;
+			*dest16++ = *symbols++;
 			for (unsigned j = 0; j < length; j++) {
 				*dest16 = *(dest16 - offset);
 				++dest16;
 			}
 		}
 	}
+}
+
+void Smol1UnCompSuspendableInit(
+		struct suspended_decompression* state,
+		const struct CompressedData* src,
+		volatile void* dest) {
+	//const uint32_t mode = src->data[0] & 0xF;
+	//const uint32_t imageSize = (src->data[0] >> 4) | (src->data[1] << 4) | ((src->data[2] & 0x3) << 12);
+	const uint32_t symbolsSize = (src->data[2] >> 2) | (src->data[3] << 6);
+	//const uint32_t tansState = src->data[4] & 0x3F;
+	//const uint32_t bitstreamSize = (src->data[4] >> 6) | (src->data[5] << 2) | ((src->data[6] & 0x7) << 10);
+	const uint32_t lengthoffsetSize = (src->data[6] >> 3) | (src->data[7] << 5);
+
+	state->src = src->data + 8 + 2 * symbolsSize;
+	state->src_ptrs[0] = src->data + 8;
+	state->src_ptrs[1] = src->data + 8 + 2 * symbolsSize + lengthoffsetSize;
+	state->dest = (volatile uint8_t*)dest;
+	state->dest_end = dest + (src->size / sizeof(uint8_t));
+	state->magic = src->magic;
+	for (unsigned i = 0; i < arraycount(state->regs); i++)
+		state->regs[i] = 0;
+}
+
+bool Smol1UnCompSuspendable(struct suspended_decompression* state) {
+	volatile uint16_t* dest16 = (volatile uint16_t*) state->dest;
+	const uint16_t* symbols = (const uint16_t*) state->src_ptrs[0];
+	const uint8_t* lenOffs = state->src;
+	const uint8_t* const lenOffs_end = state->src_ptrs[1];
+
+	while (lenOffs < lenOffs_end && (reg_lcd.VCOUNT < (DISPLAY_HEIGHT - 10) || reg_lcd.VCOUNT > DISPLAY_HEIGHT)) {
+		const unsigned length = parseVarint(&lenOffs);
+		const unsigned offset = parseVarint(&lenOffs);
+
+		if (0 == length) {
+			for (unsigned j = 0; j < offset; j++) {
+				*dest16++ = *symbols++;
+			}
+		} else {
+			*dest16++ = *symbols++;
+			for (unsigned j = 0; j < length; j++) {
+				*dest16 = *(dest16 - offset);
+				++dest16;
+			}
+		}
+	}
+
+	state->dest = (volatile uint8_t*) dest16;
+	state->src = lenOffs;
+	state->src_ptrs[0] = (const uint8_t*) symbols;
+	return lenOffs >= lenOffs_end;
 }
 
 void Smol2UnComp(const struct CompressedData* src, volatile void* dest) {

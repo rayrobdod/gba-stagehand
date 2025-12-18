@@ -6,7 +6,8 @@
 [[gnu::access(write_only, 1), gnu::access(read_only, 2), gnu::access(write_only, 3)]]
 void CommonUnCompSuspendableInit(struct suspended_decompression* state, const struct CompressedData* src, volatile void* dest) {
 	state->src = src->data;
-	state->src_start = src->data;
+	for (unsigned i = 0; i < arraycount(state->src_ptrs); i++)
+		state->src_ptrs[i] = src->data;
 	state->dest = (volatile uint8_t*)dest;
 	state->dest_end = dest + (src->size / sizeof(uint8_t));
 	state->magic = src->magic;
