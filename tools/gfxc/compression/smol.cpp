@@ -978,6 +978,8 @@ static std::optional<std::vector<uint8_t>> pack_header(
 std::optional<std::vector<uint8_t>> compressSmol1(std::vector<uint8_t> src) {
 	if (0 != src.size() % 4)
 		return std::nullopt;
+	if (src.size() >= 1 << 16)
+		return std::nullopt;
 
 	const SmolMode mode = SmolMode::BASE_ONLY;
 	const uint32_t imageSize = src.size() / 4;
@@ -1018,6 +1020,8 @@ std::optional<std::vector<uint8_t>> compressSmol1(std::vector<uint8_t> src) {
 
 std::optional<std::vector<uint8_t>> compressSmol2(std::vector<uint8_t> src) {
 	if (0 != src.size() % 4)
+		return std::nullopt;
+	if (src.size() >= 1 << 16)
 		return std::nullopt;
 
 	const SmolMode mode = SmolMode::ENCODE_SYMS;
@@ -1080,6 +1084,8 @@ std::optional<std::vector<uint8_t>> compressSmol2(std::vector<uint8_t> src) {
 
 std::optional<std::vector<uint8_t>> compressSmol3(std::vector<uint8_t> src) {
 	if (0 != src.size() % 4)
+		return std::nullopt;
+	if (src.size() >= 1 << 16)
 		return std::nullopt;
 
 	const SmolMode mode = SmolMode::ENCODE_SYMS_DELTA;
@@ -1151,6 +1157,8 @@ std::optional<std::vector<uint8_t>> compressSmol3(std::vector<uint8_t> src) {
 std::optional<std::vector<uint8_t>> compressSmol4(std::vector<uint8_t> src) {
 	if (0 != src.size() % 4)
 		return std::nullopt;
+	if (src.size() >= 1 << 16)
+		return std::nullopt;
 
 	const SmolMode mode = SmolMode::ENCODE_LO;
 	uint32_t tansState = 0;
@@ -1212,6 +1220,8 @@ std::optional<std::vector<uint8_t>> compressSmol4(std::vector<uint8_t> src) {
 
 std::optional<std::vector<uint8_t>> compressSmol5(std::vector<uint8_t> src) {
 	if (0 != src.size() % 4)
+		return std::nullopt;
+	if (src.size() >= 1 << 16)
 		return std::nullopt;
 
 	const SmolMode mode = SmolMode::ENCODE_BOTH;
@@ -1280,6 +1290,8 @@ std::optional<std::vector<uint8_t>> compressSmol5(std::vector<uint8_t> src) {
 
 std::optional<std::vector<uint8_t>> compressSmol6(std::vector<uint8_t> src) {
 	if (0 != src.size() % 4)
+		return std::nullopt;
+	if (src.size() >= 1 << 16)
 		return std::nullopt;
 
 	const SmolMode mode = SmolMode::ENCODE_BOTH_DELTA;
@@ -1356,6 +1368,8 @@ std::optional<std::vector<uint8_t>> compressSmol6(std::vector<uint8_t> src) {
 
 std::optional<std::vector<uint8_t>> compressSmol8(std::vector<uint8_t> src) {
 	if (0 != src.size() % 4)
+		return std::nullopt;
+	if (src.size() >= 1 << 16)
 		return std::nullopt;
 
 	const SmolMode mode = SmolMode::TILEMAP;
