@@ -2,10 +2,8 @@
 
 #include <iostream>
 #include <stdexcept>
-#include "choose_compression.hpp"
 #include "find_palette_superset.hpp"
 #include "object.hpp"
-#include "variable_name_for_image.hpp"
 
 palette_data_builder tileset_extract_palettes(std::pair<std::filesystem::path, bufferedimage> image) {
 	palette_data_builder retval;

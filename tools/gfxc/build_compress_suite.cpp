@@ -1,5 +1,6 @@
 #include "build_compress_suite.hpp"
 
+#include <algorithm>
 #include <filesystem>
 #include "resource_type/background.hpp"
 #include "resource_type/tileset.hpp"

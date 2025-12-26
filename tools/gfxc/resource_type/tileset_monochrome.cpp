@@ -1,7 +1,6 @@
 #include "resource_type/tileset_monochrome.hpp"
 
 #include "object.hpp"
-#include "variable_name_for_image.hpp"
 
 static void tileset_monochrome_write_struct(std::ostream& headerstream) {
 	headerstream << std::endl
@@ -21,8 +20,6 @@ static void tileset_monochrome_write_to_elf(
 	Object& elf
 ) {
 	headerstream << "extern const struct bitpacked_tileset " << var_name << ";" << std::endl;
-
-	std::string name = variable_name_for_image(image);
 
 	subword_output_iterator<uint8_t, uint1_t, DIRECTION_INC> tiledata_builder;
 	for (auto subimg : image.second.subs(8, 8)) {

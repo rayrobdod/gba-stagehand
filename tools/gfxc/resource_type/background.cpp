@@ -1,7 +1,6 @@
 #include "background.hpp"
 
 #include <array>
-#include <bit>
 #include <iostream>
 #include <stdexcept>
 #include "choose_compression.hpp"

@@ -1,7 +1,6 @@
 #include "resource_type/background_mode3.hpp"
 
 #include "object.hpp"
-#include "variable_name_for_image.hpp"
 
 static void mode3_write_to_elf(
 	std::pair<std::filesystem::path, struct bufferedimage> image,

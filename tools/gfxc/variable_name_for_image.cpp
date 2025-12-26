@@ -1,5 +1,7 @@
 #include "variable_name_for_image.hpp"
 
+#include <algorithm>
+
 std::string variable_name_for_image(std::pair<std::filesystem::path, bufferedimage> image) {
 	std::string retval;
 	auto manual = image.second.text().find(std::string("Variable"));

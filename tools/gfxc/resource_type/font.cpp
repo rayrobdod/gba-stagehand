@@ -4,7 +4,6 @@
 #include "ints.hpp"
 #include "object.hpp"
 #include "subword_output_iterator.hpp"
-#include "variable_name_for_image.hpp"
 
 static const rgba16_t light = {31, 31, 31, 1};
 static const rgba16_t shadow = {16, 16, 16, 1};
