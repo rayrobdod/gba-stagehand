@@ -207,13 +207,15 @@ private:
 	const std::array<DecodingTansCell, 64> _table;
 	subword_input_iterator<uint8_t, uint1_t, DIRECTION_INC> _bitstream;
 	unsigned _state;
+	unsigned _zero_bit_advance_count;
 
 public:
 	tans_decoding_nibble_input_iterator(
 		const std::array<DecodingTansCell, 64>& table,
 		subword_input_iterator<uint8_t, uint1_t, DIRECTION_INC> bitstream,
-		unsigned state)
-		: _table(table), _bitstream(bitstream), _state(state) {}
+		unsigned state,
+		unsigned zero_bit_advance_count)
+		: _table(table), _bitstream(bitstream), _state(state), _zero_bit_advance_count(zero_bit_advance_count) {}
 
 	uint4_t operator*() {
 		return static_cast<uint4_t>(this->_table[this->_state].symbol);
@@ -222,9 +224,14 @@ public:
 	tans_decoding_nibble_input_iterator& operator++() {
 		DecodingTansCell column = this->_table[this->_state];
 		unsigned offset = 0;
-		for (unsigned k = 0; k < column.bits; ++k) {
-			offset |= (*this->_bitstream) << k;
-			++this->_bitstream;
+		if (column.bits == 0) {
+			_zero_bit_advance_count += 1;
+		} else {
+			for (unsigned k = 0; k < column.bits; ++k) {
+				offset |= (*this->_bitstream) << k;
+				++this->_bitstream;
+			}
+			_zero_bit_advance_count = 0;
 		}
 		this->_state = column.next_state;
 		this->_state |= offset;
@@ -233,10 +240,11 @@ public:
 	}
 
 	bool operator<(tans_decoding_nibble_input_iterator& other) const {
-		return this->_bitstream < other._bitstream;
+		return this->_bitstream < other._bitstream || this->_zero_bit_advance_count < other._zero_bit_advance_count;
 	}
 
 	unsigned state() const { return this->_state; }
+	unsigned zero_bit_advance_count() const { return this->_zero_bit_advance_count; }
 	subword_input_iterator<uint8_t, uint1_t, DIRECTION_INC> bitstream() const { return this->_bitstream; }
 };
 
@@ -252,8 +260,9 @@ public:
 	tans_decoding_delta_nibble_input_iterator(
 		const std::array<DecodingTansCell, 64>& table,
 		subword_input_iterator<uint8_t, uint1_t, DIRECTION_INC> bitstream,
-		unsigned state)
-		: _previous(0), _backing(table, bitstream, state) {}
+		unsigned state,
+		unsigned zero_bit_advance_count)
+		: _previous(0), _backing(table, bitstream, state, zero_bit_advance_count) {}
 
 	uint4_t operator*() {
 		return this->_previous + *(this->_backing);
@@ -266,6 +275,7 @@ public:
 	}
 
 	unsigned state() const { return this->_backing.state(); }
+	unsigned zero_bit_advance_count() const { return this->_backing.zero_bit_advance_count(); }
 	subword_input_iterator<uint8_t, uint1_t, DIRECTION_INC> bitstream() const { return this->_backing.bitstream(); }
 };
 
@@ -280,8 +290,9 @@ public:
 	tans_decoding_u16_input_iterator(
 		const std::array<DecodingTansCell, 64>& table,
 		subword_input_iterator<uint8_t, uint1_t, DIRECTION_INC> bitstream,
-		unsigned state)
-		: _backing(table, bitstream, state) {}
+		unsigned state,
+		unsigned zero_bit_advance_count)
+		: _backing(table, bitstream, state, zero_bit_advance_count) {}
 
 	uint16_t operator*() {
 		tans_decoding_nibble_input_iterator backing = this->_backing;
@@ -302,6 +313,7 @@ public:
 	}
 
 	unsigned state() const { return this->_backing.state(); }
+	unsigned zero_bit_advance_count() const { return this->_backing.zero_bit_advance_count(); }
 	subword_input_iterator<uint8_t, uint1_t, DIRECTION_INC> bitstream() const { return this->_backing.bitstream(); }
 };
 
@@ -316,8 +328,9 @@ public:
 	tans_decoding_delta4_u16_input_iterator(
 		const std::array<DecodingTansCell, 64>& table,
 		subword_input_iterator<uint8_t, uint1_t, DIRECTION_INC> bitstream,
-		unsigned state)
-		: _backing(table, bitstream, state) {}
+		unsigned state,
+		unsigned zero_bit_advance_count)
+		: _backing(table, bitstream, state, zero_bit_advance_count) {}
 
 	uint16_t operator*() {
 		tans_decoding_delta_nibble_input_iterator backing = this->_backing;
@@ -338,6 +351,7 @@ public:
 	}
 
 	unsigned state() const { return this->_backing.state(); }
+	unsigned zero_bit_advance_count() const { return this->_backing.zero_bit_advance_count(); }
 	subword_input_iterator<uint8_t, uint1_t, DIRECTION_INC> bitstream() const { return this->_backing.bitstream(); }
 };
 
@@ -352,8 +366,9 @@ public:
 	tans_decoding_varint_input_iterator(
 		const std::array<DecodingTansCell, 64>& table,
 		subword_input_iterator<uint8_t, uint1_t, DIRECTION_INC> bitstream,
-		unsigned state)
-		: _backing(table, bitstream, state) {}
+		unsigned state,
+		unsigned zero_bit_advance_count)
+		: _backing(table, bitstream, state, zero_bit_advance_count) {}
 
 	uint16_t operator*() {
 		tans_decoding_nibble_input_iterator backing = this->_backing;
@@ -396,6 +411,7 @@ public:
 	}
 
 	unsigned state() const { return this->_backing.state(); }
+	unsigned zero_bit_advance_count() const { return this->_backing.zero_bit_advance_count(); }
 	subword_input_iterator<uint8_t, uint1_t, DIRECTION_INC> bitstream() const { return this->_backing.bitstream(); }
 };
 
@@ -576,7 +592,7 @@ std::vector<uint8_t> decompressSmol2(std::vector<uint8_t> src, bool disassemble)
 	subword_input_iterator<uint8_t, uint1_t, DIRECTION_INC> bitstream(src.begin() + src_pos);
 	src_pos += header.bitstreamSize * 4;
 
-	tans_decoding_u16_input_iterator symbols(tansTable, bitstream, header.initialTansState);
+	tans_decoding_u16_input_iterator symbols(tansTable, bitstream, header.initialTansState, 0);
 
 	varint_input_iterator lengthOffsets(src, src_pos);
 	varint_input_iterator lengthOffsetsEnd(src, src_pos + header.lengthOffsetSize);
@@ -600,7 +616,7 @@ std::vector<uint8_t> decompressSmol3(std::vector<uint8_t> src, bool disassemble)
 	subword_input_iterator<uint8_t, uint1_t, DIRECTION_INC> bitstream(src.begin() + src_pos);
 	src_pos += header.bitstreamSize * 4;
 
-	tans_decoding_delta4_u16_input_iterator symbols(tansTable, bitstream, header.initialTansState);
+	tans_decoding_delta4_u16_input_iterator symbols(tansTable, bitstream, header.initialTansState, 0);
 
 	varint_input_iterator lengthOffsets(src, src_pos);
 	varint_input_iterator lengthOffsetsEnd(src, src_pos + header.lengthOffsetSize);
@@ -627,7 +643,7 @@ std::vector<uint8_t> decompressSmol4(std::vector<uint8_t> src, bool disassemble)
 	packing_input_iterator symbols(src.begin() + src_pos);
 	src_pos += header.symbolsSize * 2;
 
-	tans_decoding_varint_input_iterator lengthOffsets(tansTable, bitstream, header.initialTansState);
+	tans_decoding_varint_input_iterator lengthOffsets(tansTable, bitstream, header.initialTansState, 0);
 	tans_decoding_varint_input_iterator lengthOffsetsEnd = lengthOffsets.plus_backing_nibble_pairs(header.lengthOffsetSize);
 
 	return decompress_smol_from_iterators(symbols, lengthOffsets, lengthOffsetsEnd, disassemble);
@@ -650,10 +666,10 @@ std::vector<uint8_t> decompressSmol5(std::vector<uint8_t> src, bool disassemble)
 
 	subword_input_iterator<uint8_t, uint1_t, DIRECTION_INC> bitstream(src.begin() + src_pos);
 
-	tans_decoding_varint_input_iterator lengthOffsets(loTansTable, bitstream, header.initialTansState);
+	tans_decoding_varint_input_iterator lengthOffsets(loTansTable, bitstream, header.initialTansState, 0);
 	tans_decoding_varint_input_iterator lengthOffsetsEnd = lengthOffsets.plus_backing_nibble_pairs(header.lengthOffsetSize);
 
-	tans_decoding_u16_input_iterator symbols(symbolTansTable, lengthOffsetsEnd.bitstream(), lengthOffsetsEnd.state());
+	tans_decoding_u16_input_iterator symbols(symbolTansTable, lengthOffsetsEnd.bitstream(), lengthOffsetsEnd.state(), lengthOffsetsEnd.zero_bit_advance_count());
 
 	return decompress_smol_from_iterators(symbols, lengthOffsets, lengthOffsetsEnd, disassemble);
 }
@@ -675,10 +691,10 @@ std::vector<uint8_t> decompressSmol6(std::vector<uint8_t> src, bool disassemble)
 
 	subword_input_iterator<uint8_t, uint1_t, DIRECTION_INC> bitstream(src.begin() + src_pos);
 
-	tans_decoding_varint_input_iterator lengthOffsets(loTansTable, bitstream, header.initialTansState);
+	tans_decoding_varint_input_iterator lengthOffsets(loTansTable, bitstream, header.initialTansState, 0);
 	tans_decoding_varint_input_iterator lengthOffsetsEnd = lengthOffsets.plus_backing_nibble_pairs(header.lengthOffsetSize);
 
-	tans_decoding_delta4_u16_input_iterator symbols(symbolTansTable, lengthOffsetsEnd.bitstream(), lengthOffsetsEnd.state());
+	tans_decoding_delta4_u16_input_iterator symbols(symbolTansTable, lengthOffsetsEnd.bitstream(), lengthOffsetsEnd.state(), lengthOffsetsEnd.zero_bit_advance_count());
 
 	return decompress_smol_from_iterators(symbols, lengthOffsets, lengthOffsetsEnd, disassemble);
 }
