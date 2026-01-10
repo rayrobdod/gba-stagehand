@@ -30,6 +30,7 @@ struct shadow_oam_position {
 	enum hotspot hotspot : 8;
 	bool hflip : 1;
 	bool vflip : 1;
+	unsigned priority : 2;
 };
 
 void shadow_oam_init(void);

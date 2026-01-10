@@ -357,6 +357,7 @@ void shadow_oam_move_sprite(
 				.x = position.coord.x - dx,
 				.hflip = position.hflip,
 				.vflip = position.vflip,
+				.priority = position.priority,
 
 				.tile_num = shadow_tiles[oam->shadow_tile_index].tile_start,
 				.palette_num = oam->palette_index,
