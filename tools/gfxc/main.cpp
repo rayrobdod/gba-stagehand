@@ -12,10 +12,13 @@
 #include <string>
 #include <string_view>
 #include <vector>
+#include <QGuiApplication>
 #include "build_compress_suite.hpp"
 #include "choose_compression.hpp"
 #include "image.hpp"
 #include "indexed_insert_only_set.hpp"
+#include "input_data_variant.hpp"
+#include "input_tilemap.hpp"
 #include "object.hpp"
 #include "png_deserialize.hpp"
 #include "resource_type.hpp"
@@ -25,25 +28,27 @@
 
 static const unsigned FIRST_TAG = 0x1000;
 
-static std::string palette_name_for_image(std::pair<std::filesystem::path, struct bufferedimage> image) {
+static std::string palette_name_for_image(input_path_and_data input) {
 	std::string retval = "plte.";
-	auto palette_name_pair = image.second.text().find("Palette Tag");
-	if (palette_name_pair != image.second.text().end()) {
+	auto properties = input_properties(input.second);
+	auto palette_name_pair = properties.find("Palette Tag");
+	if (palette_name_pair != properties.end()) {
 		retval += palette_name_pair->second;
 	} else {
-		retval += variable_name_for_image(image);
+		retval += variable_name_for_image(input);
 		retval += "$";
 	}
 	return retval;
 }
 
-static std::string tileset_name_for_image(std::pair<std::filesystem::path, struct bufferedimage> image) {
+static std::string tileset_name_for_image(input_path_and_data input) {
 	std::string retval = "tiles.";
-	auto palette_name_pair = image.second.text().find("Tileset Tag");
-	if (palette_name_pair != image.second.text().end()) {
+	auto properties = input_properties(input.second);
+	auto palette_name_pair = properties.find("Tileset Tag");
+	if (palette_name_pair != properties.end()) {
 		retval += palette_name_pair->second;
 	} else {
-		retval += variable_name_for_image(image);
+		retval += variable_name_for_image(input);
 		retval += "$";
 	}
 	return retval;
@@ -72,7 +77,18 @@ int write_types_header(std::filesystem::path headerfile) {
 }
 
 int compile_object(std::filesystem::path srcdir, std::filesystem::path objfile, std::filesystem::path headerfile) {
-	std::map<type, std::map<std::filesystem::path, struct bufferedimage>> sorted_imgs;
+	int fake_argc_that_qt_requires_to_be_mutable_for_no_comprehensible_reason = 1;
+	char* fake_argv0_that_qt_requires_to_be_mutable_for_no_comprehensible_reason = strdup("gfxc");
+	char** fake_argv_that_qt_requires_to_be_mutable_for_no_comprehensible_reason = static_cast<char**>(calloc(1, sizeof(char*)));
+	fake_argv_that_qt_requires_to_be_mutable_for_no_comprehensible_reason[0] =
+			fake_argv0_that_qt_requires_to_be_mutable_for_no_comprehensible_reason;
+	QGuiApplication app(
+		fake_argc_that_qt_requires_to_be_mutable_for_no_comprehensible_reason,
+		fake_argv_that_qt_requires_to_be_mutable_for_no_comprehensible_reason);
+	/* Need a QGuiApplication for libtiled to be willing to render tiles */
+
+
+	std::map<type, std::map<std::filesystem::path, input_data>> sorted_inputs;
 
 	for (auto const& dir_entry : std::filesystem::recursive_directory_iterator{srcdir}) {
 		if (dir_entry.is_regular_file() && dir_entry.path().extension() == ".png") {
@@ -83,10 +99,24 @@ int compile_object(std::filesystem::path srcdir, std::filesystem::path objfile, 
 				std::pair nameImage(relative_png, result);
 				type type = resource_type(result);
 
-				sorted_imgs.try_emplace(type);
-				sorted_imgs.at(type).insert(nameImage);
+				sorted_inputs.try_emplace(type);
+				sorted_inputs.at(type).insert(nameImage);
 			} catch (const std::exception& e) {
 				std::cerr << relative_png << ": " << e.what() << std::endl;
+			}
+		}
+		if (dir_entry.is_regular_file() && dir_entry.path().extension() == ".tmx") {
+			std::filesystem::path relative_tmx = dir_entry.path().lexically_relative(srcdir);
+
+			try {
+				input_tile16x3map result = tilemap_deserialize(dir_entry.path());
+				std::pair nameImage(relative_tmx, result);
+				type type = resource_type(result);
+
+				sorted_inputs.try_emplace(type);
+				sorted_inputs.at(type).insert(nameImage);
+			} catch (const std::exception& e) {
+				std::cerr << relative_tmx << ": " << e.what() << std::endl;
 			}
 		}
 	}
@@ -95,7 +125,7 @@ int compile_object(std::filesystem::path srcdir, std::filesystem::path objfile, 
 	std::map<const std::string, const palette_data> palette_datas;
 	{
 		std::map<const std::string, palette_data_builder> palette_data_builders;
-		for (auto images : sorted_imgs) {
+		for (auto images : sorted_inputs) {
 			const type typ = images.first;
 			auto fns_ptr = type_functionss.find(typ);
 			if (fns_ptr != type_functionss.end()) {
@@ -142,7 +172,7 @@ int compile_object(std::filesystem::path srcdir, std::filesystem::path objfile, 
 	std::map<const std::string, const tiles_data> tiles_datas;
 	{
 		std::map<const std::string, std::vector<gbatile_4bpp>> tileset_data_builders;
-		for (auto images : sorted_imgs) {
+		for (auto images : sorted_inputs) {
 			const type typ = images.first;
 			auto fns_ptr = type_functionss.find(typ);
 			if (fns_ptr != type_functionss.end()) {
@@ -240,7 +270,7 @@ int compile_object(std::filesystem::path srcdir, std::filesystem::path objfile, 
 	}
 
 	{
-		for (auto images : sorted_imgs) {
+		for (auto images : sorted_inputs) {
 			const type typ = images.first;
 			auto fns_ptr = type_functionss.find(typ);
 			if (fns_ptr != type_functionss.end()) {
@@ -292,6 +322,8 @@ int compile_object(std::filesystem::path srcdir, std::filesystem::path objfile, 
 
 	headerstream.close();
 
+	free(fake_argv_that_qt_requires_to_be_mutable_for_no_comprehensible_reason);
+	free(fake_argv0_that_qt_requires_to_be_mutable_for_no_comprehensible_reason);
 	return 0;
 }
 

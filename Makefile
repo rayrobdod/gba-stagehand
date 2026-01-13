@@ -93,7 +93,9 @@ ROMTEST	?= ../icwic/tools/mgba/mgba-rom-test
 SOURCES_S	:= $(wildcard $(SOURCEDIR)/*.s $(SOURCEDIR)/**/*.s)
 SOURCES_C	:= $(wildcard $(SOURCEDIR)/*.c $(SOURCEDIR)/**/*.c)
 SOURCES_CPP	:= $(wildcard $(SOURCEDIR)/*.cpp $(SOURCEDIR)/**/*.cpp)
-SOURCES_PNG	:= $(wildcard $(GRAPHICSDIR)/*.png $(GRAPHICSDIR)/**/*.png)
+SOURCES_PNG	:= $(wildcard $(GRAPHICSDIR)/*.png $(GRAPHICSDIR)/**/*.png $(GRAPHICSDIR)/**/**/*.png)
+SOURCES_TILEDMAP	:= $(wildcard $(GRAPHICSDIR)/*.tmx $(GRAPHICSDIR)/**/*.tmx $(GRAPHICSDIR)/**/**/*.tmx)
+SOURCES_TILEDSET	:= $(wildcard $(GRAPHICSDIR)/*.tsx $(GRAPHICSDIR)/**/*.tsx $(GRAPHICSDIR)/**/**/*.tsx)
 
 HOSTSRCS_C	:= $(wildcard $(SOURCEDIR_HOST)/*.c) $(wildcard $(SOURCEDIR_HOST)/**/*.c)
 TESTSRCS_C	:= $(wildcard $(SOURCEDIR_TEST)/*.c) $(wildcard $(SOURCEDIR_TEST)/**/*.c)
@@ -328,7 +330,7 @@ $(BUILDOBJDIR)/dmg_music/staff_position.c.o : $(BUILDSRCDIR)/dmg_music/staff_pos
 
 generated_headers: $(BUILDSRCDIR)/graphics.h
 OBJS += $(BUILDOBJDIR)/graphics.o
-$(BUILDOBJDIR)/graphics.o $(BUILDSRCDIR)/graphics.h &: $(GFXC) $(SOURCES_PNG)
+$(BUILDOBJDIR)/graphics.o $(BUILDSRCDIR)/graphics.h &: $(GFXC) $(SOURCES_PNG) $(SOURCES_TILEDMAP) $(SOURCES_TILEDSET)
 	@echo "  GFXC"
 	@$(MKDIR) -p $(BUILDOBJDIR)
 	@$(MKDIR) -p $(BUILDSRCDIR)

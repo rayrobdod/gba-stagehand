@@ -5,6 +5,7 @@
 #include "resource_type/background_mode3.hpp"
 #include "resource_type/font.hpp"
 #include "resource_type/sprite.hpp"
+#include "resource_type/tile16x3map.hpp"
 #include "resource_type/tileset.hpp"
 #include "resource_type/tileset_monochrome.hpp"
 
@@ -17,6 +18,15 @@ palette_data::palette_data(
 	, std::vector<std::vector<rgba16_t>> _colorss
 	, std::map<const std::string, alt_palette_data> _alternates
 ) : tag(_tag), colorss(_colorss), alternates(_alternates) {}
+
+palette_data::palette_data(
+	  uint16_t _tag
+	, palette_data_builder _builder
+) : tag(_tag) {
+	for (auto colors : _builder.colorss) {
+		this->colorss.emplace_back(colors.begin(), colors.end());
+	}
+}
 
 tiles_data::tiles_data() {}
 
@@ -91,6 +101,7 @@ void palette_data_builder::condense_colors() {
 /* * * * * * * * * * * * * * * * * * */
 
 const std::initializer_list<std::pair<const type, type_functions>> type_functionss_initializer {
+	// TYPE_SUBRESOURCE intentionally left blank
 	{TYPE_SPRITE, sprite_type_functions},
 	{TYPE_FONT, font_type_functions},
 	{TYPE_TILESET, tileset_type_functions},
@@ -98,6 +109,7 @@ const std::initializer_list<std::pair<const type, type_functions>> type_function
 	{TYPE_BACKGROUND, background_type_functions},
 	{TYPE_BACKGROUND_MODE3, background_mode3_type_functions},
 	{TYPE_BACKGROUND_HORIZONTAL_SCROLL, background_horizontal_scroll_type_functions},
+	{TYPE_WALKAROUND_TILEMAP, tile16x3map_type_functions},
 };
 
 const std::map<type, type_functions> type_functionss(type_functionss_initializer);

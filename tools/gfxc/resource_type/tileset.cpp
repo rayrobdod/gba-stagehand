@@ -5,17 +5,18 @@
 #include "find_palette_superset.hpp"
 #include "object.hpp"
 
-palette_data_builder tileset_extract_palettes(std::pair<std::filesystem::path, bufferedimage> image) {
+palette_data_builder tileset_extract_palettes(input_path_and_data input) {
 	palette_data_builder retval;
 
-	rgba16_t background = image.second.background().with_alpha(0);
+	bufferedimage image = std::get<bufferedimage>(input.second);
+	rgba16_t background = image.background().with_alpha(0);
 	std::set<std::set<rgba16_t>> tile_palettes;
-	for (auto subimg : image.second.subs(8, 8)) {
+	for (auto subimg : image.subs(8, 8)) {
 		std::set<rgba16_t> new_pal;
 		new_pal.insert(background);
 		new_pal.merge(subimg.palette());
 		if (new_pal.size() > 16) {
-			std::string msg(image.first.string());
+			std::string msg(input.first.string());
 			msg += ": tile palette larger than 16 colors";
 			throw std::logic_error(msg);
 		}
@@ -29,10 +30,11 @@ palette_data_builder tileset_extract_palettes(std::pair<std::filesystem::path, b
 	return retval;
 }
 
-static std::vector<gbatile_4bpp> tileset_extract_tiles(std::pair<std::filesystem::path, struct bufferedimage> image, palette_data palettes) {
+static std::vector<gbatile_4bpp> tileset_extract_tiles(input_path_and_data input, palette_data palettes) {
 	std::vector<gbatile_4bpp> retval;
+	bufferedimage image = std::get<bufferedimage>(input.second);
 
-	for (auto subimg : image.second.subs(8, 8)) {
+	for (auto subimg : image.subs(8, 8)) {
 		uint16_t pal_i = find_palette_superset<std::vector<std::vector<rgba16_t>>>(palettes.colorss, subimg.palette());
 		const std::vector<rgba16_t> used_pal = palettes.colorss[pal_i];
 
@@ -54,7 +56,7 @@ static void tileset_write_struct(std::ostream& headerstream) {
 }
 
 static void tileset_write_to_elf(
-	[[gnu::unused]] std::pair<std::filesystem::path, struct bufferedimage> image,
+	[[gnu::unused]] input_path_and_data input,
 	std::pair<std::string, palette_data> palettes,
 	std::pair<std::string, tiles_data> tiles,
 	std::string var_name,

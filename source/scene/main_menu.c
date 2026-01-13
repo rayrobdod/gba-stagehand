@@ -15,6 +15,7 @@
 #include "scene/parallax_mountain_dusk.h"
 #include "scene/text_print_profile.h"
 #include "scene/text_print_step.h"
+#include "scene/walkaround.h"
 #include "utils/arraycount.h"
 #include "utils/saturating_add.h"
 #include "graphics.h"
@@ -42,6 +43,10 @@ static const struct {
 	{
 		.label = "Brick Break",
 		.cb = &MainCB_brickBreak_init,
+	},
+	{
+		.label = "Walkaround",
+		.startFn = &ChangeScene_walkaround,
 	},
 	{
 		.label = "Mode 3",

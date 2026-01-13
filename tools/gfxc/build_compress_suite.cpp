@@ -225,13 +225,7 @@ int build_decompression_suite(std::filesystem::path srcfile, std::filesystem::pa
 		{
 			palette_data_builder pal_builder = background_type_functions.extract_palettes(name_and_parsed);
 			pal_builder.condense_colors();
-
-			std::map<const std::string, alt_palette_data> alternates;
-			std::vector<std::vector<rgba16_t>> colorss;
-			for (auto colors : pal_builder.colorss) {
-				colorss.emplace_back(colors.begin(), colors.end());
-			}
-			palette_data pal_data(0, colorss, alternates);
+			palette_data pal_data(0, pal_builder);
 
 			std::vector<gbatile_4bpp> tiles = background_type_functions.extract_tiles(name_and_parsed, pal_data);
 			std::vector<uint8_t> tiles_bytes;
@@ -263,13 +257,7 @@ int build_decompression_suite(std::filesystem::path srcfile, std::filesystem::pa
 		{
 			palette_data_builder pal_builder = tileset_type_functions.extract_palettes(name_and_parsed);
 			pal_builder.condense_colors();
-
-			std::map<const std::string, alt_palette_data> alternates;
-			std::vector<std::vector<rgba16_t>> colorss;
-			for (auto colors : pal_builder.colorss) {
-				colorss.emplace_back(colors.begin(), colors.end());
-			}
-			palette_data pal(0, colorss, alternates);
+			palette_data pal(0, pal_builder);
 
 			std::vector<gbatile_4bpp> tiles = tileset_type_functions.extract_tiles(name_and_parsed, pal);
 			std::vector<uint8_t> tiles_bytes;

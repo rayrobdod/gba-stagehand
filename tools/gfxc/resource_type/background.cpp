@@ -22,6 +22,14 @@ std::array<uint8_t, 2> bg_tile_t::to_bytes(void) {
 	return retval;
 }
 
+uint16_t bg_tile_t::to_short(void) {
+	return static_cast<uint16_t>((this->tile) | (hflip ? 0x400 : 0) | (vflip ? 0x800: 0) | (palette << 12));
+}
+
+bool operator==(const bg_tile_t& lhs, const bg_tile_t& rhs) {
+	return ((lhs.tile == rhs.tile) && (lhs.hflip == rhs.hflip) && (lhs.vflip == rhs.vflip) && (lhs.palette == rhs.palette));
+}
+
 std::ostream& operator<<(std::ostream& os, const std::set<rgba16_t>& value) {
 	std::ios_base::fmtflags initial_flags = os.flags();
 	auto initial_width = os.width();
@@ -60,8 +68,9 @@ std::ostream& operator<<(std::ostream& os, const std::array<rgba16_t, 16>& value
 	return os;
 }
 
-std::vector<gbatile_4bpp> background_extract_tiles(std::pair<std::filesystem::path, struct bufferedimage> image, palette_data palettes) {
+std::vector<gbatile_4bpp> background_extract_tiles(input_path_and_data input, palette_data palettes) {
 	std::vector<gbatile_4bpp> retval;
+	bufferedimage image = std::get<bufferedimage>(input.second);
 
 	if (SORT_BY_PALETTE) {
 		std::vector<std::vector<gbatile_4bpp>> tileset_per_palette;
@@ -69,7 +78,7 @@ std::vector<gbatile_4bpp> background_extract_tiles(std::pair<std::filesystem::pa
 		for (size_t i = 0; i < palettes.colorss.size(); i++)
 			tileset_per_palette.emplace_back();
 
-		for (auto subimg : image.second.subs(8, 8)) {
+		for (auto subimg : image.subs(8, 8)) {
 			uint16_t pal_i = find_palette_superset<std::vector<std::vector<rgba16_t>>>(palettes.colorss, subimg.palette());
 			const std::vector<rgba16_t> used_pal = palettes.colorss[pal_i];
 
@@ -92,7 +101,7 @@ std::vector<gbatile_4bpp> background_extract_tiles(std::pair<std::filesystem::pa
 		}
 
 	} else {
-		for (auto subimg : image.second.subs(8, 8)) {
+		for (auto subimg : image.subs(8, 8)) {
 			uint16_t pal_i = find_palette_superset<std::vector<std::vector<rgba16_t>>>(palettes.colorss, subimg.palette());
 			const std::vector<rgba16_t> used_pal = palettes.colorss[pal_i];
 
@@ -108,12 +117,13 @@ std::vector<gbatile_4bpp> background_extract_tiles(std::pair<std::filesystem::pa
 	return retval;
 }
 
-std::vector<bg_tile_t> background_extract_map(std::pair<std::filesystem::path, struct bufferedimage> image, palette_data palettes, tiles_data tiles_dat) {
+std::vector<bg_tile_t> background_extract_map(input_path_and_data input, palette_data palettes, tiles_data tiles_dat) {
 	std::vector<bg_tile_t> retval;
+	bufferedimage image = std::get<bufferedimage>(input.second);
 
 	const std::vector<gbatile_4bpp> tiles(tiles_dat.tiles);
 
-	for (auto subimg : image.second.subs(8, 8)) {
+	for (auto subimg : image.subs(8, 8)) {
 		uint16_t pal_i = find_palette_superset<std::vector<std::vector<rgba16_t>>>(palettes.colorss, subimg.palette());
 		const std::vector<rgba16_t> used_pal = palettes.colorss[pal_i];
 
@@ -145,7 +155,7 @@ std::vector<bg_tile_t> background_extract_map(std::pair<std::filesystem::path, s
 			}
 		}
 		if (tile_i >= tiles.size()) {
-			std::string msg(image.first);
+			std::string msg(input.first);
 			msg += ": lost tile between `background_extract_tiles` and `background_write_to_elf`";
 			throw std::logic_error(msg);
 		}
@@ -167,7 +177,7 @@ static void background_write_struct(std::ostream& headerstream) {
 }
 
 static void background_write_to_elf(
-	[[gnu::unused]] std::pair<std::filesystem::path, struct bufferedimage> image,
+	input_path_and_data input,
 	std::pair<std::string, palette_data> palettes,
 	std::pair<std::string, tiles_data> tiles_pair,
 	std::string var_name,
@@ -176,7 +186,7 @@ static void background_write_to_elf(
 ) {
 	headerstream << "extern const struct background " << var_name << ";" << std::endl;
 
-	std::vector<bg_tile_t> tilemap = background_extract_map(image, palettes.second, tiles_pair.second);
+	std::vector<bg_tile_t> tilemap = background_extract_map(input, palettes.second, tiles_pair.second);
 
 	std::array<uint16_t, 9> serialized = {
 		0, 0,

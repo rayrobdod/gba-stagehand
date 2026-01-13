@@ -2,12 +2,13 @@
 #define RESOURCE_TYPE_FUNCTIONS_HPP
 
 #include <cstdint>
-#include <filesystem>
 #include <map>
 #include <set>
 #include <string>
-#include "image.hpp"
+#include "input_data_variant.hpp"
 #include "resource_type.hpp"
+
+struct palette_data_builder;
 
 struct alt_palette_data {
 	uint16_t tag;
@@ -26,6 +27,10 @@ struct palette_data {
 		  uint16_t tag
 		, std::vector<std::vector<rgba16_t>> colorss
 		, std::map<const std::string, alt_palette_data> alternates
+	);
+	palette_data(
+		  uint16_t tag
+		, palette_data_builder builder
 	);
 };
 
@@ -51,10 +56,10 @@ class Object;
 
 struct type_functions {
 	void (*write_struct)(std::ostream&);
-	palette_data_builder (*extract_palettes)(std::pair<std::filesystem::path, struct bufferedimage>);
-	std::vector<gbatile_4bpp> (*extract_tiles)(std::pair<std::filesystem::path, struct bufferedimage>, palette_data);
+	palette_data_builder (*extract_palettes)(input_path_and_data);
+	std::vector<gbatile_4bpp> (*extract_tiles)(input_path_and_data, palette_data);
 	void (*write_to_elf)(
-		std::pair<std::filesystem::path, struct bufferedimage> image,
+		input_path_and_data,
 		std::pair<std::string, palette_data> palettes,
 		std::pair<std::string, tiles_data> tiles,
 		std::string var_name,
