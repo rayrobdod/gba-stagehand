@@ -34,6 +34,8 @@ enum vram_queue_op_type {
 	VRAM_QUEUE_OP_BG_MAP_COMPRESSED,
 	/** .map */
 	VRAM_QUEUE_OP_BG_MAP_COLUMN,
+	/** .map_free ; becomes the owner of `.from` and will free `.from` */
+	VRAM_QUEUE_OP_BG_MAP_COLUMN_FREE,
 	/** .map_fill */
 	VRAM_QUEUE_OP_BG_MAP_FILL,
 	/** .palettes */

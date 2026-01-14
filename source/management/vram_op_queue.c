@@ -153,6 +153,21 @@ static void vram_op_queue_execute_1(struct vram_op* entry) {
 			}
 		}
 		break;
+	case VRAM_QUEUE_OP_BG_MAP_COLUMN_FREE:
+		{
+			unsigned rows = entry->map_free.count;
+			const bg_tile_t* from = entry->map_free.from;
+			uint16_t to_tile = entry->map_free.to_tile;
+
+			while (rows > 0) {
+				vram.screenblock[entry->map_free.to_block][to_tile] = *from;
+				rows--;
+				from++;
+				to_tile += 32;
+			}
+		}
+		free(entry->map_free.from);
+		break;
 	case VRAM_QUEUE_OP_OAM_ENTRY:
 		oam[entry->oam.to_index] = entry->oam.value;
 		break;
