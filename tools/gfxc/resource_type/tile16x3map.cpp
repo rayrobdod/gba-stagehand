@@ -91,7 +91,7 @@ static std::vector<tile16x3> tile16x3map_convert_metatiles(
 	std::vector<tile16x3> retval;
 	for (input_tile16x3 input_metatile : mapimage.tiles()) {
 		tile16x3 output;
-		output.behavior = input_metatile.behavior;
+		output.behavior = input_metatile.behavior_id;
 
 		for (unsigned layer = 0; layer < 3; ++layer) {
 			std::vector<rgba16_t> pixels = input_metatile.pixelss[layer];
@@ -222,9 +222,12 @@ static void tile16x3map_write_to_elf(
 static void tile16x3map_write_struct(std::ostream& headerstream) {
 	headerstream << std::endl
 		<< "enum WalkaroundBehavior {" << std::endl
-		<< "	WB_NORMAL = 0," << std::endl
-		<< "	WB_IMPASSABLE = 1," << std::endl
-		<< "};" << std::endl
+		;
+	for (auto wb = walkaround_behavior_names.begin(); wb != walkaround_behavior_names.end(); ++wb) {
+		headerstream << "    " << *wb << " = " <<
+			(wb - walkaround_behavior_names.begin()) << "," << std::endl;
+	}
+	headerstream << "};" << std::endl
 		<< "struct tile16x3 {" << std::endl
 		<< "	enum WalkaroundBehavior behavior;" << std::endl
 		<< "	bg_tile_t tiles[3][4];" << std::endl

@@ -3,8 +3,10 @@
 
 #include "image.hpp"
 
+extern const std::initializer_list<std::string_view> walkaround_behavior_names;
+
 struct input_tile16x3 {
-	uint16_t behavior;
+	unsigned behavior_id;
 	std::array<std::vector<rgba16_t>, 3> pixelss;
 };
 

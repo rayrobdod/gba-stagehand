@@ -38,6 +38,21 @@ static rgba16_t scale_qcolor_to_5bit(QColor input) {
 	return retval;
 }
 
+const std::initializer_list<std::string_view> walkaround_behavior_names = {
+	"WB_NORMAL",
+	"WB_IMPASSABLE",
+	"WB_IMPASSABLE_N",
+	"WB_IMPASSABLE_E",
+	"WB_IMPASSABLE_W",
+	"WB_IMPASSABLE_S",
+	"WB_IMPASSABLE_NE",
+	"WB_IMPASSABLE_NW",
+	"WB_IMPASSABLE_NS",
+	"WB_IMPASSABLE_SE",
+	"WB_IMPASSABLE_SW",
+	"WB_IMPASSABLE_EW",
+};
+
 struct layer_id {unsigned index; QString name;};
 static const std::initializer_list<layer_id> layer_ids {
 	{2, "bottom"},
@@ -92,6 +107,31 @@ input_tile16x3map tilemap_deserialize(
 				}
 
 				metatiles.at(position_flat).pixelss[layer_id.index] = gba_pixels;
+
+				if (layer_id.name == "middle") {
+					for (auto prop = cell.tile()->properties().begin(); prop != cell.tile()->properties().end(); ++prop) {
+						if (prop.key().toStdString() == "Behavior") {
+							std::string target_name = prop.value().toString().toStdString();
+
+							auto wb = walkaround_behavior_names.begin();
+							for (; wb != walkaround_behavior_names.end(); ++wb) {
+								if (target_name == *wb) {
+									metatiles.at(position_flat).behavior_id = wb - walkaround_behavior_names.begin();
+									break;
+								}
+							}
+							if (wb == walkaround_behavior_names.end()) {
+								std::cerr <<
+										file_name <<
+										": Unknown walkaround_behavior: " <<
+										target_name <<
+										std::endl;
+							}
+
+							break;
+						}
+					}
+				}
 			}
 		}
 	}

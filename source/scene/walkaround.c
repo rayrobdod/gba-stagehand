@@ -583,20 +583,112 @@ static bool move_camera_towards(coord16_t target_mapoffs, int speed) {
 	return retval;
 }
 
+enum direction {
+	DIRECTION_NONE,
+	DIRECTION_NORTH,
+	DIRECTION_SOUTH,
+	DIRECTION_EAST,
+	DIRECTION_WEST,
+};
+
+struct direction_info {
+	int8_t dx;
+	int8_t dy;
+	bool (*can_leave)(enum WalkaroundBehavior);
+	bool (*can_enter)(enum WalkaroundBehavior);
+};
+
+bool can_leave_north(enum WalkaroundBehavior wb) {
+	return wb != WB_IMPASSABLE &&
+		wb != WB_IMPASSABLE_N &&
+		wb != WB_IMPASSABLE_NE &&
+		wb != WB_IMPASSABLE_NW &&
+		wb != WB_IMPASSABLE_NS &&
+		true;
+}
+bool can_leave_south(enum WalkaroundBehavior wb) {
+	return wb != WB_IMPASSABLE &&
+		wb != WB_IMPASSABLE_S &&
+		wb != WB_IMPASSABLE_SE &&
+		wb != WB_IMPASSABLE_SW &&
+		wb != WB_IMPASSABLE_NS &&
+		true;
+}
+bool can_leave_east(enum WalkaroundBehavior wb) {
+	return wb != WB_IMPASSABLE &&
+		wb != WB_IMPASSABLE_E &&
+		wb != WB_IMPASSABLE_NE &&
+		wb != WB_IMPASSABLE_SE &&
+		wb != WB_IMPASSABLE_EW &&
+		true;
+}
+bool can_leave_west(enum WalkaroundBehavior wb) {
+	return wb != WB_IMPASSABLE &&
+		wb != WB_IMPASSABLE_W &&
+		wb != WB_IMPASSABLE_NW &&
+		wb != WB_IMPASSABLE_SW &&
+		wb != WB_IMPASSABLE_EW &&
+		true;
+}
+
+static const struct direction_info direction_infos[] = {
+	[DIRECTION_NONE] = {0},
+	[DIRECTION_NORTH] = {
+		.dx = 0,
+		.dy = -1,
+		.can_leave = &can_leave_north,
+		.can_enter = &can_leave_south,
+	},
+	[DIRECTION_SOUTH] = {
+		.dx = 0,
+		.dy = 1,
+		.can_leave = &can_leave_south,
+		.can_enter = &can_leave_north,
+	},
+	[DIRECTION_EAST] = {
+		.dx = 1,
+		.dy = 0,
+		.can_leave = &can_leave_east,
+		.can_enter = &can_leave_west,
+	},
+	[DIRECTION_WEST] = {
+		.dx = -1,
+		.dy = 0,
+		.can_leave = &can_leave_west,
+		.can_enter = &can_leave_east,
+	},
+};
+
 static void MainCB_walkaround_main(void) {
 	bool refresh_player = false;
 
-	keypad_t inputs = keyinput_get_new();
-
 	refresh_player |= move_camera_towards(center_player_in_camera_target(), 2);
 
-	if (! inputs.left || ! inputs.right || ! inputs.up || ! inputs.down) {
-		if (! inputs.left) state.player.pos.x -= 1;
-		if (! inputs.right) state.player.pos.x += 1;
-		if (! inputs.up) state.player.pos.y -= 1;
-		if (! inputs.down) state.player.pos.y += 1;
+	keypad_t inputs = keyinput_get_new();
 
-		viewmodel.player.mapoffs = coord16_add(tile_coord_to_pixel_coord(state.player.pos), (coord16_t) {8, 14});
+	enum direction player_move_direction = DIRECTION_NONE;
+	if (! inputs.left) {player_move_direction = DIRECTION_WEST;}
+	if (! inputs.right) {player_move_direction = DIRECTION_EAST;}
+	if (! inputs.up) {player_move_direction = DIRECTION_NORTH;}
+	if (! inputs.down) {player_move_direction = DIRECTION_SOUTH;}
+
+	if (DIRECTION_NONE != player_move_direction) {
+		enum WalkaroundBehavior current_behavior = metatile_at(
+				state.map, state.player.pos.x, state.player.pos.y
+			)->behavior;
+		enum WalkaroundBehavior target_behavior = metatile_at(
+				state.map,
+				state.player.pos.x + direction_infos[player_move_direction].dx,
+				state.player.pos.y + direction_infos[player_move_direction].dy
+			)->behavior;
+
+		if (direction_infos[player_move_direction].can_leave(current_behavior) &&
+				direction_infos[player_move_direction].can_enter(target_behavior)) {
+			state.player.pos.x = state.player.pos.x + direction_infos[player_move_direction].dx;
+			state.player.pos.y = state.player.pos.y + direction_infos[player_move_direction].dy;
+			viewmodel.player.mapoffs = coord16_add(tile_coord_to_pixel_coord(state.player.pos), (coord16_t) {8, 14});
+		}
+
 		refresh_player = true;
 	}
 
