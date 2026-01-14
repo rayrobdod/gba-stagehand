@@ -25,10 +25,22 @@ static void MainCB_walkaround_fadesolid_black(void);
 static void MainCB_walkaround_fadein_black(void);
 static void MainCB_walkaround_main(void);
 
-typedef struct coord16 { int16_t x; int16_t y; } coord16_t;
-
 static inline int floordiv16(int num) { return num >> 4; }
 static inline int posmod16(int num) { return num & 15; }
+
+enum direction {
+	DIRECTION_NORTH,
+	DIRECTION_SOUTH,
+	DIRECTION_EAST,
+	DIRECTION_WEST,
+};
+
+/* tile position relative to the top-left of the map */
+typedef struct { int16_t x; int16_t y; } tile_coord_t;
+/* pixel position relative to the top-left of the map */
+typedef struct { int16_t x; int16_t y; } mapoffs_t;
+/* pixel position relative to the screen */
+typedef struct { int16_t x; int16_t y; } screenoffs_t;
 
 __attribute__((section(".sbss")))
 static void (*fadeCb)(void) = {0};
@@ -36,12 +48,12 @@ static void (*fadeCb)(void) = {0};
 __attribute__((section(".sbss")))
 static struct walkaround_viewmodel {
 	struct {
-		coord16_t bgoffs;
-		coord16_t mapoffs;
+		bgofs_t bgofs;
+		mapoffs_t mapoffs;
 	} camera;
 	struct {
 		shadow_oam_id_t oam_id;
-		coord16_t mapoffs;
+		mapoffs_t mapoffs;
 	} player;
 } viewmodel = {0};
 
@@ -49,7 +61,7 @@ __attribute__((section(".sbss")))
 static struct walkaround_model {
 	const struct tile16x3map* map;
 	struct {
-		coord16_t pos;
+		tile_coord_t pos;
 	} player;
 } state = {0};
 
@@ -108,26 +120,29 @@ static const struct tile16x3* metatile_at(const struct tile16x3map* map, signed 
 	}
 }
 
-static coord16_t coord16_add(coord16_t a, coord16_t b) {
-	coord16_t retval = {
+static mapoffs_t mapoffs_add(mapoffs_t a, mapoffs_t b) {
+	mapoffs_t retval = {
 		.x = a.x + b.x,
 		.y = a.y + b.y,
 	};
 	return retval;
 };
-static coord16_t tile_coord_to_pixel_coord(coord16_t in) {
-	coord16_t retval = {
+static mapoffs_t tile_coord_to_pixel_coord(tile_coord_t in) {
+	mapoffs_t retval = {
 		.x = 16 * in.x,
 		.y = 16 * in.y,
 	};
 	return retval;
 }
-static coord16_t pixel_coord_to_screen_coord(coord16_t in) {
-	coord16_t retval = {
+static screenoffs_t pixel_coord_to_screen_coord(mapoffs_t in) {
+	screenoffs_t retval = {
 		.x = in.x - viewmodel.camera.mapoffs.x,
 		.y = in.y - viewmodel.camera.mapoffs.y,
 	};
 	return retval;
+}
+static mapoffs_t player_tile_coord_to_target_pixel_coord(tile_coord_t in) {
+	return mapoffs_add(tile_coord_to_pixel_coord(in), (mapoffs_t) {8, 14});
 }
 
 void ChangeScene_walkaround(void (*_fadeCb)(void)) {
@@ -164,7 +179,7 @@ static union palette512 MainCB_walkaround_fadesolid(void) {
 		},
 	});
 
-	coord16_t tile_mapoffs = {
+	tile_coord_t tile_mapoffs = {
 		.x = state.player.pos.x - 7,
 		.y = state.player.pos.y - 5,
 	};
@@ -205,8 +220,8 @@ static union palette512 MainCB_walkaround_fadesolid(void) {
 		});
 	}
 
-	viewmodel.player.mapoffs = coord16_add(tile_coord_to_pixel_coord(state.player.pos), (coord16_t) {8, 14});
-	coord16_t player_screenpos = pixel_coord_to_screen_coord(viewmodel.player.mapoffs);
+	viewmodel.player.mapoffs = player_tile_coord_to_target_pixel_coord(state.player.pos);
+	screenoffs_t player_screenpos = pixel_coord_to_screen_coord(viewmodel.player.mapoffs);
 	struct shadow_oam_add_sprite_no_palette_vram_op player_oam =
 		shadow_oam_add_sprite_no_palette_vram_op(
 			&character_base_male_west_idle1,
@@ -245,8 +260,8 @@ static void MainCB_walkaround_fadein_black(void) {
 	MainCB_walkaround_main();
 }
 
-static coord16_t center_player_in_camera_target(void) {
-	coord16_t retval = {
+static screenoffs_t center_player_in_camera_target(void) {
+	screenoffs_t retval = {
 		.x = viewmodel.player.mapoffs.x - 7 * 16 - 8,
 		.y = viewmodel.player.mapoffs.y - 5 * 16 - 14,
 	};
@@ -257,25 +272,25 @@ static coord16_t center_player_in_camera_target(void) {
  * @pre speed is less than 8
  * @return whether the camera was moved
  */
-static bool move_camera_towards(coord16_t target_mapoffs, int speed) {
+static bool move_camera_towards(screenoffs_t target_mapoffs, int speed) {
 	bool retval = false;
 
 	if (target_mapoffs.x < viewmodel.camera.mapoffs.x) {
 		retval = true;
 		int delta = min(speed, viewmodel.camera.mapoffs.x - target_mapoffs.x);
 		viewmodel.camera.mapoffs.x -= delta;
-		int bgoffs_after = viewmodel.camera.bgoffs.x - delta;
-		if ((viewmodel.camera.bgoffs.x & ~0x0F) != (bgoffs_after & ~0x0F)) {
+		int bgofs_after = viewmodel.camera.bgofs.h - delta;
+		if ((viewmodel.camera.bgofs.h & ~0x0F) != (bgofs_after & ~0x0F)) {
 			bg_tile_t* terrain = malloc(3 * 32 * 2 * sizeof(bg_tile_t));
 			if (terrain) {
-				signed screen_x = posmod16(floordiv16(bgoffs_after)) * 2;
+				signed screen_x = posmod16(floordiv16(bgofs_after)) * 2;
 				signed model_x = floordiv16(viewmodel.camera.mapoffs.x);
 
 				signed tile_mapoffs_y = floordiv16(viewmodel.camera.mapoffs.y);
-				signed tile_bgoffs_y = floordiv16(viewmodel.camera.bgoffs.y);
+				signed tile_bgofs_y = floordiv16(viewmodel.camera.bgofs.v);
 
 				for (signed dy = 0; dy < 16; dy++) {
-					signed screen_y = posmod16(dy + tile_bgoffs_y);
+					signed screen_y = posmod16(dy + tile_bgofs_y);
 					signed model_y = dy + tile_mapoffs_y;
 
 					const struct tile16x3* metatile = metatile_at(state.map, model_x, model_y);
@@ -348,24 +363,24 @@ static bool move_camera_towards(coord16_t target_mapoffs, int speed) {
 				});
 			}
 		}
-		viewmodel.camera.bgoffs.x = bgoffs_after;
+		viewmodel.camera.bgofs.h = bgofs_after;
 	}
 	if (target_mapoffs.x > viewmodel.camera.mapoffs.x) {
 		retval = true;
 		int delta = min(speed, target_mapoffs.x - viewmodel.camera.mapoffs.x);
 		viewmodel.camera.mapoffs.x += delta;
-		int bgoffs_after = viewmodel.camera.bgoffs.x + delta;
-		if (((viewmodel.camera.bgoffs.x - 1) & ~0x0F) != ((bgoffs_after - 1) & ~0x0F)) {
+		int bgofs_after = viewmodel.camera.bgofs.h + delta;
+		if (((viewmodel.camera.bgofs.h - 1) & ~0x0F) != ((bgofs_after - 1) & ~0x0F)) {
 			bg_tile_t* terrain = malloc(3 * 32 * 2 * sizeof(bg_tile_t));
 			if (terrain) {
-				signed screen_x = posmod16(floordiv16(bgoffs_after) + 15) * 2;
+				signed screen_x = posmod16(floordiv16(bgofs_after) + 15) * 2;
 				signed model_x = floordiv16(viewmodel.camera.mapoffs.x) + 15;
 
 				signed tile_mapoffs_y = floordiv16(viewmodel.camera.mapoffs.y);
-				signed tile_bgoffs_y = floordiv16(viewmodel.camera.bgoffs.y);
+				signed tile_bgofs_y = floordiv16(viewmodel.camera.bgofs.v);
 
 				for (signed dx = 0; dx < 16; dx++) {
-					signed screen_y = posmod16(dx + tile_bgoffs_y);
+					signed screen_y = posmod16(dx + tile_bgofs_y);
 					signed model_y = dx + tile_mapoffs_y;
 
 					const struct tile16x3* metatile = metatile_at(state.map, model_x, model_y);
@@ -438,24 +453,24 @@ static bool move_camera_towards(coord16_t target_mapoffs, int speed) {
 				});
 			}
 		}
-		viewmodel.camera.bgoffs.x = bgoffs_after;
+		viewmodel.camera.bgofs.h = bgofs_after;
 	}
 	if (target_mapoffs.y < viewmodel.camera.mapoffs.y) {
 		retval = true;
 		int delta = min(speed, viewmodel.camera.mapoffs.y - target_mapoffs.y);
 		viewmodel.camera.mapoffs.y -= delta;
-		int bgoffs_after = viewmodel.camera.bgoffs.y - delta;
-		if ((viewmodel.camera.bgoffs.y & ~0x0F) != (bgoffs_after & ~0x0F)) {
+		int bgofs_after = viewmodel.camera.bgofs.v - delta;
+		if ((viewmodel.camera.bgofs.v & ~0x0F) != (bgofs_after & ~0x0F)) {
 			bg_tile_t* terrain = malloc(3 * 32 * 2 * sizeof(bg_tile_t));
 			if (terrain) {
-				signed screen_y = posmod16(floordiv16(bgoffs_after)) * 2;
+				signed screen_y = posmod16(floordiv16(bgofs_after)) * 2;
 				signed model_y = floordiv16(viewmodel.camera.mapoffs.y);
 
 				signed tile_mapoffs_x = floordiv16(viewmodel.camera.mapoffs.x);
-				signed tile_bgoffs_x = floordiv16(viewmodel.camera.bgoffs.x);
+				signed tile_bgofs_x = floordiv16(viewmodel.camera.bgofs.h);
 
 				for (signed dx = 0; dx < 16; dx++) {
-					signed screen_x = posmod16(dx + tile_bgoffs_x);
+					signed screen_x = posmod16(dx + tile_bgofs_x);
 					signed model_x = dx + tile_mapoffs_x;
 
 					const struct tile16x3* metatile = metatile_at(state.map, model_x, model_y);
@@ -501,24 +516,24 @@ static bool move_camera_towards(coord16_t target_mapoffs, int speed) {
 				});
 			}
 		}
-		viewmodel.camera.bgoffs.y = bgoffs_after;
+		viewmodel.camera.bgofs.v = bgofs_after;
 	}
 	if (target_mapoffs.y > viewmodel.camera.mapoffs.y) {
 		retval = true;
 		int delta = min(speed, target_mapoffs.y - viewmodel.camera.mapoffs.y);
 		viewmodel.camera.mapoffs.y += delta;
-		int bgoffs_after = viewmodel.camera.bgoffs.y + delta;
-		if (((viewmodel.camera.bgoffs.y - 1) & ~0x0F) != ((bgoffs_after - 1) & ~0x0F)) {
+		int bgofs_after = viewmodel.camera.bgofs.v + delta;
+		if (((viewmodel.camera.bgofs.v - 1) & ~0x0F) != ((bgofs_after - 1) & ~0x0F)) {
 			bg_tile_t* terrain = malloc(3 * 32 * 2 * sizeof(bg_tile_t));
 			if (terrain) {
-				signed screen_y = posmod16(floordiv16(bgoffs_after) + 10) * 2;
+				signed screen_y = posmod16(floordiv16(bgofs_after) + 10) * 2;
 				signed model_y = floordiv16(viewmodel.camera.mapoffs.y) + 10;
 
 				signed tile_mapoffs_x = floordiv16(viewmodel.camera.mapoffs.x);
-				signed tile_bgoffs_x = floordiv16(viewmodel.camera.bgoffs.x);
+				signed tile_bgofs_x = floordiv16(viewmodel.camera.bgofs.h);
 
 				for (signed dx = 0; dx < 16; dx++) {
-					signed screen_x = posmod16(dx + tile_bgoffs_x);
+					signed screen_x = posmod16(dx + tile_bgofs_x);
 					signed model_x = dx + tile_mapoffs_x;
 
 					const struct tile16x3* metatile = metatile_at(state.map, model_x, model_y);
@@ -564,13 +579,13 @@ static bool move_camera_towards(coord16_t target_mapoffs, int speed) {
 				});
 			}
 		}
-		viewmodel.camera.bgoffs.y = bgoffs_after;
+		viewmodel.camera.bgofs.v = bgofs_after;
 	}
 
 	if (retval) {
 		struct bgofs bgofs = {
-			.h = viewmodel.camera.bgoffs.x,
-			.v = viewmodel.camera.bgoffs.y,
+			.h = viewmodel.camera.bgofs.h,
+			.v = viewmodel.camera.bgofs.v,
 		};
 		vram_op_queue_enqueue((struct vram_op) {
 			.type = VRAM_QUEUE_OP_HWREG_BGOFSS,
@@ -583,14 +598,6 @@ static bool move_camera_towards(coord16_t target_mapoffs, int speed) {
 	return retval;
 }
 
-enum direction {
-	DIRECTION_NONE,
-	DIRECTION_NORTH,
-	DIRECTION_SOUTH,
-	DIRECTION_EAST,
-	DIRECTION_WEST,
-};
-
 struct direction_info {
 	int8_t dx;
 	int8_t dy;
@@ -598,7 +605,7 @@ struct direction_info {
 	bool (*can_enter)(enum WalkaroundBehavior);
 };
 
-bool can_leave_north(enum WalkaroundBehavior wb) {
+static bool can_leave_north(enum WalkaroundBehavior wb) {
 	return wb != WB_IMPASSABLE &&
 		wb != WB_IMPASSABLE_N &&
 		wb != WB_IMPASSABLE_NE &&
@@ -606,7 +613,7 @@ bool can_leave_north(enum WalkaroundBehavior wb) {
 		wb != WB_IMPASSABLE_NS &&
 		true;
 }
-bool can_leave_south(enum WalkaroundBehavior wb) {
+static bool can_leave_south(enum WalkaroundBehavior wb) {
 	return wb != WB_IMPASSABLE &&
 		wb != WB_IMPASSABLE_S &&
 		wb != WB_IMPASSABLE_SE &&
@@ -614,7 +621,7 @@ bool can_leave_south(enum WalkaroundBehavior wb) {
 		wb != WB_IMPASSABLE_NS &&
 		true;
 }
-bool can_leave_east(enum WalkaroundBehavior wb) {
+static bool can_leave_east(enum WalkaroundBehavior wb) {
 	return wb != WB_IMPASSABLE &&
 		wb != WB_IMPASSABLE_E &&
 		wb != WB_IMPASSABLE_NE &&
@@ -622,7 +629,7 @@ bool can_leave_east(enum WalkaroundBehavior wb) {
 		wb != WB_IMPASSABLE_EW &&
 		true;
 }
-bool can_leave_west(enum WalkaroundBehavior wb) {
+static bool can_leave_west(enum WalkaroundBehavior wb) {
 	return wb != WB_IMPASSABLE &&
 		wb != WB_IMPASSABLE_W &&
 		wb != WB_IMPASSABLE_NW &&
@@ -632,7 +639,6 @@ bool can_leave_west(enum WalkaroundBehavior wb) {
 }
 
 static const struct direction_info direction_infos[] = {
-	[DIRECTION_NONE] = {0},
 	[DIRECTION_NORTH] = {
 		.dx = 0,
 		.dy = -1,
@@ -659,41 +665,86 @@ static const struct direction_info direction_infos[] = {
 	},
 };
 
+static bool can_move_in_direction(tile_coord_t from, enum direction direction) {
+	const struct direction_info* direction_info = &direction_infos[direction];
+
+	enum WalkaroundBehavior current_behavior = metatile_at(state.map, from.x, from.y)->behavior;
+	enum WalkaroundBehavior target_behavior = metatile_at(state.map, from.x + direction_info->dx, from.y + direction_info->dy)->behavior;
+
+	return direction_info->can_leave(current_behavior) && direction_info->can_enter(target_behavior);
+}
+
+static const int PLAYER_SPEED = 2;
+
+/*
+ * @return whether the player sprite was moved or changed
+ */
+static bool normal_player_movement(void) {
+	mapoffs_t target_mapoffs = player_tile_coord_to_target_pixel_coord(state.player.pos);
+	if (viewmodel.player.mapoffs.x != target_mapoffs.x || viewmodel.player.mapoffs.y != target_mapoffs.y) {
+		if (viewmodel.player.mapoffs.x < target_mapoffs.x) {
+			viewmodel.player.mapoffs.x += PLAYER_SPEED;
+		}
+		else if (viewmodel.player.mapoffs.x > target_mapoffs.x) {
+			viewmodel.player.mapoffs.x -= PLAYER_SPEED;
+		}
+		else if (viewmodel.player.mapoffs.y < target_mapoffs.y) {
+			viewmodel.player.mapoffs.y += PLAYER_SPEED;
+		}
+		else if (viewmodel.player.mapoffs.y > target_mapoffs.y) {
+			viewmodel.player.mapoffs.y -= PLAYER_SPEED;
+		}
+
+		return true;
+	} else {
+		keypad_t inputs = keyinput_get_down();
+
+		// if holding down both a horizontal direction and a vertical direction,
+		// the `(state.player.pos.x % 2 == state.player.pos.y % 2)` part will make the player alternate between moving horizontally and vertically
+		if (! inputs.right && (state.player.pos.x % 2 == state.player.pos.y % 2) && can_move_in_direction(state.player.pos, DIRECTION_EAST)) {
+			state.player.pos.x += 1;
+			viewmodel.player.mapoffs.x += PLAYER_SPEED;
+			return true;
+		}
+		else if (! inputs.left && (state.player.pos.x % 2 == state.player.pos.y % 2) && can_move_in_direction(state.player.pos, DIRECTION_WEST)) {
+			state.player.pos.x -= 1;
+			viewmodel.player.mapoffs.x -= PLAYER_SPEED;
+			return true;
+		}
+		else if (! inputs.up && can_move_in_direction(state.player.pos, DIRECTION_NORTH)) {
+			state.player.pos.y -= 1;
+			viewmodel.player.mapoffs.y -= PLAYER_SPEED;
+			return true;
+		}
+		else if (! inputs.down && can_move_in_direction(state.player.pos, DIRECTION_SOUTH)) {
+			state.player.pos.y += 1;
+			viewmodel.player.mapoffs.y += PLAYER_SPEED;
+			return true;
+		}
+		else if (! inputs.right && can_move_in_direction(state.player.pos, DIRECTION_EAST)) {
+			state.player.pos.x += 1;
+			viewmodel.player.mapoffs.x += PLAYER_SPEED;
+			return true;
+		}
+		else if (! inputs.left && can_move_in_direction(state.player.pos, DIRECTION_WEST)) {
+			state.player.pos.x -= 1;
+			viewmodel.player.mapoffs.x -= PLAYER_SPEED;
+			return true;
+		}
+	}
+
+	return false;
+}
+
 static void MainCB_walkaround_main(void) {
 	bool refresh_player = false;
 
+	refresh_player |= normal_player_movement();
+
 	refresh_player |= move_camera_towards(center_player_in_camera_target(), 2);
 
-	keypad_t inputs = keyinput_get_new();
-
-	enum direction player_move_direction = DIRECTION_NONE;
-	if (! inputs.left) {player_move_direction = DIRECTION_WEST;}
-	if (! inputs.right) {player_move_direction = DIRECTION_EAST;}
-	if (! inputs.up) {player_move_direction = DIRECTION_NORTH;}
-	if (! inputs.down) {player_move_direction = DIRECTION_SOUTH;}
-
-	if (DIRECTION_NONE != player_move_direction) {
-		enum WalkaroundBehavior current_behavior = metatile_at(
-				state.map, state.player.pos.x, state.player.pos.y
-			)->behavior;
-		enum WalkaroundBehavior target_behavior = metatile_at(
-				state.map,
-				state.player.pos.x + direction_infos[player_move_direction].dx,
-				state.player.pos.y + direction_infos[player_move_direction].dy
-			)->behavior;
-
-		if (direction_infos[player_move_direction].can_leave(current_behavior) &&
-				direction_infos[player_move_direction].can_enter(target_behavior)) {
-			state.player.pos.x = state.player.pos.x + direction_infos[player_move_direction].dx;
-			state.player.pos.y = state.player.pos.y + direction_infos[player_move_direction].dy;
-			viewmodel.player.mapoffs = coord16_add(tile_coord_to_pixel_coord(state.player.pos), (coord16_t) {8, 14});
-		}
-
-		refresh_player = true;
-	}
-
 	if (refresh_player) {
-		coord16_t player_screenpos = pixel_coord_to_screen_coord(viewmodel.player.mapoffs);
+		screenoffs_t player_screenpos = pixel_coord_to_screen_coord(viewmodel.player.mapoffs);
 		shadow_oam_move_sprite(
 			viewmodel.player.oam_id,
 			(struct shadow_oam_position) {
