@@ -25,6 +25,11 @@ static void MainCB_walkaround_fadesolid_black(void);
 static void MainCB_walkaround_fadein_black(void);
 static void MainCB_walkaround_main(void);
 
+static const int PLAYER_MOVE_SPEED = 1;
+static const uint8_t IDLE_ANIM_SPEED = 12;
+static const uint8_t WALK_ANIM_SPEED = 4;
+
+
 static inline int floordiv16(int num) { return num >> 4; }
 static inline int posmod16(int num) { return num & 15; }
 
@@ -42,6 +47,89 @@ typedef struct { int16_t x; int16_t y; } mapoffs_t;
 /* pixel position relative to the screen */
 typedef struct { int16_t x; int16_t y; } screenoffs_t;
 
+struct oam_animation_cell {
+	const struct shadow_oam_template* sprite;
+	uint8_t delay;
+};
+
+static const struct oam_animation_cell character_base_male_north_idle[] = {
+	{&character_base_male_north_idle1, 2*IDLE_ANIM_SPEED},
+	{&character_base_male_north_idle2, 1*IDLE_ANIM_SPEED},
+	{&character_base_male_north_idle3, 1*IDLE_ANIM_SPEED},
+	{&character_base_male_north_idle2, 2*IDLE_ANIM_SPEED},
+	{&character_base_male_north_idle1, 2*IDLE_ANIM_SPEED},
+	{NULL, 0},
+};
+static const struct oam_animation_cell character_base_male_south_idle[] = {
+	{&character_base_male_south_idle1, 2*IDLE_ANIM_SPEED},
+	{&character_base_male_south_idle2, 1*IDLE_ANIM_SPEED},
+	{&character_base_male_south_idle3, 1*IDLE_ANIM_SPEED},
+	{&character_base_male_south_idle2, 2*IDLE_ANIM_SPEED},
+	{&character_base_male_south_idle1, 2*IDLE_ANIM_SPEED},
+	{NULL, 0},
+};
+static const struct oam_animation_cell character_base_male_east_idle[] = {
+	{&character_base_male_east_idle1, 2*IDLE_ANIM_SPEED},
+	{&character_base_male_east_idle2, 1*IDLE_ANIM_SPEED},
+	{&character_base_male_east_idle3, 1*IDLE_ANIM_SPEED},
+	{&character_base_male_east_idle2, 2*IDLE_ANIM_SPEED},
+	{&character_base_male_east_idle1, 2*IDLE_ANIM_SPEED},
+	{NULL, 0},
+};
+static const struct oam_animation_cell character_base_male_west_idle[] = {
+	{&character_base_male_west_idle1, 2*IDLE_ANIM_SPEED},
+	{&character_base_male_west_idle2, 1*IDLE_ANIM_SPEED},
+	{&character_base_male_west_idle3, 1*IDLE_ANIM_SPEED},
+	{&character_base_male_west_idle2, 2*IDLE_ANIM_SPEED},
+	{&character_base_male_west_idle1, 2*IDLE_ANIM_SPEED},
+	{NULL, 0},
+};
+static const struct oam_animation_cell character_base_male_north_walking[] = {
+	{&character_base_male_north_walking1, WALK_ANIM_SPEED},
+	{&character_base_male_north_walking2, WALK_ANIM_SPEED},
+	{&character_base_male_north_walking3, WALK_ANIM_SPEED},
+	{&character_base_male_north_walking4, WALK_ANIM_SPEED},
+	{&character_base_male_north_walking5, WALK_ANIM_SPEED},
+	{&character_base_male_north_walking6, WALK_ANIM_SPEED},
+	{&character_base_male_north_walking7, WALK_ANIM_SPEED},
+	{&character_base_male_north_walking8, WALK_ANIM_SPEED},
+	{NULL, 0}
+};
+static const struct oam_animation_cell character_base_male_south_walking[] = {
+	{&character_base_male_south_walking1, WALK_ANIM_SPEED},
+	{&character_base_male_south_walking2, WALK_ANIM_SPEED},
+	{&character_base_male_south_walking3, WALK_ANIM_SPEED},
+	{&character_base_male_south_walking4, WALK_ANIM_SPEED},
+	{&character_base_male_south_walking5, WALK_ANIM_SPEED},
+	{&character_base_male_south_walking6, WALK_ANIM_SPEED},
+	{&character_base_male_south_walking7, WALK_ANIM_SPEED},
+	{&character_base_male_south_walking8, WALK_ANIM_SPEED},
+	{NULL, 0}
+};
+static const struct oam_animation_cell character_base_male_east_walking[] = {
+	{&character_base_male_east_walking1, WALK_ANIM_SPEED},
+	{&character_base_male_east_walking2, WALK_ANIM_SPEED},
+	{&character_base_male_east_walking3, WALK_ANIM_SPEED},
+	{&character_base_male_east_walking4, WALK_ANIM_SPEED},
+	{&character_base_male_east_walking5, WALK_ANIM_SPEED},
+	{&character_base_male_east_walking6, WALK_ANIM_SPEED},
+	{&character_base_male_east_walking7, WALK_ANIM_SPEED},
+	{&character_base_male_east_walking8, WALK_ANIM_SPEED},
+	{NULL, 0}
+};
+static const struct oam_animation_cell character_base_male_west_walking[] = {
+	{&character_base_male_west_walking1, WALK_ANIM_SPEED},
+	{&character_base_male_west_walking2, WALK_ANIM_SPEED},
+	{&character_base_male_west_walking3, WALK_ANIM_SPEED},
+	{&character_base_male_west_walking4, WALK_ANIM_SPEED},
+	{&character_base_male_west_walking5, WALK_ANIM_SPEED},
+	{&character_base_male_west_walking6, WALK_ANIM_SPEED},
+	{&character_base_male_west_walking7, WALK_ANIM_SPEED},
+	{&character_base_male_west_walking8, WALK_ANIM_SPEED},
+	{NULL, 0}
+};
+
+
 __attribute__((section(".sbss")))
 static void (*fadeCb)(void) = {0};
 
@@ -54,6 +142,9 @@ static struct walkaround_viewmodel {
 	struct {
 		shadow_oam_id_t oam_id;
 		mapoffs_t mapoffs;
+		const struct oam_animation_cell* anim;
+		uint8_t anim_frame;
+		uint8_t anim_delay;
 	} player;
 } viewmodel = {0};
 
@@ -62,6 +153,7 @@ static struct walkaround_model {
 	const struct tile16x3map* map;
 	struct {
 		tile_coord_t pos;
+		enum direction facing;
 	} player;
 } state = {0};
 
@@ -72,7 +164,8 @@ static const struct tile16x3 tile16x3zero = {
 static const struct walkaround_model initial_state = {
 	.map = &mushroom_village,
 	.player = {
-		.pos = {.x = 7, .y = 7}
+		.pos = {.x = 7, .y = 7},
+		.facing = DIRECTION_WEST,
 	},
 };
 
@@ -143,6 +236,17 @@ static screenoffs_t pixel_coord_to_screen_coord(mapoffs_t in) {
 }
 static mapoffs_t player_tile_coord_to_target_pixel_coord(tile_coord_t in) {
 	return mapoffs_add(tile_coord_to_pixel_coord(in), (mapoffs_t) {8, 14});
+}
+
+static struct shadow_oam_position player_oam_position(mapoffs_t player_mappos) {
+	screenoffs_t player_screenpos = pixel_coord_to_screen_coord(player_mappos);
+	return (struct shadow_oam_position) {
+		.coord = {.x = player_screenpos.x, .y = player_screenpos.y},
+		.hotspot = HOTSPOT_BOTTOM,
+		.hflip = false,
+		.vflip = false,
+		.priority = 2,
+	};
 }
 
 void ChangeScene_walkaround(void (*_fadeCb)(void)) {
@@ -221,18 +325,15 @@ static union palette512 MainCB_walkaround_fadesolid(void) {
 	}
 
 	viewmodel.player.mapoffs = player_tile_coord_to_target_pixel_coord(state.player.pos);
-	screenoffs_t player_screenpos = pixel_coord_to_screen_coord(viewmodel.player.mapoffs);
+	viewmodel.player.anim = character_base_male_west_idle;
+	viewmodel.player.anim_frame = 0;
+	viewmodel.player.anim_delay = viewmodel.player.anim[0].delay;
 	struct shadow_oam_add_sprite_no_palette_vram_op player_oam =
 		shadow_oam_add_sprite_no_palette_vram_op(
-			&character_base_male_west_idle1,
-			(struct shadow_oam_position) {
-				.coord = {.x = player_screenpos.x, .y = player_screenpos.y},
-				.hotspot = HOTSPOT_BOTTOM,
-				.hflip = false,
-				.vflip = false,
-				.priority = 2,
-			});
+			viewmodel.player.anim[0].sprite,
+			player_oam_position(viewmodel.player.mapoffs));
 	viewmodel.player.oam_id = player_oam.sprite_index;
+
 
 	vram_op_queue_enqueue((struct vram_op) {
 		.type = VRAM_QUEUE_OP_HWREG_BGOFSS,
@@ -603,6 +704,8 @@ struct direction_info {
 	int8_t dy;
 	bool (*can_leave)(enum WalkaroundBehavior);
 	bool (*can_enter)(enum WalkaroundBehavior);
+	const struct oam_animation_cell* idle_anim;
+	const struct oam_animation_cell* walking_anim;
 };
 
 static bool can_leave_north(enum WalkaroundBehavior wb) {
@@ -644,24 +747,32 @@ static const struct direction_info direction_infos[] = {
 		.dy = -1,
 		.can_leave = &can_leave_north,
 		.can_enter = &can_leave_south,
+		.idle_anim = character_base_male_north_idle,
+		.walking_anim = character_base_male_north_walking,
 	},
 	[DIRECTION_SOUTH] = {
 		.dx = 0,
 		.dy = 1,
 		.can_leave = &can_leave_south,
 		.can_enter = &can_leave_north,
+		.idle_anim = character_base_male_south_idle,
+		.walking_anim = character_base_male_south_walking,
 	},
 	[DIRECTION_EAST] = {
 		.dx = 1,
 		.dy = 0,
 		.can_leave = &can_leave_east,
 		.can_enter = &can_leave_west,
+		.idle_anim = character_base_male_east_idle,
+		.walking_anim = character_base_male_east_walking,
 	},
 	[DIRECTION_WEST] = {
 		.dx = -1,
 		.dy = 0,
 		.can_leave = &can_leave_west,
 		.can_enter = &can_leave_east,
+		.idle_anim = character_base_male_west_idle,
+		.walking_anim = character_base_male_west_walking,
 	},
 };
 
@@ -674,7 +785,25 @@ static bool can_move_in_direction(tile_coord_t from, enum direction direction) {
 	return direction_info->can_leave(current_behavior) && direction_info->can_enter(target_behavior);
 }
 
-static const int PLAYER_SPEED = 2;
+static bool player_switch_or_advance_anim(const struct oam_animation_cell* target_anim) {
+	if (viewmodel.player.anim == target_anim) {
+		viewmodel.player.anim_delay -= 1;
+		if (0 == viewmodel.player.anim_delay) {
+			viewmodel.player.anim_frame += 1;
+			if (NULL == viewmodel.player.anim[viewmodel.player.anim_frame].sprite) {
+				viewmodel.player.anim_frame = viewmodel.player.anim[viewmodel.player.anim_frame].delay;
+			}
+			viewmodel.player.anim_delay = viewmodel.player.anim[viewmodel.player.anim_frame].delay;
+			return true;
+		}
+	} else {
+		viewmodel.player.anim = target_anim;
+		viewmodel.player.anim_frame = 0;
+		viewmodel.player.anim_delay = viewmodel.player.anim[0].delay;
+		return true;
+	}
+	return false;
+}
 
 /*
  * @return whether the player sprite was moved or changed
@@ -683,19 +812,21 @@ static bool normal_player_movement(void) {
 	mapoffs_t target_mapoffs = player_tile_coord_to_target_pixel_coord(state.player.pos);
 	if (viewmodel.player.mapoffs.x != target_mapoffs.x || viewmodel.player.mapoffs.y != target_mapoffs.y) {
 		if (viewmodel.player.mapoffs.x < target_mapoffs.x) {
-			viewmodel.player.mapoffs.x += PLAYER_SPEED;
+			viewmodel.player.mapoffs.x += PLAYER_MOVE_SPEED;
+			return player_switch_or_advance_anim(direction_infos[state.player.facing].walking_anim);
 		}
 		else if (viewmodel.player.mapoffs.x > target_mapoffs.x) {
-			viewmodel.player.mapoffs.x -= PLAYER_SPEED;
+			viewmodel.player.mapoffs.x -= PLAYER_MOVE_SPEED;
+			return player_switch_or_advance_anim(direction_infos[state.player.facing].walking_anim);
 		}
 		else if (viewmodel.player.mapoffs.y < target_mapoffs.y) {
-			viewmodel.player.mapoffs.y += PLAYER_SPEED;
+			viewmodel.player.mapoffs.y += PLAYER_MOVE_SPEED;
+			return player_switch_or_advance_anim(direction_infos[state.player.facing].walking_anim);
 		}
 		else if (viewmodel.player.mapoffs.y > target_mapoffs.y) {
-			viewmodel.player.mapoffs.y -= PLAYER_SPEED;
+			viewmodel.player.mapoffs.y -= PLAYER_MOVE_SPEED;
+			return player_switch_or_advance_anim(direction_infos[state.player.facing].walking_anim);
 		}
-
-		return true;
 	} else {
 		keypad_t inputs = keyinput_get_down();
 
@@ -703,40 +834,66 @@ static bool normal_player_movement(void) {
 		// the `(state.player.pos.x % 2 == state.player.pos.y % 2)` part will make the player alternate between moving horizontally and vertically
 		if (! inputs.right && (state.player.pos.x % 2 == state.player.pos.y % 2) && can_move_in_direction(state.player.pos, DIRECTION_EAST)) {
 			state.player.pos.x += 1;
-			viewmodel.player.mapoffs.x += PLAYER_SPEED;
-			return true;
+			state.player.facing = DIRECTION_EAST;
+			viewmodel.player.mapoffs.x += PLAYER_MOVE_SPEED;
+			return player_switch_or_advance_anim(direction_infos[state.player.facing].walking_anim);
 		}
 		else if (! inputs.left && (state.player.pos.x % 2 == state.player.pos.y % 2) && can_move_in_direction(state.player.pos, DIRECTION_WEST)) {
 			state.player.pos.x -= 1;
-			viewmodel.player.mapoffs.x -= PLAYER_SPEED;
-			return true;
+			state.player.facing = DIRECTION_WEST;
+			viewmodel.player.mapoffs.x -= PLAYER_MOVE_SPEED;
+			return player_switch_or_advance_anim(direction_infos[state.player.facing].walking_anim);
 		}
 		else if (! inputs.up && can_move_in_direction(state.player.pos, DIRECTION_NORTH)) {
 			state.player.pos.y -= 1;
-			viewmodel.player.mapoffs.y -= PLAYER_SPEED;
-			return true;
+			state.player.facing = DIRECTION_NORTH;
+			viewmodel.player.mapoffs.y -= PLAYER_MOVE_SPEED;
+			return player_switch_or_advance_anim(direction_infos[state.player.facing].walking_anim);
 		}
 		else if (! inputs.down && can_move_in_direction(state.player.pos, DIRECTION_SOUTH)) {
 			state.player.pos.y += 1;
-			viewmodel.player.mapoffs.y += PLAYER_SPEED;
-			return true;
+			state.player.facing = DIRECTION_SOUTH;
+			viewmodel.player.mapoffs.y += PLAYER_MOVE_SPEED;
+			return player_switch_or_advance_anim(direction_infos[state.player.facing].walking_anim);
 		}
 		else if (! inputs.right && can_move_in_direction(state.player.pos, DIRECTION_EAST)) {
 			state.player.pos.x += 1;
-			viewmodel.player.mapoffs.x += PLAYER_SPEED;
-			return true;
+			state.player.facing = DIRECTION_EAST;
+			viewmodel.player.mapoffs.x += PLAYER_MOVE_SPEED;
+			return player_switch_or_advance_anim(direction_infos[state.player.facing].walking_anim);
 		}
 		else if (! inputs.left && can_move_in_direction(state.player.pos, DIRECTION_WEST)) {
 			state.player.pos.x -= 1;
-			viewmodel.player.mapoffs.x -= PLAYER_SPEED;
-			return true;
+			state.player.facing = DIRECTION_WEST;
+			viewmodel.player.mapoffs.x -= PLAYER_MOVE_SPEED;
+			return player_switch_or_advance_anim(direction_infos[state.player.facing].walking_anim);
+		}
+		else if (! inputs.right) {
+			state.player.facing = DIRECTION_EAST;
+			return player_switch_or_advance_anim(direction_infos[state.player.facing].walking_anim);
+		}
+		else if (! inputs.left) {
+			state.player.facing = DIRECTION_WEST;
+			return player_switch_or_advance_anim(direction_infos[state.player.facing].walking_anim);
+		}
+		else if (! inputs.up) {
+			state.player.facing = DIRECTION_NORTH;
+			return player_switch_or_advance_anim(direction_infos[state.player.facing].walking_anim);
+		}
+		else if (! inputs.down) {
+			state.player.facing = DIRECTION_SOUTH;
+			return player_switch_or_advance_anim(direction_infos[state.player.facing].walking_anim);
+		}
+
+		else {
+			return player_switch_or_advance_anim(direction_infos[state.player.facing].idle_anim);
 		}
 	}
 
 	return false;
 }
 
-static void MainCB_walkaround_main(void) {
+void MainCB_walkaround_main(void) {
 	bool refresh_player = false;
 
 	refresh_player |= normal_player_movement();
@@ -744,15 +901,9 @@ static void MainCB_walkaround_main(void) {
 	refresh_player |= move_camera_towards(center_player_in_camera_target(), 2);
 
 	if (refresh_player) {
-		screenoffs_t player_screenpos = pixel_coord_to_screen_coord(viewmodel.player.mapoffs);
-		shadow_oam_move_sprite(
+		shadow_oam_rewrite_sprite(
 			viewmodel.player.oam_id,
-			(struct shadow_oam_position) {
-				.coord = {.x = player_screenpos.x, .y = player_screenpos.y},
-				.hotspot = HOTSPOT_BOTTOM,
-				.hflip = false,
-				.vflip = false,
-				.priority = 2,
-			});
+			viewmodel.player.anim[viewmodel.player.anim_frame].sprite,
+			player_oam_position(viewmodel.player.mapoffs));
 	}
 }

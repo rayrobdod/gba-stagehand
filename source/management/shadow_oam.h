@@ -55,6 +55,10 @@ struct shadow_oam_add_sprite_no_palette_vram_op shadow_oam_add_sprite_no_palette
 	const struct shadow_oam_template*,
 	const struct shadow_oam_position);
 void shadow_oam_remove_sprite(shadow_oam_id_t);
+bool shadow_oam_rewrite_sprite(
+	shadow_oam_id_t shadow_oam_index,
+	const struct shadow_oam_template* template,
+	const struct shadow_oam_position position);
 void shadow_oam_move_sprite(shadow_oam_id_t,
 	const struct shadow_oam_position);
 

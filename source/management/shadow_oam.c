@@ -377,6 +377,53 @@ void shadow_oam_remove_sprite(shadow_oam_id_t index) {
 	});
 }
 
+bool shadow_oam_rewrite_sprite(
+	shadow_oam_id_t shadow_oam_index,
+	const struct shadow_oam_template* template,
+	const struct shadow_oam_position position) {
+	if (shadow_oam_index >= arraycount(shadow_oam))
+		return false;
+
+	struct shadow_oam* oam = &shadow_oam[shadow_oam_index];
+
+	if (shadow_palette[oam->palette_index].tag != template->paltag) {
+		shadow_oam_palid_t old_pal_index = oam->palette_index;
+		shadow_oam_release_palette(old_pal_index);
+
+		shadow_oam_palid_t new_pal_index =
+			shadow_oam_add_palette(template->paltag, template->palette, true);
+		if (new_pal_index == shadow_id_invalid) {
+			MgbaPrintf(MGBA_LOG_ERROR, "  shadow oam palettes exhausted");
+			shadow_palette[old_pal_index].refcount++;
+			return false;
+		} else {
+			oam->palette_index = new_pal_index;
+		}
+	}
+
+	if (shadow_tiles[oam->shadow_tile_index].tag != template->tiletag) {
+		shadow_oam_palid_t old_tile_index = oam->shadow_tile_index;
+		shadow_oam_release_tiles(old_tile_index);
+
+		const unsigned tilecount = tilesize_properties[template->shape][template->size].tilecount;
+		shadow_oam_tileid_t new_tile_index =
+			shadow_oam_add_tiles(template->tiletag, template->tiles, tilecount);
+		if (new_tile_index == shadow_id_invalid) {
+			MgbaPrintf(MGBA_LOG_ERROR, "  shadow oam tiles exhausted");
+			shadow_tiles[old_tile_index].refcount++;
+			return false;
+		} else {
+			oam->shadow_tile_index = new_tile_index;
+		}
+	}
+
+	oam->template = template;
+
+	shadow_oam_move_sprite(shadow_oam_index, position);
+
+	return true;
+}
+
 void shadow_oam_move_sprite(
 	shadow_oam_id_t index,
 	const struct shadow_oam_position position
