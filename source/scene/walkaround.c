@@ -25,6 +25,7 @@ static void MainCB_walkaround_fadesolid_black(void);
 static void MainCB_walkaround_fadein_black(void);
 
 static const int PLAYER_MOVE_SPEED = 1;
+static const int TURN_FRAMES = 4;
 static const uint8_t IDLE_ANIM_SPEED = 12;
 static const uint8_t WALK_ANIM_SPEED = 4;
 
@@ -131,6 +132,8 @@ static const struct walkaround_model initial_state = {
 	.map = &mushroom_village,
 	.player = {
 		.pos = {.x = 7, .y = 7},
+		.turn_timer = 0,
+		.action = ACTION_NONE,
 		.facing = DIRECTION_WEST,
 	},
 };
@@ -793,45 +796,87 @@ static bool normal_player_movement(void) {
 			walkaround_viewmodel.player.mapoffs.y -= PLAYER_MOVE_SPEED;
 			return player_switch_or_advance_anim(direction_infos[walkaround_state.player.facing].walking_anim);
 		}
+	} else if (walkaround_state.player.action == ACTION_TURNING) {
+		walkaround_state.player.turn_timer -= 1;
+		if (0 == walkaround_state.player.turn_timer) {
+			walkaround_state.player.action = ACTION_NONE;
+		}
+		return player_switch_or_advance_anim(direction_infos[walkaround_state.player.facing].walking_anim);
 	} else {
 		keypad_t inputs = keyinput_get_down();
 
 		// if holding down both a horizontal direction and a vertical direction,
 		// the `(walkaround_state.player.pos.x % 2 == walkaround_state.player.pos.y % 2)` part will make the player alternate between moving horizontally and vertically
 		if (! inputs.right && (walkaround_state.player.pos.x % 2 == walkaround_state.player.pos.y % 2) && can_move_in_direction(walkaround_state.player.pos, DIRECTION_EAST)) {
-			walkaround_state.player.pos.x += 1;
+			if (walkaround_state.player.action == ACTION_WALKING || walkaround_state.player.facing == DIRECTION_EAST) {
+				walkaround_state.player.pos.x += 1;
+				walkaround_viewmodel.player.mapoffs.x += PLAYER_MOVE_SPEED;
+				walkaround_state.player.action = ACTION_WALKING;
+			} else {
+				walkaround_state.player.turn_timer = TURN_FRAMES;
+				walkaround_state.player.action = ACTION_TURNING;
+			}
 			walkaround_state.player.facing = DIRECTION_EAST;
-			walkaround_viewmodel.player.mapoffs.x += PLAYER_MOVE_SPEED;
 			return player_switch_or_advance_anim(direction_infos[walkaround_state.player.facing].walking_anim);
 		}
 		else if (! inputs.left && (walkaround_state.player.pos.x % 2 == walkaround_state.player.pos.y % 2) && can_move_in_direction(walkaround_state.player.pos, DIRECTION_WEST)) {
-			walkaround_state.player.pos.x -= 1;
+			if (walkaround_state.player.action == ACTION_WALKING || walkaround_state.player.facing == DIRECTION_WEST) {
+				walkaround_state.player.pos.x -= 1;
+				walkaround_viewmodel.player.mapoffs.x -= PLAYER_MOVE_SPEED;
+				walkaround_state.player.action = ACTION_WALKING;
+			} else {
+				walkaround_state.player.turn_timer = TURN_FRAMES;
+				walkaround_state.player.action = ACTION_TURNING;
+			}
 			walkaround_state.player.facing = DIRECTION_WEST;
-			walkaround_viewmodel.player.mapoffs.x -= PLAYER_MOVE_SPEED;
 			return player_switch_or_advance_anim(direction_infos[walkaround_state.player.facing].walking_anim);
 		}
 		else if (! inputs.up && can_move_in_direction(walkaround_state.player.pos, DIRECTION_NORTH)) {
-			walkaround_state.player.pos.y -= 1;
+			if (walkaround_state.player.action == ACTION_WALKING || walkaround_state.player.facing == DIRECTION_NORTH) {
+				walkaround_state.player.pos.y -= 1;
+				walkaround_viewmodel.player.mapoffs.y -= PLAYER_MOVE_SPEED;
+				walkaround_state.player.action = ACTION_WALKING;
+			} else {
+				walkaround_state.player.turn_timer = TURN_FRAMES;
+				walkaround_state.player.action = ACTION_TURNING;
+			}
 			walkaround_state.player.facing = DIRECTION_NORTH;
-			walkaround_viewmodel.player.mapoffs.y -= PLAYER_MOVE_SPEED;
 			return player_switch_or_advance_anim(direction_infos[walkaround_state.player.facing].walking_anim);
 		}
 		else if (! inputs.down && can_move_in_direction(walkaround_state.player.pos, DIRECTION_SOUTH)) {
-			walkaround_state.player.pos.y += 1;
+			if (walkaround_state.player.action == ACTION_WALKING || walkaround_state.player.facing == DIRECTION_SOUTH) {
+				walkaround_state.player.pos.y += 1;
+				walkaround_viewmodel.player.mapoffs.y += PLAYER_MOVE_SPEED;
+				walkaround_state.player.action = ACTION_WALKING;
+			} else {
+				walkaround_state.player.turn_timer = TURN_FRAMES;
+				walkaround_state.player.action = ACTION_TURNING;
+			}
 			walkaround_state.player.facing = DIRECTION_SOUTH;
-			walkaround_viewmodel.player.mapoffs.y += PLAYER_MOVE_SPEED;
 			return player_switch_or_advance_anim(direction_infos[walkaround_state.player.facing].walking_anim);
 		}
 		else if (! inputs.right && can_move_in_direction(walkaround_state.player.pos, DIRECTION_EAST)) {
-			walkaround_state.player.pos.x += 1;
+			if (walkaround_state.player.action == ACTION_WALKING || walkaround_state.player.facing == DIRECTION_EAST) {
+				walkaround_state.player.pos.x += 1;
+				walkaround_viewmodel.player.mapoffs.x += PLAYER_MOVE_SPEED;
+				walkaround_state.player.action = ACTION_WALKING;
+			} else {
+				walkaround_state.player.turn_timer = TURN_FRAMES;
+				walkaround_state.player.action = ACTION_TURNING;
+			}
 			walkaround_state.player.facing = DIRECTION_EAST;
-			walkaround_viewmodel.player.mapoffs.x += PLAYER_MOVE_SPEED;
 			return player_switch_or_advance_anim(direction_infos[walkaround_state.player.facing].walking_anim);
 		}
 		else if (! inputs.left && can_move_in_direction(walkaround_state.player.pos, DIRECTION_WEST)) {
-			walkaround_state.player.pos.x -= 1;
+			if (walkaround_state.player.action == ACTION_WALKING || walkaround_state.player.facing == DIRECTION_WEST) {
+				walkaround_state.player.pos.x -= 1;
+				walkaround_viewmodel.player.mapoffs.x -= PLAYER_MOVE_SPEED;
+				walkaround_state.player.action = ACTION_WALKING;
+			} else {
+				walkaround_state.player.turn_timer = TURN_FRAMES;
+				walkaround_state.player.action = ACTION_TURNING;
+			}
 			walkaround_state.player.facing = DIRECTION_WEST;
-			walkaround_viewmodel.player.mapoffs.x -= PLAYER_MOVE_SPEED;
 			return player_switch_or_advance_anim(direction_infos[walkaround_state.player.facing].walking_anim);
 		}
 		else if (! inputs.right) {
@@ -852,6 +897,7 @@ static bool normal_player_movement(void) {
 		}
 
 		else {
+			walkaround_state.player.action = ACTION_NONE;
 			return player_switch_or_advance_anim(direction_infos[walkaround_state.player.facing].idle_anim);
 		}
 	}

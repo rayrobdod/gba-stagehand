@@ -11,6 +11,12 @@ enum direction {
 	DIRECTION_WEST,
 };
 
+enum action {
+	ACTION_NONE,
+	ACTION_WALKING,
+	ACTION_TURNING,
+};
+
 /* tile position relative to the top-left of the map */
 typedef struct { int16_t x; int16_t y; } tile_coord_t;
 /* pixel position relative to the top-left of the map */
@@ -22,6 +28,8 @@ extern struct walkaround_model {
 	const struct tile16x3map* map;
 	struct {
 		tile_coord_t pos;
+		uint8_t turn_timer;
+		enum action action;
 		enum direction facing;
 	} player;
 } walkaround_state;

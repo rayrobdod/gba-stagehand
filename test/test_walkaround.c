@@ -17,12 +17,22 @@ void vram_op_queue_enqueue([[maybe_unused]] const struct vram_op new_op) {}
 void TEST_ASSERT_EQUAL_MODEL(struct walkaround_model* expected, struct walkaround_model* actual) {
 	if (expected->map != actual->map ||
 			expected->player.facing != actual->player.facing ||
+			expected->player.turn_timer != actual->player.turn_timer ||
+			expected->player.action != actual->player.action ||
 			expected->player.pos.x != actual->player.pos.x ||
 			expected->player.pos.y != actual->player.pos.y) {
 		char msg[256];
-		snprintf(msg, arraycount(msg), "Expected {%p,{{%d,%d},%d}}; was {%p,{{%d,%d},%d}}",
-			expected->map, expected->player.pos.x, expected->player.pos.y, expected->player.facing,
-			actual->map, actual->player.pos.x, actual->player.pos.y, actual->player.facing);
+		snprintf(msg, arraycount(msg), "Expected {%p,{{%d,%d},%d,%d,%d}}; was {%p,{{%d,%d},%d,%d,%d}}",
+			expected->map,
+			expected->player.pos.x, expected->player.pos.y,
+			expected->player.turn_timer,
+			expected->player.action,
+			expected->player.facing,
+			actual->map,
+			actual->player.pos.x, actual->player.pos.y,
+			actual->player.turn_timer,
+			actual->player.action,
+			actual->player.facing);
 		TEST_FAIL(msg);
 	}
 }
@@ -92,7 +102,9 @@ void test_walkaround__move_down(void) {
 		.map = &clear_map,
 		.player = {
 			.pos = {1, 1},
-			.facing = DIRECTION_WEST,
+			.turn_timer = 0,
+			.action = ACTION_NONE,
+			.facing = DIRECTION_SOUTH,
 		},
 	};
 	walkaround_viewmodel = (struct walkaround_viewmodel) {
@@ -113,6 +125,44 @@ void test_walkaround__move_down(void) {
 			.map = &clear_map,
 			.player = {
 				.pos = {1, 2},
+				.turn_timer = 0,
+				.action = ACTION_WALKING,
+				.facing = DIRECTION_SOUTH,
+			},
+		},
+		&walkaround_state);
+}
+
+void test_walkaround__turn_down(void) {
+	walkaround_state = (struct walkaround_model) {
+		.map = &clear_map,
+		.player = {
+			.pos = {1, 1},
+			.turn_timer = 0,
+			.action = ACTION_NONE,
+			.facing = DIRECTION_WEST,
+		},
+	};
+	walkaround_viewmodel = (struct walkaround_viewmodel) {
+		.camera = {
+			.mapoffs = {-6*16, -4*16},
+		},
+		.player = {
+			.oam_id = shadow_id_invalid,
+			.mapoffs = {1*16+8, 1*16+14},
+		},
+	};
+
+	keypad_current_down = KEYPAD_DOWN;
+	MainCB_walkaround_main();
+
+	TEST_ASSERT_EQUAL_MODEL(
+		&(struct walkaround_model) {
+			.map = &clear_map,
+			.player = {
+				.pos = {1, 1},
+				.turn_timer = 4,
+				.action = ACTION_TURNING,
 				.facing = DIRECTION_SOUTH,
 			},
 		},
