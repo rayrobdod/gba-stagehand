@@ -176,6 +176,7 @@ int main() {
 	MgbaOpen();
 
 	RUN_TEST(test_walkaround__move_down);
+	RUN_TEST(test_walkaround__turn_down);
 
 	MgbaPrintf(MGBA_LOG_INFO, "Total: %d; Failing: %d", total, failed);
 	return 0 != failed;
