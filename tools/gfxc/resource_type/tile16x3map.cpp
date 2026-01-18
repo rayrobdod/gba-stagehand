@@ -224,7 +224,7 @@ static void tile16x3map_write_struct(std::ostream& headerstream) {
 		<< "enum WalkaroundBehavior {" << std::endl
 		;
 	for (auto wb = walkaround_behavior_names.begin(); wb != walkaround_behavior_names.end(); ++wb) {
-		headerstream << "    " << *wb << " = " <<
+		headerstream << "\t" << *wb << " = " <<
 			(wb - walkaround_behavior_names.begin()) << "," << std::endl;
 	}
 	headerstream << "};" << std::endl
@@ -232,11 +232,13 @@ static void tile16x3map_write_struct(std::ostream& headerstream) {
 		<< "	enum WalkaroundBehavior behavior;" << std::endl
 		<< "	bg_tile_t tiles[3][4];" << std::endl
 		<< "};" << std::endl
+		<< "#ifndef __unix__" << std::endl
 		<< "_Static_assert(26 == sizeof(struct tile16x3));" << std::endl
+		<< "#endif" << std::endl
 		<< std::endl
 		<< "struct tile16x3map {" << std::endl
 		<< "	struct tileset tileset;" << std::endl
-		<< "	struct tile16x3* metatileset;" << std::endl
+		<< "	const struct tile16x3* metatileset;" << std::endl
 		<< "	uint16_t width;" << std::endl
 		<< "	uint16_t height;" << std::endl
 		<< "	uint16_t metatilemap[];" << std::endl

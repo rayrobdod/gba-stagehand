@@ -263,7 +263,7 @@ $(TESTOBJDIR)/trivial_decompression.o: $(GFXC)
 	@$(MKDIR) -p $(@D)
 	$(V)$(GFXC) --decompression_suite --trivial $@
 
-$(TESTEXEDIR)/%.elf : $(TESTOBJDIR)/%.c.o $(TESTOBJDIR)/harness.c.o $(TESTOBJDIR)/benchmarks.c.o $(filter-out $(BUILDOBJDIR)/main.c.o $(BUILDOBJDIR)/scene/%.c.o, $(OBJS)) source/sys/gba_cart.ld
+$(TESTEXEDIR)/%.elf : $(TESTOBJDIR)/%.c.o $(TESTOBJDIR)/harness.c.o $(TESTOBJDIR)/benchmarks.c.o $(filter-out $(BUILDOBJDIR)/main.c.o $(BUILDOBJDIR)/scene/%.c.o $(BUILDOBJDIR)/management/keyinput.c.o, $(OBJS)) source/sys/gba_cart.ld
 	@echo "  LD      $@"
 	@$(MKDIR) -p $(@D)
 	$(V)$(CC) -o $@ $(filter-out %.ld,$^) $(TESTLDFLAGS) -Wl,-Map,$(@:.elf=.map)
@@ -360,16 +360,27 @@ $(ROM): $(ELF) $(GBAFIX)
 	$(V)$(GBAFIX) $@ -t$(GAME_TITLE) -c$(GAME_CODE)
 
 $(HOSTEXEDIR)/test_vram_op_queue : $(HOSTOBJDIR_SRC)/management/vram_op_queue.c.o $(HOSTOBJDIR_SRC)/gba/palette.c.o $(HOSTOBJDIR_SRC)/gba/vram.c.o $(HOSTOBJDIR_SRC)/gba/oam.c.o $(HOSTOBJDIR_SRC)/gba/hw_reg.c.o
+$(HOSTEXEDIR)/test_walkaround : $(HOSTOBJDIR_HOST)/graphics.c.o
+$(HOSTEXEDIR)/test_walkaround : $(HOSTOBJDIR_SRC)/management/shadow_oam.c.o
+$(HOSTEXEDIR)/test_walkaround : $(HOSTOBJDIR_SRC)/scene/walkaround.c.o
 $(TESTEXEDIR)/bench_text_printer.elf : $(BUILDOBJDIR)/graphics.o
 $(TESTEXEDIR)/bench_mode3_copy.elf : $(BUILDOBJDIR)/graphics.o
 $(TESTEXEDIR)/bench_parallax_mountain.elf : $(BUILDOBJDIR)/graphics.o
+$(TESTEXEDIR)/bench_parallax_mountain.elf : $(BUILDOBJDIR)/management/keyinput.c.o
 $(TESTEXEDIR)/bench_parallax_mountain.elf : $(BUILDOBJDIR)/scene/parallax_mountain_dusk.c.o
 $(TESTEXEDIR)/bench_decompress.elf : $(patsubst $(GRAPHICSDIR)/%.png,$(TESTOBJDIR)/%.png.o,$(SOURCES_PNG))
 $(TESTEXEDIR)/bench_decompress.elf : $(TESTOBJDIR)/trivial_decompression.o
 $(TESTEXEDIR)/bench_dmgMusicUsingNotation.elf : $(BUILDOBJDIR)/graphics.o
+$(TESTEXEDIR)/bench_dmgMusicUsingNotation.elf : $(BUILDOBJDIR)/management/keyinput.c.o
 $(TESTEXEDIR)/bench_dmgMusicUsingNotation.elf : $(BUILDOBJDIR)/scene/dmg_music_using_notation.c.o
 $(TESTEXEDIR)/bench_dmgMusicUsingNotation.elf : $(BUILDOBJDIR)/dmg_music/frequencies.c.o
 $(TESTEXEDIR)/bench_dmgMusicUsingNotation.elf : $(BUILDOBJDIR)/dmg_music/staff_position.c.o
+$(TESTEXEDIR)/bench_walkaround.elf : $(BUILDOBJDIR)/graphics.o
+$(TESTEXEDIR)/bench_walkaround.elf : $(BUILDOBJDIR)/management/keyinput.c.o
+$(TESTEXEDIR)/bench_walkaround.elf : $(BUILDOBJDIR)/management/shadow_oam.c.o
+$(TESTEXEDIR)/bench_walkaround.elf : $(BUILDOBJDIR)/scene/walkaround.c.o
+$(TESTEXEDIR)/test_walkaround.elf : $(BUILDOBJDIR)/graphics.o
+$(TESTEXEDIR)/test_walkaround.elf : $(BUILDOBJDIR)/scene/walkaround.c.o
 
 check_host: $(patsubst $(HOSTEXEDIR)/%,$(HOSTREPORTDIR)/%.txt,$(HOST_RUNNERS))
 	@:
