@@ -24,6 +24,8 @@ typedef struct { int16_t x; int16_t y; } mapoffs_t;
 /* pixel position relative to the screen */
 typedef struct { int16_t x; int16_t y; } screenoffs_t;
 
+struct oam_animation;
+
 extern struct walkaround_model {
 	const struct tile16x3map* map;
 	struct {
@@ -42,7 +44,7 @@ extern struct walkaround_viewmodel {
 	struct {
 		shadow_oam_id_t oam_id;
 		mapoffs_t mapoffs;
-		const struct oam_animation_cell* anim;
+		const struct oam_animation* anim;
 		uint8_t anim_frame;
 		uint8_t anim_delay;
 	} player;

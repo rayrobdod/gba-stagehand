@@ -29,90 +29,84 @@ static const int TURN_FRAMES = 4;
 static const uint8_t IDLE_ANIM_SPEED = 12;
 static const uint8_t WALK_ANIM_SPEED = 4;
 
+static const uint8_t OAM_INDEX_GOTO = 0xFF;
+
 static inline int floordiv16(int num) { return num >> 4; }
 static inline int posmod16(int num) { return num & 15; }
 
 struct oam_animation_cell {
-	const struct shadow_oam_template* sprite;
+	uint8_t oam_index;
 	uint8_t delay;
 };
 
-static const struct oam_animation_cell character_base_male_north_idle[] = {
-	{&character_base_male_north_idle1, 2*IDLE_ANIM_SPEED},
-	{&character_base_male_north_idle2, 1*IDLE_ANIM_SPEED},
-	{&character_base_male_north_idle3, 1*IDLE_ANIM_SPEED},
-	{&character_base_male_north_idle2, 2*IDLE_ANIM_SPEED},
-	{&character_base_male_north_idle1, 2*IDLE_ANIM_SPEED},
-	{NULL, 0},
+struct oam_animation {
+	const struct shadow_oam_template * const * oams;
+	const struct oam_animation_cell* frames;
 };
-static const struct oam_animation_cell character_base_male_south_idle[] = {
-	{&character_base_male_south_idle1, 2*IDLE_ANIM_SPEED},
-	{&character_base_male_south_idle2, 1*IDLE_ANIM_SPEED},
-	{&character_base_male_south_idle3, 1*IDLE_ANIM_SPEED},
-	{&character_base_male_south_idle2, 2*IDLE_ANIM_SPEED},
-	{&character_base_male_south_idle1, 2*IDLE_ANIM_SPEED},
-	{NULL, 0},
+
+#define FOREACH_DIRECTION(F) \
+	F(north) \
+	F(south) \
+	F(east) \
+	F(west)
+
+static const struct oam_animation_cell idle_frames[] = {
+	{0, 2*IDLE_ANIM_SPEED},
+	{1, 1*IDLE_ANIM_SPEED},
+	{2, 1*IDLE_ANIM_SPEED},
+	{1, 2*IDLE_ANIM_SPEED},
+	{0, 2*IDLE_ANIM_SPEED},
+	{OAM_INDEX_GOTO, 0},
 };
-static const struct oam_animation_cell character_base_male_east_idle[] = {
-	{&character_base_male_east_idle1, 2*IDLE_ANIM_SPEED},
-	{&character_base_male_east_idle2, 1*IDLE_ANIM_SPEED},
-	{&character_base_male_east_idle3, 1*IDLE_ANIM_SPEED},
-	{&character_base_male_east_idle2, 2*IDLE_ANIM_SPEED},
-	{&character_base_male_east_idle1, 2*IDLE_ANIM_SPEED},
-	{NULL, 0},
+
+static const struct oam_animation_cell walking_frames[] = {
+	{0, WALK_ANIM_SPEED},
+	{1, WALK_ANIM_SPEED},
+	{2, WALK_ANIM_SPEED},
+	{3, WALK_ANIM_SPEED},
+	{4, WALK_ANIM_SPEED},
+	{5, WALK_ANIM_SPEED},
+	{6, WALK_ANIM_SPEED},
+	{7, WALK_ANIM_SPEED},
+	{OAM_INDEX_GOTO, 0}
 };
-static const struct oam_animation_cell character_base_male_west_idle[] = {
-	{&character_base_male_west_idle1, 2*IDLE_ANIM_SPEED},
-	{&character_base_male_west_idle2, 1*IDLE_ANIM_SPEED},
-	{&character_base_male_west_idle3, 1*IDLE_ANIM_SPEED},
-	{&character_base_male_west_idle2, 2*IDLE_ANIM_SPEED},
-	{&character_base_male_west_idle1, 2*IDLE_ANIM_SPEED},
-	{NULL, 0},
-};
-static const struct oam_animation_cell character_base_male_north_walking[] = {
-	{&character_base_male_north_walking1, WALK_ANIM_SPEED},
-	{&character_base_male_north_walking2, WALK_ANIM_SPEED},
-	{&character_base_male_north_walking3, WALK_ANIM_SPEED},
-	{&character_base_male_north_walking4, WALK_ANIM_SPEED},
-	{&character_base_male_north_walking5, WALK_ANIM_SPEED},
-	{&character_base_male_north_walking6, WALK_ANIM_SPEED},
-	{&character_base_male_north_walking7, WALK_ANIM_SPEED},
-	{&character_base_male_north_walking8, WALK_ANIM_SPEED},
-	{NULL, 0}
-};
-static const struct oam_animation_cell character_base_male_south_walking[] = {
-	{&character_base_male_south_walking1, WALK_ANIM_SPEED},
-	{&character_base_male_south_walking2, WALK_ANIM_SPEED},
-	{&character_base_male_south_walking3, WALK_ANIM_SPEED},
-	{&character_base_male_south_walking4, WALK_ANIM_SPEED},
-	{&character_base_male_south_walking5, WALK_ANIM_SPEED},
-	{&character_base_male_south_walking6, WALK_ANIM_SPEED},
-	{&character_base_male_south_walking7, WALK_ANIM_SPEED},
-	{&character_base_male_south_walking8, WALK_ANIM_SPEED},
-	{NULL, 0}
-};
-static const struct oam_animation_cell character_base_male_east_walking[] = {
-	{&character_base_male_east_walking1, WALK_ANIM_SPEED},
-	{&character_base_male_east_walking2, WALK_ANIM_SPEED},
-	{&character_base_male_east_walking3, WALK_ANIM_SPEED},
-	{&character_base_male_east_walking4, WALK_ANIM_SPEED},
-	{&character_base_male_east_walking5, WALK_ANIM_SPEED},
-	{&character_base_male_east_walking6, WALK_ANIM_SPEED},
-	{&character_base_male_east_walking7, WALK_ANIM_SPEED},
-	{&character_base_male_east_walking8, WALK_ANIM_SPEED},
-	{NULL, 0}
-};
-static const struct oam_animation_cell character_base_male_west_walking[] = {
-	{&character_base_male_west_walking1, WALK_ANIM_SPEED},
-	{&character_base_male_west_walking2, WALK_ANIM_SPEED},
-	{&character_base_male_west_walking3, WALK_ANIM_SPEED},
-	{&character_base_male_west_walking4, WALK_ANIM_SPEED},
-	{&character_base_male_west_walking5, WALK_ANIM_SPEED},
-	{&character_base_male_west_walking6, WALK_ANIM_SPEED},
-	{&character_base_male_west_walking7, WALK_ANIM_SPEED},
-	{&character_base_male_west_walking8, WALK_ANIM_SPEED},
-	{NULL, 0}
-};
+
+
+#define BASE_MALE_IDLE_OAMS(dir) \
+	static const struct shadow_oam_template* const character_base_male_##dir##_idle_oams[] = { \
+		&character_base_male_##dir##_idle1, \
+		&character_base_male_##dir##_idle2, \
+		&character_base_male_##dir##_idle3, \
+	};
+FOREACH_DIRECTION(BASE_MALE_IDLE_OAMS)
+
+#define BASE_MALE_IDLE(dir) \
+	static const struct oam_animation character_base_male_##dir##_idle = { \
+		character_base_male_##dir##_idle_oams, \
+		idle_frames, \
+	};
+FOREACH_DIRECTION(BASE_MALE_IDLE)
+
+#define BASE_MALE_WALKING_OAMS(dir) \
+	static const struct shadow_oam_template* const character_base_male_##dir##_walking_oams[] = { \
+		&character_base_male_##dir##_walking1, \
+		&character_base_male_##dir##_walking2, \
+		&character_base_male_##dir##_walking3, \
+		&character_base_male_##dir##_walking4, \
+		&character_base_male_##dir##_walking5, \
+		&character_base_male_##dir##_walking6, \
+		&character_base_male_##dir##_walking7, \
+		&character_base_male_##dir##_walking8, \
+	};
+FOREACH_DIRECTION(BASE_MALE_WALKING_OAMS)
+
+#define BASE_MALE_WALKING(dir) \
+	static const struct oam_animation character_base_male_##dir##_walking = { \
+		character_base_male_##dir##_walking_oams, \
+		walking_frames, \
+	};
+FOREACH_DIRECTION(BASE_MALE_WALKING)
+
 
 
 __attribute__((section(".sbss")))
@@ -294,12 +288,13 @@ static union palette512 MainCB_walkaround_fadesolid(void) {
 	}
 
 	walkaround_viewmodel.player.mapoffs = player_tile_coord_to_target_pixel_coord(walkaround_state.player.pos);
-	walkaround_viewmodel.player.anim = character_base_male_west_idle;
+	walkaround_viewmodel.player.anim = &character_base_male_west_idle;
 	walkaround_viewmodel.player.anim_frame = 0;
-	walkaround_viewmodel.player.anim_delay = walkaround_viewmodel.player.anim[0].delay;
+	walkaround_viewmodel.player.anim_delay = walkaround_viewmodel.player.anim->frames[0].delay;
 	struct shadow_oam_add_sprite_no_palette_vram_op player_oam =
 		shadow_oam_add_sprite_no_palette_vram_op(
-			walkaround_viewmodel.player.anim[0].sprite,
+			walkaround_viewmodel.player.anim->oams[
+				walkaround_viewmodel.player.anim->frames[0].oam_index],
 			player_oam_position(walkaround_viewmodel.player.mapoffs));
 	walkaround_viewmodel.player.oam_id = player_oam.sprite_index;
 
@@ -673,8 +668,8 @@ struct direction_info {
 	int8_t dy;
 	bool (*can_leave)(enum WalkaroundBehavior);
 	bool (*can_enter)(enum WalkaroundBehavior);
-	const struct oam_animation_cell* idle_anim;
-	const struct oam_animation_cell* walking_anim;
+	const struct oam_animation* idle_anim;
+	const struct oam_animation* walking_anim;
 };
 
 static bool can_leave_north(enum WalkaroundBehavior wb) {
@@ -716,32 +711,32 @@ static const struct direction_info direction_infos[] = {
 		.dy = -1,
 		.can_leave = &can_leave_north,
 		.can_enter = &can_leave_south,
-		.idle_anim = character_base_male_north_idle,
-		.walking_anim = character_base_male_north_walking,
+		.idle_anim = &character_base_male_north_idle,
+		.walking_anim = &character_base_male_north_walking,
 	},
 	[DIRECTION_SOUTH] = {
 		.dx = 0,
 		.dy = 1,
 		.can_leave = &can_leave_south,
 		.can_enter = &can_leave_north,
-		.idle_anim = character_base_male_south_idle,
-		.walking_anim = character_base_male_south_walking,
+		.idle_anim = &character_base_male_south_idle,
+		.walking_anim = &character_base_male_south_walking,
 	},
 	[DIRECTION_EAST] = {
 		.dx = 1,
 		.dy = 0,
 		.can_leave = &can_leave_east,
 		.can_enter = &can_leave_west,
-		.idle_anim = character_base_male_east_idle,
-		.walking_anim = character_base_male_east_walking,
+		.idle_anim = &character_base_male_east_idle,
+		.walking_anim = &character_base_male_east_walking,
 	},
 	[DIRECTION_WEST] = {
 		.dx = -1,
 		.dy = 0,
 		.can_leave = &can_leave_west,
 		.can_enter = &can_leave_east,
-		.idle_anim = character_base_male_west_idle,
-		.walking_anim = character_base_male_west_walking,
+		.idle_anim = &character_base_male_west_idle,
+		.walking_anim = &character_base_male_west_walking,
 	},
 };
 
@@ -754,21 +749,22 @@ static bool can_move_in_direction(tile_coord_t from, enum direction direction) {
 	return direction_info->can_leave(current_behavior) && direction_info->can_enter(target_behavior);
 }
 
-static bool player_switch_or_advance_anim(const struct oam_animation_cell* target_anim) {
+static bool player_switch_or_advance_anim(const struct oam_animation* target_anim) {
 	if (walkaround_viewmodel.player.anim == target_anim) {
 		walkaround_viewmodel.player.anim_delay -= 1;
 		if (0 == walkaround_viewmodel.player.anim_delay) {
 			walkaround_viewmodel.player.anim_frame += 1;
-			if (NULL == walkaround_viewmodel.player.anim[walkaround_viewmodel.player.anim_frame].sprite) {
-				walkaround_viewmodel.player.anim_frame = walkaround_viewmodel.player.anim[walkaround_viewmodel.player.anim_frame].delay;
+			if (OAM_INDEX_GOTO == walkaround_viewmodel.player.anim->frames[
+						walkaround_viewmodel.player.anim_frame].oam_index) {
+				walkaround_viewmodel.player.anim_frame = walkaround_viewmodel.player.anim->frames[walkaround_viewmodel.player.anim_frame].delay;
 			}
-			walkaround_viewmodel.player.anim_delay = walkaround_viewmodel.player.anim[walkaround_viewmodel.player.anim_frame].delay;
+			walkaround_viewmodel.player.anim_delay = walkaround_viewmodel.player.anim->frames[walkaround_viewmodel.player.anim_frame].delay;
 			return true;
 		}
 	} else {
 		walkaround_viewmodel.player.anim = target_anim;
 		walkaround_viewmodel.player.anim_frame = 0;
-		walkaround_viewmodel.player.anim_delay = walkaround_viewmodel.player.anim[0].delay;
+		walkaround_viewmodel.player.anim_delay = walkaround_viewmodel.player.anim->frames[0].delay;
 		return true;
 	}
 	return false;
@@ -915,7 +911,9 @@ void MainCB_walkaround_main(void) {
 	if (refresh_player) {
 		shadow_oam_rewrite_sprite(
 			walkaround_viewmodel.player.oam_id,
-			walkaround_viewmodel.player.anim[walkaround_viewmodel.player.anim_frame].sprite,
+			walkaround_viewmodel.player.anim->oams[
+				walkaround_viewmodel.player.anim->frames[
+					walkaround_viewmodel.player.anim_frame].oam_index],
 			player_oam_position(walkaround_viewmodel.player.mapoffs));
 	}
 }
