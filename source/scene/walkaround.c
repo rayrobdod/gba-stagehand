@@ -291,12 +291,15 @@ static union palette512 MainCB_walkaround_fadesolid(void) {
 	walkaround_viewmodel.player.anim = &character_base_male_west_idle;
 	walkaround_viewmodel.player.anim_frame = 0;
 	walkaround_viewmodel.player.anim_delay = walkaround_viewmodel.player.anim->frames[0].delay;
-	struct shadow_oam_add_sprite_no_palette_vram_op player_oam =
+	const struct shadow_oam_template* player_oam =
+		walkaround_viewmodel.player.anim->oams[
+			walkaround_viewmodel.player.anim->frames[
+				walkaround_viewmodel.player.anim_frame].oam_index];
+	struct shadow_oam_add_sprite_no_palette_vram_op player_oam_indexes =
 		shadow_oam_add_sprite_no_palette_vram_op(
-			walkaround_viewmodel.player.anim->oams[
-				walkaround_viewmodel.player.anim->frames[0].oam_index],
+			player_oam,
 			player_oam_position(walkaround_viewmodel.player.mapoffs));
-	walkaround_viewmodel.player.oam_id = player_oam.sprite_index;
+	walkaround_viewmodel.player.oam_id = player_oam_indexes.sprite_index;
 
 
 	vram_op_queue_enqueue((struct vram_op) {
@@ -307,8 +310,10 @@ static union palette512 MainCB_walkaround_fadesolid(void) {
 	});
 
 	union palette512 final_palette = {0};
-	memcpy(final_palette.background._4[0], walkaround_state.map->tileset.palette, 16 * 2 * 12);
-	memcpy(final_palette.object._4[player_oam.palette_index], character_base_male_west_idle1.palette, 16);
+	memcpy(final_palette.background._4[0], walkaround_state.map->tileset.palette, sizeof(palette16_t) * 12);
+	memcpy(
+		final_palette.object._4[player_oam_indexes.palette_index],
+		player_oam->palette, sizeof(palette16_t));
 	return final_palette;
 }
 
