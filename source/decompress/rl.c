@@ -8,7 +8,7 @@
 #include "mgba.h"
 
 bool RLUnCompSuspendable(struct suspended_decompression* state) {
-	while (state->dest < state->dest_end && (reg_lcd.VCOUNT < (DISPLAY_HEIGHT - 10) || reg_lcd.VCOUNT > DISPLAY_HEIGHT)) {
+	while (state->dest < state->dest_end && (reg_lcd.VCOUNT < (DISPLAY_HEIGHT - 10) || reg_lcd.VCOUNT >= DISPLAY_HEIGHT)) {
 		uint8_t flag = *state->src++;
 
 		if (flag & 0x80) {

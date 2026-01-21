@@ -489,10 +489,51 @@ Serial Communication (2)
   uint16_t JOYSTAT;	/* 4000158 */
 #endif
 
+enum waitstate_first {
+	WAITSTATE_FIRST_4 = 0,
+	WAITSTATE_FIRST_3 = 1,
+	WAITSTATE_FIRST_2 = 2,
+	WAITSTATE_FIRST_8 = 3,
+};
+enum waitstate_sequential {
+	WAITSTATE_SEQUENTIAL_SLOW = 0,
+	WAITSTATE_SEQUENTIAL_FAST = 1,
+};
+enum phi_terminal {
+	PHI_TERMINAL_DISABLE = 0,
+	PHI_TERMINAL_4 = 1,
+	PHI_TERMINAL_8 = 2,
+	PHI_TERMINAL_16 = 3,
+};
+
+typedef struct {
+	enum waitstate_first sram : 2;
+	enum waitstate_first _0_first : 2;
+	enum waitstate_sequential _0_sequential : 1;
+	enum waitstate_first _1_first : 2;
+	enum waitstate_sequential _1_sequential : 1;
+	enum waitstate_first _2_first : 2;
+	enum waitstate_sequential _2_sequential : 1;
+	enum phi_terminal phi_terminal : 2;
+	uint16_t : 1;
+	bool prefetch : 1;
+	bool is_gbc : 1;
+} waitcnt_t;
+
+static const waitcnt_t common_waitcnt = {
+	.sram = WAITSTATE_FIRST_8,
+	._0_first = WAITSTATE_FIRST_3,
+	._0_sequential = WAITSTATE_SEQUENTIAL_FAST,
+	._2_first = WAITSTATE_FIRST_8,
+	._2_sequential = WAITSTATE_SEQUENTIAL_SLOW,
+	.phi_terminal = PHI_TERMINAL_DISABLE,
+	.prefetch = true,
+};
+
 struct reg_interrupt {
   interrupt_flag_t IE;	/* 4000200 */
   interrupt_flag_t IF;	/* 4000202 */
-  uint16_t WAITCNT;	/* 4000204 */
+  waitcnt_t WAITCNT;	/* 4000204 */
   uint16_t : 16;	/* 4000206 */
   uint16_t IME;	/* 4000208 */
 };

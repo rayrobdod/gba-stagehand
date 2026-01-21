@@ -15,6 +15,8 @@
 MainCallback scene_onframe_callback;
 
 int main() {
+	reg_interrupt.WAITCNT = common_waitcnt;
+
 	isr_switchboard_init();
 	isr_enable(II_VBLANK);
 

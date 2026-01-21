@@ -2,6 +2,7 @@
 
 #include <stddef.h>
 #include <stdio.h>
+#include "gba/hw_reg.h"
 #include "decompress/type.h"
 #include "management/isr.h"
 #include "gba/bios.h"
@@ -179,6 +180,7 @@ int main() {
 	total = 0;
 	failed = 0;
 
+	reg_interrupt.WAITCNT = common_waitcnt;
 	isr_switchboard_init();
 	isr_enable(II_VBLANK);
 	MgbaOpen();

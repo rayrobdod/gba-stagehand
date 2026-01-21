@@ -133,7 +133,7 @@ void LZ11UnCompWram(const struct CompressedData* src, volatile void* dest) {
 }
 
 bool LZ11UnCompSuspendable(struct suspended_decompression* state) {
-	while (state->dest < state->dest_end && (reg_lcd.VCOUNT < (DISPLAY_HEIGHT - 15) || reg_lcd.VCOUNT > DISPLAY_HEIGHT)) {
+	while (state->dest < state->dest_end && (reg_lcd.VCOUNT < (DISPLAY_HEIGHT - 15) || reg_lcd.VCOUNT >= DISPLAY_HEIGHT)) {
 		unsigned flags = *((state->src)++);
 
 		for (int i = 7; i >= 0; --i) {
