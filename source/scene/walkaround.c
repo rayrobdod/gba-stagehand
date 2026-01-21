@@ -12,6 +12,7 @@
 #include "management/shadow_vram.h"
 #include "management/vram_op_queue.h"
 #include "scene/main_menu.h"
+#include "utils/ansi_text_palette.h"
 #include "utils/arraycount.h"
 #include "utils/minmax.h"
 #include "utils/one_transparent_tileset.h"
@@ -19,10 +20,12 @@
 #include "main.h"
 #include "mgba.h"
 #include "mix_rgb.h"
+#include "text_printer.h"
 
 static void MainCB_walkaround_fadeout_black(void);
 static void MainCB_walkaround_fadesolid_black(void);
 static void MainCB_walkaround_fadein_black(void);
+static void close_start_menu(void);
 
 static const int PLAYER_MOVE_SPEED = 1;
 static const int TURN_FRAMES = 4;
@@ -132,7 +135,12 @@ static const struct walkaround_model initial_state = {
 	},
 };
 
+
 enum {
+	START_MENU_WIDTH = 8,
+	START_MENU_X = 30 - 1 - START_MENU_WIDTH,
+	START_MENU_POINTER_X = 8 * START_MENU_X + 8,
+
 	TERRAIN_CHARBLOCK = 0,
 	HUD_CHARBLOCK = 2,
 
@@ -166,6 +174,36 @@ static const struct shadow_vram_init walkaround_shadow_vram_init = {
 		}
 	}
 };
+
+static bool const_false(void) { return false;}
+
+static const struct {
+	const char* label;
+	void (*action)(void);
+	bool (*enabled)(void);
+} start_menu[] = {
+	{
+		.label = "Example",
+		.action = NULL,
+		.enabled = NULL,
+	},
+	{
+		.label = "Example",
+		.action = NULL,
+		.enabled = &const_false,
+	},
+	{
+		.label = "Example",
+		.action = NULL,
+		.enabled = NULL,
+	},
+	{
+		.label = "Exit",
+		.action = &close_start_menu,
+		.enabled = NULL,
+	}
+};
+
 
 
 static const struct tile16x3* metatile_at(const struct tile16x3map* map, signed x, signed y) {
@@ -775,34 +813,41 @@ static bool player_switch_or_advance_anim(const struct oam_animation* target_ani
 	return false;
 }
 
+typedef struct {
+	bool refresh_player;
+	bool open_start_menu;
+} normal_player_movement_t;
+
 /*
  * @return whether the player sprite was moved or changed
  */
-static bool normal_player_movement(void) {
+static normal_player_movement_t normal_player_movement(void) {
+	normal_player_movement_t retval = {false, false};
+
 	mapoffs_t target_mapoffs = player_tile_coord_to_target_pixel_coord(walkaround_state.player.pos);
 	if (walkaround_viewmodel.player.mapoffs.x != target_mapoffs.x || walkaround_viewmodel.player.mapoffs.y != target_mapoffs.y) {
 		if (walkaround_viewmodel.player.mapoffs.x < target_mapoffs.x) {
 			walkaround_viewmodel.player.mapoffs.x += PLAYER_MOVE_SPEED;
-			return player_switch_or_advance_anim(direction_infos[walkaround_state.player.facing].walking_anim);
+			retval.refresh_player = player_switch_or_advance_anim(direction_infos[walkaround_state.player.facing].walking_anim);
 		}
 		else if (walkaround_viewmodel.player.mapoffs.x > target_mapoffs.x) {
 			walkaround_viewmodel.player.mapoffs.x -= PLAYER_MOVE_SPEED;
-			return player_switch_or_advance_anim(direction_infos[walkaround_state.player.facing].walking_anim);
+			retval.refresh_player = player_switch_or_advance_anim(direction_infos[walkaround_state.player.facing].walking_anim);
 		}
 		else if (walkaround_viewmodel.player.mapoffs.y < target_mapoffs.y) {
 			walkaround_viewmodel.player.mapoffs.y += PLAYER_MOVE_SPEED;
-			return player_switch_or_advance_anim(direction_infos[walkaround_state.player.facing].walking_anim);
+			retval.refresh_player = player_switch_or_advance_anim(direction_infos[walkaround_state.player.facing].walking_anim);
 		}
 		else if (walkaround_viewmodel.player.mapoffs.y > target_mapoffs.y) {
 			walkaround_viewmodel.player.mapoffs.y -= PLAYER_MOVE_SPEED;
-			return player_switch_or_advance_anim(direction_infos[walkaround_state.player.facing].walking_anim);
+			retval.refresh_player = player_switch_or_advance_anim(direction_infos[walkaround_state.player.facing].walking_anim);
 		}
 	} else if (walkaround_state.player.action == ACTION_TURNING) {
 		walkaround_state.player.turn_timer -= 1;
 		if (0 == walkaround_state.player.turn_timer) {
 			walkaround_state.player.action = ACTION_NONE;
 		}
-		return player_switch_or_advance_anim(direction_infos[walkaround_state.player.facing].walking_anim);
+		retval.refresh_player = player_switch_or_advance_anim(direction_infos[walkaround_state.player.facing].walking_anim);
 	} else {
 		keypad_t inputs = keyinput_get_down();
 
@@ -818,7 +863,7 @@ static bool normal_player_movement(void) {
 				walkaround_state.player.action = ACTION_TURNING;
 			}
 			walkaround_state.player.facing = DIRECTION_EAST;
-			return player_switch_or_advance_anim(direction_infos[walkaround_state.player.facing].walking_anim);
+			retval.refresh_player = player_switch_or_advance_anim(direction_infos[walkaround_state.player.facing].walking_anim);
 		}
 		else if (! inputs.left && (walkaround_state.player.pos.x % 2 == walkaround_state.player.pos.y % 2) && can_move_in_direction(walkaround_state.player.pos, DIRECTION_WEST)) {
 			if (walkaround_state.player.action == ACTION_WALKING || walkaround_state.player.facing == DIRECTION_WEST) {
@@ -830,7 +875,7 @@ static bool normal_player_movement(void) {
 				walkaround_state.player.action = ACTION_TURNING;
 			}
 			walkaround_state.player.facing = DIRECTION_WEST;
-			return player_switch_or_advance_anim(direction_infos[walkaround_state.player.facing].walking_anim);
+			retval.refresh_player = player_switch_or_advance_anim(direction_infos[walkaround_state.player.facing].walking_anim);
 		}
 		else if (! inputs.up && can_move_in_direction(walkaround_state.player.pos, DIRECTION_NORTH)) {
 			if (walkaround_state.player.action == ACTION_WALKING || walkaround_state.player.facing == DIRECTION_NORTH) {
@@ -842,7 +887,7 @@ static bool normal_player_movement(void) {
 				walkaround_state.player.action = ACTION_TURNING;
 			}
 			walkaround_state.player.facing = DIRECTION_NORTH;
-			return player_switch_or_advance_anim(direction_infos[walkaround_state.player.facing].walking_anim);
+			retval.refresh_player = player_switch_or_advance_anim(direction_infos[walkaround_state.player.facing].walking_anim);
 		}
 		else if (! inputs.down && can_move_in_direction(walkaround_state.player.pos, DIRECTION_SOUTH)) {
 			if (walkaround_state.player.action == ACTION_WALKING || walkaround_state.player.facing == DIRECTION_SOUTH) {
@@ -854,7 +899,7 @@ static bool normal_player_movement(void) {
 				walkaround_state.player.action = ACTION_TURNING;
 			}
 			walkaround_state.player.facing = DIRECTION_SOUTH;
-			return player_switch_or_advance_anim(direction_infos[walkaround_state.player.facing].walking_anim);
+			retval.refresh_player = player_switch_or_advance_anim(direction_infos[walkaround_state.player.facing].walking_anim);
 		}
 		else if (! inputs.right && can_move_in_direction(walkaround_state.player.pos, DIRECTION_EAST)) {
 			if (walkaround_state.player.action == ACTION_WALKING || walkaround_state.player.facing == DIRECTION_EAST) {
@@ -866,7 +911,7 @@ static bool normal_player_movement(void) {
 				walkaround_state.player.action = ACTION_TURNING;
 			}
 			walkaround_state.player.facing = DIRECTION_EAST;
-			return player_switch_or_advance_anim(direction_infos[walkaround_state.player.facing].walking_anim);
+			retval.refresh_player = player_switch_or_advance_anim(direction_infos[walkaround_state.player.facing].walking_anim);
 		}
 		else if (! inputs.left && can_move_in_direction(walkaround_state.player.pos, DIRECTION_WEST)) {
 			if (walkaround_state.player.action == ACTION_WALKING || walkaround_state.player.facing == DIRECTION_WEST) {
@@ -878,38 +923,190 @@ static bool normal_player_movement(void) {
 				walkaround_state.player.action = ACTION_TURNING;
 			}
 			walkaround_state.player.facing = DIRECTION_WEST;
-			return player_switch_or_advance_anim(direction_infos[walkaround_state.player.facing].walking_anim);
+			retval.refresh_player = player_switch_or_advance_anim(direction_infos[walkaround_state.player.facing].walking_anim);
 		}
 		else if (! inputs.right) {
 			walkaround_state.player.facing = DIRECTION_EAST;
-			return player_switch_or_advance_anim(direction_infos[walkaround_state.player.facing].walking_anim);
+			retval.refresh_player = player_switch_or_advance_anim(direction_infos[walkaround_state.player.facing].walking_anim);
 		}
 		else if (! inputs.left) {
 			walkaround_state.player.facing = DIRECTION_WEST;
-			return player_switch_or_advance_anim(direction_infos[walkaround_state.player.facing].walking_anim);
+			retval.refresh_player = player_switch_or_advance_anim(direction_infos[walkaround_state.player.facing].walking_anim);
 		}
 		else if (! inputs.up) {
 			walkaround_state.player.facing = DIRECTION_NORTH;
-			return player_switch_or_advance_anim(direction_infos[walkaround_state.player.facing].walking_anim);
+			retval.refresh_player = player_switch_or_advance_anim(direction_infos[walkaround_state.player.facing].walking_anim);
 		}
 		else if (! inputs.down) {
 			walkaround_state.player.facing = DIRECTION_SOUTH;
-			return player_switch_or_advance_anim(direction_infos[walkaround_state.player.facing].walking_anim);
+			retval.refresh_player = player_switch_or_advance_anim(direction_infos[walkaround_state.player.facing].walking_anim);
 		}
-
 		else {
+			keypad_t new_inputs = keyinput_get_new();
 			walkaround_state.player.action = ACTION_NONE;
-			return player_switch_or_advance_anim(direction_infos[walkaround_state.player.facing].idle_anim);
+			retval.open_start_menu = ! new_inputs.start;
+			retval.refresh_player = player_switch_or_advance_anim(direction_infos[walkaround_state.player.facing].idle_anim);
 		}
 	}
 
-	return false;
+	return retval;
+}
+
+static struct shadow_oam_position start_menu_pointer_target_oam_position() {
+	return (struct shadow_oam_position) {
+		.coord = {
+			.x = START_MENU_POINTER_X,
+			.y = 16 + 16 * walkaround_viewmodel.start_menu.selection,
+		},
+		.hotspot = HOTSPOT_RIGHT,
+		.hflip = false,
+		.vflip = false,
+		.priority = 0,
+	};
+}
+
+static void open_start_menu(void) {
+	walkaround_viewmodel.start_menu.is_open = true;
+
+	const unsigned max_window_height = arraycount(start_menu) * 2;
+
+	uint32_t white = 0x77777777;
+	tile_4bpp_t* start_menu_tiles = malloc(sizeof(tile_4bpp_t) * START_MENU_WIDTH * max_window_height);
+	CpuFastSet(
+		&white,
+		start_menu_tiles,
+		(struct CpuFastSet) {
+			.word_count = sizeof(tile_4bpp_t) * START_MENU_WIDTH * max_window_height / sizeof(uint32_t),
+			.mode = CPU_SET_FILL,
+		});
+
+	struct shadow_tiles_window_allocate start_menu_window = {
+		.bg = 0,
+		.palette = 15,
+		.x = START_MENU_X,
+		.y = 1,
+		.width = START_MENU_WIDTH,
+		.height = max_window_height,
+	};
+
+	unsigned num_items = 0;
+	for (unsigned i = 0; i < arraycount(start_menu) && num_items < arraycount(walkaround_viewmodel.start_menu.enabled_items); i++) {
+		if (!start_menu[i].enabled || start_menu[i].enabled()) {
+			walkaround_viewmodel.start_menu.enabled_items[num_items] = i;
+			text_print_immediate(
+				start_menu_tiles,
+				&start_menu_window,
+				&bitmapfont,
+				(coord16_t) {.x = 8, .y = num_items * 16 + (16 - bitmapfont.glyph_height) / 2 + 1},
+				(coord16_t) {.x = 1, .y = 1},
+				(font_colors_t) {ANSI_PALETTE_WHITE, ANSI_PALETTE_WHITE, ANSI_PALETTE_GREY, ANSI_PALETTE_BLACK, true},
+				start_menu[i].label);
+			num_items += 1;
+		}
+	}
+
+	walkaround_viewmodel.start_menu.num_items = num_items;
+	start_menu_window.height = num_items * 2;
+
+	walkaround_viewmodel.start_menu.window_id =
+		shadow_tiles_window_allocate(&start_menu_window);
+
+	walkaround_viewmodel.start_menu.border_tile_start =
+		shadow_tiles_load_tileset(&dialog_box, (struct shadow_tiles_load_tileset) {.bg = 0});
+
+	vram_op_queue_enqueue((struct vram_op) {
+		.type = VRAM_QUEUE_OP_BG_PALETTES,
+		.palettes = {
+			.from = dialog_box.palette,
+			.to_palette = 14,
+			.count = 1,
+		},
+	});
+	vram_op_queue_enqueue((struct vram_op) {
+		.type = VRAM_QUEUE_OP_BG_PALETTES,
+		.palettes = {
+			.from = &ansi_text_palette,
+			.to_palette = 15,
+			.count = 1,
+		},
+	});
+
+	shadow_tiles_window_queue_map_with_border(walkaround_viewmodel.start_menu.window_id, walkaround_viewmodel.start_menu.border_tile_start, 14);
+	shadow_tiles_window_queue_tiles_free(walkaround_viewmodel.start_menu.window_id, start_menu_tiles);
+
+	walkaround_viewmodel.start_menu.pointer_oam_id =
+		shadow_oam_add_sprite(
+			&arrow_right_small_2,
+			start_menu_pointer_target_oam_position()
+		);
+}
+
+static void close_start_menu(void) {
+	shadow_tiles_window_deallocate(walkaround_viewmodel.start_menu.window_id);
+	shadow_tiles_deallocate_tileset(walkaround_viewmodel.start_menu.border_tile_start, &dialog_box, (struct shadow_tiles_load_tileset) {.bg = 0});
+	shadow_oam_remove_sprite(walkaround_viewmodel.start_menu.pointer_oam_id);
+	walkaround_viewmodel.start_menu.pointer_oam_id = shadow_id_invalid;
+
+	walkaround_viewmodel.start_menu.is_open = false;
+
+	vram_op_queue_enqueue((struct vram_op) {
+		.type = VRAM_QUEUE_OP_BG_MAP_FILL,
+		.map_fill = {
+			.value = {0},
+			.to_block = HUD_SCREENBLOCK,
+			.to_tile = 0,
+			.count = 32 * 32,
+		},
+	});
+}
+
+static void start_menu_do_input(void) {
+	keypad_t new_inputs = keyinput_get_new();
+
+	if (! new_inputs.start || ! new_inputs.b) {
+		close_start_menu();
+	} else if (! new_inputs.down) {
+		walkaround_viewmodel.start_menu.selection += 1;
+		if (walkaround_viewmodel.start_menu.selection >= walkaround_viewmodel.start_menu.num_items)
+			walkaround_viewmodel.start_menu.selection = 0;
+
+		shadow_oam_move_sprite(
+			walkaround_viewmodel.start_menu.pointer_oam_id,
+			start_menu_pointer_target_oam_position()
+		);
+	} else if (! new_inputs.up) {
+		if (walkaround_viewmodel.start_menu.selection > 0)
+			walkaround_viewmodel.start_menu.selection -= 1;
+		else
+			walkaround_viewmodel.start_menu.selection = walkaround_viewmodel.start_menu.num_items - 1;
+
+		shadow_oam_move_sprite(
+			walkaround_viewmodel.start_menu.pointer_oam_id,
+			start_menu_pointer_target_oam_position()
+		);
+	} else if (! new_inputs.a) {
+		uint8_t selection = walkaround_viewmodel.start_menu.selection;
+		uint8_t menu_item = walkaround_viewmodel.start_menu.enabled_items[selection];
+
+		void (*action)(void) = start_menu[menu_item].action;
+		if (action)
+			action();
+	}
 }
 
 void MainCB_walkaround_main(void) {
 	bool refresh_player = false;
 
-	refresh_player |= normal_player_movement();
+	if (walkaround_viewmodel.start_menu.is_open) {
+		start_menu_do_input();
+		refresh_player = player_switch_or_advance_anim(direction_infos[walkaround_state.player.facing].idle_anim);
+	} else {
+		normal_player_movement_t v = normal_player_movement();
+		refresh_player |= v.refresh_player;
+		if (v.open_start_menu) {
+			open_start_menu();
+		}
+	}
 
 	refresh_player |= move_camera_towards(center_player_in_camera_target(), 2);
 

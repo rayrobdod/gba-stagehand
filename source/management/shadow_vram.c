@@ -140,6 +140,15 @@ static int shadow_tiles_allocate(unsigned bg, unsigned tilecount) {
 	return -1;
 }
 
+static void shadow_tiles_deallocate(unsigned bg, unsigned bg_tile_start, unsigned tilecount) {
+	unsigned charblock = shadow_tiles_bgcnt[bg].charblock;
+	unsigned start = charblock * TILES_PER_CHARBLOCK + bg_tile_start;
+
+	for (unsigned i = 0; i < tilecount; i++) {
+		shadow_tiles_used[start + i] = false;
+	}
+}
+
 window_id_t shadow_tiles_window_allocate(const struct shadow_tiles_window_allocate* args) {
 	window_id_t index;
 	for (index = 0; index < arraycount(windows); index++) {
@@ -161,7 +170,17 @@ window_id_t shadow_tiles_window_allocate(const struct shadow_tiles_window_alloca
 	return index;
 }
 
+void shadow_tiles_window_deallocate(window_id_t id) {
+	if (id >= arraycount(windows)) return;
+	if (! windows[id].in_use) return;
+
+	shadow_tiles_deallocate(windows[id].args.bg, windows[id].bg_tile_start,
+			windows[id].args.width * windows[id].args.height);
+	windows[id].in_use = false;
+}
+
 void shadow_tiles_window_queue_map(window_id_t id) {
+	if (id >= arraycount(windows)) return;
 	if (! windows[id].in_use) return;
 
 	const unsigned width = windows[id].args.width;
@@ -194,7 +213,77 @@ void shadow_tiles_window_queue_map(window_id_t id) {
 	}
 }
 
+void shadow_tiles_window_queue_map_with_border(window_id_t id, unsigned border_tile_start, unsigned border_palette) {
+	if (id >= arraycount(windows)) return;
+	if (! windows[id].in_use) return;
+
+	const unsigned width = windows[id].args.width;
+	const unsigned height = windows[id].args.height;
+	const unsigned x = windows[id].args.x;
+	const unsigned y = windows[id].args.y;
+	const unsigned screenblock = shadow_tiles_bgcnt[windows[id].args.bg].screenblock;
+
+	unsigned bg_tile_id = windows[id].bg_tile_start | (windows[id].args.palette << 12);
+	unsigned map_tile_id = x - 1 + y * 32;
+
+	{
+		uint16_t* buffer = malloc(sizeof(uint16_t) * (width + 2));
+		if (!buffer) return;
+		buffer[0] = border_tile_start | (border_palette << 12);
+		for (unsigned i = 0; i < width; i++) {
+			buffer[i + 1] = (border_tile_start + 1) | (border_palette << 12);
+		}
+		buffer[width + 1] = (border_tile_start + 2) | (border_palette << 12);
+		vram_op_queue_enqueue((struct vram_op){
+			.type = VRAM_QUEUE_OP_BG_MAP_FREE,
+			.map_free = {
+				.from = (bg_tile_t *) buffer,
+				.to_block = screenblock,
+				.to_tile = map_tile_id - 32,
+				.count = width + 2,
+			}});
+	}
+	for (unsigned j = 0; j < height; j++) {
+		uint16_t* buffer = malloc(sizeof(uint16_t) * (width + 2));
+		if (!buffer) return;
+
+		buffer[0] = (border_tile_start + 3) | (border_palette << 12);
+		for (unsigned i = 0; i < width; i++) {
+			buffer[i+1] = bg_tile_id;
+			++bg_tile_id;
+		}
+		buffer[width + 1] = (border_tile_start + 5) | (border_palette << 12);
+		vram_op_queue_enqueue((struct vram_op){
+			.type = VRAM_QUEUE_OP_BG_MAP_FREE,
+			.map_free = {
+				.from = (bg_tile_t *) buffer,
+				.to_block = screenblock,
+				.to_tile = map_tile_id,
+				.count = width + 2,
+			}});
+		map_tile_id += 32;
+	}
+	{
+		uint16_t* buffer = malloc(sizeof(uint16_t) * (width + 2));
+		if (!buffer) return;
+		buffer[0] = (border_tile_start + 6) | (border_palette << 12);
+		for (unsigned i = 0; i < width; i++) {
+			buffer[i + 1] = (border_tile_start + 7) | (border_palette << 12);
+		}
+		buffer[width + 1] = (border_tile_start + 8) | (border_palette << 12);
+		vram_op_queue_enqueue((struct vram_op){
+			.type = VRAM_QUEUE_OP_BG_MAP_FREE,
+			.map_free = {
+				.from = (bg_tile_t *) buffer,
+				.to_block = screenblock,
+				.to_tile = map_tile_id,
+				.count = width + 2,
+			}});
+	}
+}
+
 void shadow_tiles_window_queue_tiles(window_id_t id, const tile_4bpp_t* data) {
+	if (id >= arraycount(windows)) return;
 	if (! windows[id].in_use) return;
 
 	const unsigned charblock = shadow_tiles_bgcnt[windows[id].args.bg].charblock;
@@ -204,6 +293,24 @@ void shadow_tiles_window_queue_tiles(window_id_t id, const tile_4bpp_t* data) {
 	vram_op_queue_enqueue((struct vram_op){
 		.type = VRAM_QUEUE_OP_BG_TILES,
 		.tiles = {
+			.from = data,
+			.to_block = charblock,
+			.to_tile = bg_tile_id,
+			.count = area,
+		}});
+}
+
+void shadow_tiles_window_queue_tiles_free(window_id_t id, tile_4bpp_t* data) {
+	if (id >= arraycount(windows)) return;
+	if (! windows[id].in_use) return;
+
+	const unsigned charblock = shadow_tiles_bgcnt[windows[id].args.bg].charblock;
+	const unsigned bg_tile_id = windows[id].bg_tile_start;
+	const unsigned area = windows[id].args.width * windows[id].args.height;
+
+	vram_op_queue_enqueue((struct vram_op){
+		.type = VRAM_QUEUE_OP_BG_TILES_FREE,
+		.tiles_free = {
 			.from = data,
 			.to_block = charblock,
 			.to_tile = bg_tile_id,
@@ -227,6 +334,9 @@ int shadow_tiles_load_tileset(const struct tileset* data, struct shadow_tiles_lo
 	});
 
 	return start;
+}
+void shadow_tiles_deallocate_tileset(window_id_t tile_start, const struct tileset* data, struct shadow_tiles_load_tileset args) {
+	shadow_tiles_deallocate(args.bg, tile_start, data->tileset_count);
 }
 
 bool shadow_tiles_load_tileset_fixed(unsigned bg, unsigned start, unsigned count, const tile_4bpp_t* tileset) {

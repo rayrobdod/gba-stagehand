@@ -1,6 +1,7 @@
 void MainCB_walkaround_main(void);
 
 #include "gba/hw_reg.h"
+#include "management/shadow_vram.h"
 #include "management/shadow_oam.h"
 #include "graphics_types.h"
 
@@ -37,6 +38,15 @@ extern struct walkaround_model {
 } walkaround_state;
 
 extern struct walkaround_viewmodel {
+	struct {
+		bool is_open;
+		uint8_t selection;
+		uint8_t num_items;
+		uint8_t enabled_items[8];
+		window_id_t window_id;
+		uint16_t border_tile_start;
+		shadow_oam_id_t pointer_oam_id;
+	} start_menu;
 	struct {
 		bgofs_t bgofs;
 		mapoffs_t mapoffs;

@@ -10,6 +10,7 @@ struct background;
 struct tileset;
 
 typedef uint8_t window_id_t;
+static const window_id_t window_id_invalid = 0xFF;
 
 struct shadow_vram_init {
 	bool enable_bg[4];
@@ -28,14 +29,18 @@ struct shadow_tiles_window_allocate {
 	uint8_t height;
 };
 window_id_t shadow_tiles_window_allocate(const struct shadow_tiles_window_allocate*);
+void shadow_tiles_window_deallocate(window_id_t id);
 
 void shadow_tiles_window_queue_map(window_id_t id);
+void shadow_tiles_window_queue_map_with_border(window_id_t id, unsigned border_tile_start, unsigned border_palette);
 void shadow_tiles_window_queue_tiles(window_id_t id, const tile_4bpp_t*);
+void shadow_tiles_window_queue_tiles_free(window_id_t id, tile_4bpp_t* data);
 
 struct shadow_tiles_load_tileset {
 	unsigned bg;
 };
 int shadow_tiles_load_tileset(const struct tileset*, struct shadow_tiles_load_tileset);
+void shadow_tiles_deallocate_tileset(window_id_t tile_start, const struct tileset*, struct shadow_tiles_load_tileset);
 
 struct shadow_tiles_load_background {
 	unsigned bg;

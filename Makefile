@@ -148,6 +148,7 @@ HOSTCFLAGS += -O3
 HOSTCFLAGS += -ffunction-sections
 HOSTCFLAGS += -fdata-sections
 HOSTCFLAGS += -fanalyzer
+HOSTCFLAGS += -ggdb -DDEBUG
 
 HOSTLDFLAGS	+= $(LIBDIRSFLAGS) \
                   -Wl,--gc-sections \
@@ -362,6 +363,9 @@ $(ROM): $(ELF) $(GBAFIX)
 $(HOSTEXEDIR)/test_vram_op_queue : $(HOSTOBJDIR_SRC)/management/vram_op_queue.c.o $(HOSTOBJDIR_SRC)/gba/palette.c.o $(HOSTOBJDIR_SRC)/gba/vram.c.o $(HOSTOBJDIR_SRC)/gba/oam.c.o $(HOSTOBJDIR_SRC)/gba/hw_reg.c.o
 $(HOSTEXEDIR)/test_walkaround : $(HOSTOBJDIR_HOST)/graphics.c.o
 $(HOSTEXEDIR)/test_walkaround : $(HOSTOBJDIR_SRC)/management/shadow_oam.c.o
+$(HOSTEXEDIR)/test_walkaround : $(HOSTOBJDIR_SRC)/management/shadow_vram.c.o
+$(HOSTEXEDIR)/test_walkaround : $(HOSTOBJDIR_SRC)/utils/ansi_text_palette.c.o
+$(HOSTEXEDIR)/test_walkaround : $(HOSTOBJDIR_SRC)/text_printer.c.o
 $(HOSTEXEDIR)/test_walkaround : $(HOSTOBJDIR_SRC)/scene/walkaround.c.o
 $(TESTEXEDIR)/bench_text_printer.elf : $(BUILDOBJDIR)/graphics.o
 $(TESTEXEDIR)/bench_mode3_copy.elf : $(BUILDOBJDIR)/graphics.o
@@ -378,6 +382,7 @@ $(TESTEXEDIR)/bench_dmgMusicUsingNotation.elf : $(BUILDOBJDIR)/dmg_music/staff_p
 $(TESTEXEDIR)/bench_walkaround.elf : $(BUILDOBJDIR)/graphics.o
 $(TESTEXEDIR)/bench_walkaround.elf : $(BUILDOBJDIR)/management/keyinput.c.o
 $(TESTEXEDIR)/bench_walkaround.elf : $(BUILDOBJDIR)/management/shadow_oam.c.o
+$(TESTEXEDIR)/bench_walkaround.elf : $(BUILDOBJDIR)/management/shadow_vram.c.o
 $(TESTEXEDIR)/bench_walkaround.elf : $(BUILDOBJDIR)/scene/walkaround.c.o
 $(TESTEXEDIR)/test_walkaround.elf : $(BUILDOBJDIR)/graphics.o
 $(TESTEXEDIR)/test_walkaround.elf : $(BUILDOBJDIR)/scene/walkaround.c.o

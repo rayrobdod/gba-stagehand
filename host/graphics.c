@@ -61,3 +61,6 @@ const struct shadow_oam_template character_base_male_west_walking5 = {0};
 const struct shadow_oam_template character_base_male_west_walking6 = {0};
 const struct shadow_oam_template character_base_male_west_walking7 = {0};
 const struct shadow_oam_template character_base_male_west_walking8 = {0};
+const struct shadow_oam_template arrow_right_small_2 = {0};
+const struct font bitmapfont = {0};
+const struct tileset dialog_box = {0};

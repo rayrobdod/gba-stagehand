@@ -14,7 +14,7 @@ void tearDown(void){}
 void vram_op_queue_enqueue([[maybe_unused]] const struct vram_op new_op) {}
 #endif
 
-void TEST_ASSERT_EQUAL_MODEL(struct walkaround_model* expected, struct walkaround_model* actual) {
+void TEST_ASSERT_EQUAL_MODEL(const struct walkaround_model* expected, const struct walkaround_model* actual) {
 	if (expected->map != actual->map ||
 			expected->player.facing != actual->player.facing ||
 			expected->player.turn_timer != actual->player.turn_timer ||
@@ -38,7 +38,10 @@ void TEST_ASSERT_EQUAL_MODEL(struct walkaround_model* expected, struct walkaroun
 }
 
 void PRINT_VIEWMODEL() {
-	MgbaPrintf(MGBA_LOG_INFO, "{{{%d,%d},{%d,%d}},{%d,{%d,%d},%p,%d,%d}}",
+	MgbaPrintf(MGBA_LOG_INFO, "{{%d,%d,%d,...},{{%d,%d},{%d,%d}},{%d,{%d,%d},%p,%d,%d}}",
+		walkaround_viewmodel.start_menu.is_open,
+		walkaround_viewmodel.start_menu.selection,
+		walkaround_viewmodel.start_menu.num_items,
 		walkaround_viewmodel.camera.bgofs.h,
 		walkaround_viewmodel.camera.bgofs.v,
 		walkaround_viewmodel.camera.mapoffs.x,
@@ -76,10 +79,26 @@ static const keypad_t KEYPAD_DOWN = {
 	.r = true,
 	.l = true,
 };
+static const keypad_t KEYPAD_START = {
+	.a = true,
+	.b = true,
+	.select = true,
+	.start = false,
+	.right = true,
+	.left = true,
+	.up = true,
+	.down = true,
+	.r = true,
+	.l = true,
+};
 
 static keypad_t keypad_current_down = KEYPAD_NONE;
+static keypad_t keypad_current_new = KEYPAD_NONE;
 keypad_t keyinput_get_down(void) {
 	return keypad_current_down;
+}
+keypad_t keyinput_get_new(void) {
+	return keypad_current_new;
 }
 
 static const struct tile16x3 clear_tile16x3[] = {
@@ -117,9 +136,13 @@ void test_walkaround__move_down(void) {
 		},
 	};
 
+	keypad_current_new = KEYPAD_DOWN;
 	keypad_current_down = KEYPAD_DOWN;
 	MainCB_walkaround_main();
 
+	TEST_ASSERT(
+		! walkaround_viewmodel.start_menu.is_open,
+		"! walkaround_viewmodel.start_menu.is_open");
 	TEST_ASSERT_EQUAL_MODEL(
 		&(struct walkaround_model) {
 			.map = &clear_map,
@@ -153,9 +176,13 @@ void test_walkaround__turn_down(void) {
 		},
 	};
 
+	keypad_current_new = KEYPAD_DOWN;
 	keypad_current_down = KEYPAD_DOWN;
 	MainCB_walkaround_main();
 
+	TEST_ASSERT(
+		! walkaround_viewmodel.start_menu.is_open,
+		"! walkaround_viewmodel.start_menu.is_open");
 	TEST_ASSERT_EQUAL_MODEL(
 		&(struct walkaround_model) {
 			.map = &clear_map,
@@ -169,6 +196,39 @@ void test_walkaround__turn_down(void) {
 		&walkaround_state);
 }
 
+void test_walkaround__start_opens_menu(void) {
+	const struct walkaround_model walkaround_state_initial = {
+		.map = &clear_map,
+		.player = {
+			.pos = {1, 1},
+			.turn_timer = 0,
+			.action = ACTION_NONE,
+			.facing = DIRECTION_WEST,
+		},
+	};
+	walkaround_state = walkaround_state_initial;
+	walkaround_viewmodel = (struct walkaround_viewmodel) {
+		.camera = {
+			.mapoffs = {-6*16, -4*16},
+		},
+		.player = {
+			.oam_id = shadow_id_invalid,
+			.mapoffs = {1*16+8, 1*16+14},
+		},
+	};
+
+	keypad_current_down = KEYPAD_START;
+	keypad_current_new = KEYPAD_START;
+	MainCB_walkaround_main();
+
+	TEST_ASSERT(
+		walkaround_viewmodel.start_menu.is_open,
+		"walkaround_viewmodel.start_menu.is_open");
+	TEST_ASSERT_EQUAL_MODEL(
+		&walkaround_state_initial,
+		&walkaround_state);
+}
+
 int main() {
 	total = 0;
 	failed = 0;
@@ -177,6 +237,7 @@ int main() {
 
 	RUN_TEST(test_walkaround__move_down);
 	RUN_TEST(test_walkaround__turn_down);
+	RUN_TEST(test_walkaround__start_opens_menu);
 
 	MgbaPrintf(MGBA_LOG_INFO, "Total: %d; Failing: %d", total, failed);
 	return 0 != failed;
