@@ -64,3 +64,5 @@ const struct shadow_oam_template character_base_male_west_walking8 = {0};
 const struct shadow_oam_template arrow_right_small_2 = {0};
 const struct font bitmapfont = {0};
 const struct tileset dialog_box = {0};
+const struct tile16x3map mushroom_village_2 = {0};
+const struct tile16x3map mushroom_village = {0};

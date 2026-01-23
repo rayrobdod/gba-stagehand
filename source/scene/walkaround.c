@@ -22,9 +22,11 @@
 #include "mix_rgb.h"
 #include "text_printer.h"
 
+static void ChangeScene_walkaround_warp(void (*_fadeCb)(void));
 static void MainCB_walkaround_fadeout_black(void);
 static void MainCB_walkaround_fadesolid_black(void);
 static void MainCB_walkaround_fadein_black(void);
+static void FadeCB_walkaround(void);
 static void close_start_menu(void);
 
 static const int PLAYER_MOVE_SPEED = 1;
@@ -116,6 +118,13 @@ __attribute__((section(".sbss")))
 static void (*fadeCb)(void) = {0};
 
 __attribute__((section(".sbss")))
+static struct {
+	bool transition_is_warp;
+	const struct tile16x3map* map;
+	tile_coord_t player_pos;
+} warp_target = {0};
+
+__attribute__((section(".sbss")))
 struct walkaround_viewmodel walkaround_viewmodel = {0};
 
 __attribute__((section(".sbss")))
@@ -176,6 +185,7 @@ static const struct shadow_vram_init walkaround_shadow_vram_init = {
 };
 
 static bool const_false(void) { return false;}
+static void menu_action_warp(void) {ChangeScene_walkaround_warp(&FadeCB_walkaround);}
 
 static const struct {
 	const char* label;
@@ -184,7 +194,7 @@ static const struct {
 } start_menu[] = {
 	{
 		.label = "Example",
-		.action = NULL,
+		.action = menu_action_warp,
 		.enabled = NULL,
 	},
 	{
@@ -250,9 +260,20 @@ static struct shadow_oam_position player_oam_position(mapoffs_t player_mappos) {
 	};
 }
 
-void ChangeScene_walkaround(void (*_fadeCb)(void)) {
+void ChangeScene_walkaround_newgame(void (*_fadeCb)(void)) {
 	fade_to_initialize(rgb(0, 0, 0));
 	fadeCb = _fadeCb;
+	walkaround_state = initial_state;
+	warp_target.transition_is_warp = false;
+	scene_onframe_callback = &MainCB_walkaround_fadeout_black;
+}
+
+void ChangeScene_walkaround_warp(void (*_fadeCb)(void)) {
+	fade_to_initialize(rgb(0, 0, 0));
+	fadeCb = _fadeCb;
+	warp_target.transition_is_warp = true;
+	warp_target.map = &mushroom_village_2;
+	warp_target.player_pos = (tile_coord_t) {.x = 10, .y = 7};
 	scene_onframe_callback = &MainCB_walkaround_fadeout_black;
 }
 
@@ -268,7 +289,18 @@ static union palette512 MainCB_walkaround_fadesolid(void) {
 	shadow_vram_init(&walkaround_shadow_vram_init);
 	shadow_oam_init();
 
-	walkaround_state = initial_state;
+	if (warp_target.transition_is_warp) {
+		walkaround_state = (struct walkaround_model) {
+			.map = warp_target.map,
+			.player = {
+				.pos = warp_target.player_pos,
+				.turn_timer = 0,
+				.action = ACTION_NONE,
+				.facing = DIRECTION_WEST,
+			},
+		};
+	}
+
 	walkaround_viewmodel = (struct walkaround_viewmodel) {0};
 
 	shadow_tiles_load_tileset(&walkaround_state.map->tileset, (struct shadow_tiles_load_tileset) {.bg = 1});
@@ -1108,6 +1140,21 @@ void MainCB_walkaround_main(void) {
 		}
 	}
 
+	refresh_player |= move_camera_towards(center_player_in_camera_target(), 2);
+
+	if (refresh_player) {
+		shadow_oam_rewrite_sprite(
+			walkaround_viewmodel.player.oam_id,
+			walkaround_viewmodel.player.anim->oams[
+				walkaround_viewmodel.player.anim->frames[
+					walkaround_viewmodel.player.anim_frame].oam_index],
+			player_oam_position(walkaround_viewmodel.player.mapoffs));
+	}
+}
+
+static void FadeCB_walkaround(void) {
+	bool refresh_player = false;
+	refresh_player = player_switch_or_advance_anim(direction_infos[walkaround_state.player.facing].idle_anim);
 	refresh_player |= move_camera_towards(center_player_in_camera_target(), 2);
 
 	if (refresh_player) {

@@ -34,7 +34,7 @@ static void run_walkaround_initialization_benchmark() {
 	unsigned frameNo = 0;
 	MgbaPrintf(MGBA_LOG_INFO, "walkaround init: \033[44mBENCH\033[0m");
 
-	ChangeScene_walkaround(fadeCb);
+	ChangeScene_walkaround_newgame(fadeCb);
 
 	while (MainCB_walkaround_main != scene_onframe_callback) {
 		VBlankIntrWait();
@@ -62,7 +62,7 @@ static void run_walkaround_initialization_benchmark() {
 static void run_walkaround_idle_benchmark() {
 	MgbaPrintf(MGBA_LOG_INFO, "walkaround idle: \033[44mBENCH\033[0m");
 
-	ChangeScene_walkaround(fadeCb);
+	ChangeScene_walkaround_newgame(fadeCb);
 	while (MainCB_walkaround_main != scene_onframe_callback) {
 		vram_op_queue_execute();
 		scene_onframe_callback();

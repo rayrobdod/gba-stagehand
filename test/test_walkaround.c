@@ -6,10 +6,12 @@
 #include "utils/arraycount.h"
 #include "management/vram_op_queue.h"
 #include "harness.h"
+#include "main.h"
 #include "mgba.h"
 
 void setUp(void){}
 void tearDown(void){}
+MainCallback scene_onframe_callback;
 #ifdef __unix__
 void vram_op_queue_enqueue([[maybe_unused]] const struct vram_op new_op) {}
 #endif

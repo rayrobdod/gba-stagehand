@@ -167,8 +167,8 @@
   </properties>
  </tile>
  <wangsets>
-  <wangset name="path_light" type="mixed" tile="-1">
-   <wangcolor name="" color="#ff0000" tile="-1" probability="1"/>
+  <wangset name="Cliff Edge" type="mixed" tile="15">
+   <wangcolor name="Cliff Edge" color="#ff0000" tile="15" probability="1"/>
    <wangtile tileid="0" wangid="0,0,0,0,1,0,0,0"/>
    <wangtile tileid="1" wangid="0,0,1,1,1,0,0,0"/>
    <wangtile tileid="2" wangid="0,0,1,1,1,1,1,0"/>

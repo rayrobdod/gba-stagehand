@@ -2,8 +2,8 @@
 <tileset version="1.10" tiledversion="1.11.2" name="path_light" tilewidth="16" tileheight="16" tilecount="50" columns="10">
  <image source="path_light.tmx" width="160" height="80"/>
  <wangsets>
-  <wangset name="path_light" type="mixed" tile="-1">
-   <wangcolor name="" color="#ff0000" tile="-1" probability="1"/>
+  <wangset name="Path [Light]" type="mixed" tile="15">
+   <wangcolor name="Path [Light]" color="#ff0000" tile="15" probability="1"/>
    <wangtile tileid="0" wangid="0,0,0,0,1,0,0,0"/>
    <wangtile tileid="1" wangid="0,0,1,1,1,0,0,0"/>
    <wangtile tileid="2" wangid="0,0,1,1,1,1,1,0"/>

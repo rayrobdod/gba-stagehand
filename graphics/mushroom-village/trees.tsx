@@ -181,4 +181,23 @@
    <property name="Behavior" value="WB_IMPASSABLE"/>
   </properties>
  </tile>
+ <wangsets>
+  <wangset name="Canopy" type="corner" tile="27">
+   <wangcolor name="Canopy" color="#ff0000" tile="27" probability="1"/>
+   <wangtile tileid="20" wangid="0,1,0,1,0,0,0,1"/>
+   <wangtile tileid="21" wangid="0,1,0,1,0,1,0,0"/>
+   <wangtile tileid="22" wangid="0,0,0,1,0,1,0,1"/>
+   <wangtile tileid="23" wangid="0,1,0,0,0,1,0,1"/>
+   <wangtile tileid="24" wangid="0,1,0,0,0,0,0,0"/>
+   <wangtile tileid="25" wangid="0,1,0,0,0,0,0,1"/>
+   <wangtile tileid="26" wangid="0,1,0,0,0,0,0,1"/>
+   <wangtile tileid="27" wangid="0,0,0,0,0,0,0,1"/>
+   <wangtile tileid="32" wangid="0,0,0,1,0,0,0,0"/>
+   <wangtile tileid="33" wangid="0,0,0,1,0,1,0,0"/>
+   <wangtile tileid="34" wangid="0,0,0,0,0,1,0,0"/>
+   <wangtile tileid="36" wangid="0,1,0,1,0,0,0,0"/>
+   <wangtile tileid="37" wangid="0,1,0,1,0,1,0,1"/>
+   <wangtile tileid="38" wangid="0,0,0,0,0,1,0,1"/>
+  </wangset>
+ </wangsets>
 </tileset>

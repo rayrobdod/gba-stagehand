@@ -1,1 +1,1 @@
-void ChangeScene_walkaround(void (*fadeCb)(void));
+void ChangeScene_walkaround_newgame(void (*fadeCb)(void));

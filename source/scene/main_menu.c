@@ -46,7 +46,7 @@ static const struct {
 	},
 	{
 		.label = "Walkaround",
-		.startFn = &ChangeScene_walkaround,
+		.startFn = &ChangeScene_walkaround_newgame,
 	},
 	{
 		.label = "Mode 3",
