@@ -6,6 +6,7 @@ static void mode3_write_to_elf(
 	input_path_and_data input,
 	[[gnu::unused]] std::pair<std::string, palette_data> palettes,
 	[[gnu::unused]] std::pair<std::string, tiles_data> tiles,
+	[[maybe_unused]] std::pair<std::string, tile16x3s_data> tile16x3s,
 	std::string var_name,
 	std::ostream& headerstream,
 	Object& elf
@@ -27,6 +28,7 @@ static void mode3_write_to_elf(
 
 const type_functions background_mode3_type_functions(
 	  nullptr
+	, nullptr
 	, nullptr
 	, nullptr
 	, &mode3_write_to_elf

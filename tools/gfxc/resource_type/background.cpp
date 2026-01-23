@@ -11,25 +11,6 @@
 // may improve frit compression
 static constexpr bool SORT_BY_PALETTE = true;
 
-bg_tile_t::bg_tile_t() : tile(0), hflip(false), vflip(false), palette(0) {}
-bg_tile_t::bg_tile_t(uint16_t tile, bool hflip, bool vflip, uint16_t palette) : tile(tile), hflip(hflip), vflip(vflip), palette(palette) {}
-
-std::array<uint8_t, 2> bg_tile_t::to_bytes(void) {
-	std::array<uint8_t, 2> retval = {
-		static_cast<uint8_t>(this->tile),
-		static_cast<uint8_t>((this->tile >> 8) | (hflip ? 0x4 : 0) | (vflip ? 0x8 : 0) | (palette << 4)),
-	};
-	return retval;
-}
-
-uint16_t bg_tile_t::to_short(void) {
-	return static_cast<uint16_t>((this->tile) | (hflip ? 0x400 : 0) | (vflip ? 0x800: 0) | (palette << 12));
-}
-
-bool operator==(const bg_tile_t& lhs, const bg_tile_t& rhs) {
-	return ((lhs.tile == rhs.tile) && (lhs.hflip == rhs.hflip) && (lhs.vflip == rhs.vflip) && (lhs.palette == rhs.palette));
-}
-
 std::ostream& operator<<(std::ostream& os, const std::set<rgba16_t>& value) {
 	std::ios_base::fmtflags initial_flags = os.flags();
 	auto initial_width = os.width();
@@ -180,6 +161,7 @@ static void background_write_to_elf(
 	input_path_and_data input,
 	std::pair<std::string, palette_data> palettes,
 	std::pair<std::string, tiles_data> tiles_pair,
+	[[maybe_unused]] std::pair<std::string, tile16x3s_data> tile16x3s,
 	std::string var_name,
 	std::ostream& headerstream,
 	Object& elf
@@ -236,5 +218,6 @@ const type_functions background_type_functions(
 	  &background_write_struct
 	, &tileset_extract_palettes
 	, &background_extract_tiles
+	, nullptr
 	, &background_write_to_elf
 );

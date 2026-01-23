@@ -1,11 +1,21 @@
 #include "tile16x3map.hpp"
 
 #include <iostream>
+#include <numeric>
 #include <stdexcept>
-#include "background.hpp"
+#include <unordered_set>
 #include "find_palette_superset.hpp"
 #include "indexed_insert_only_set.hpp"
 #include "object.hpp"
+
+template<>
+struct std::hash<tile16x3> {
+	std::size_t operator()(const tile16x3& value) const noexcept {
+		std::vector<uint16_t> ser = value.to_shorts();
+		return std::accumulate(ser.begin(), ser.end(), 1,
+			[](std::size_t folding, uint16_t a) {return folding * 7 + a;});
+	}
+};
 
 static palette_data_builder tile16x3map_extract_palettes(
 		input_path_and_data input) {
@@ -56,32 +66,7 @@ static std::vector<gbatile_4bpp> tile16x3map_extract_tiles(
 	return retval;
 }
 
-struct tile16x3 {
-	uint16_t behavior;
-	bg_tile_t tiles[3][4];
-
-	std::vector<uint16_t> to_shorts(void) {
-		std::vector<uint16_t> retval = {this->behavior};
-		for (unsigned layer = 0; layer < 3; ++layer)
-		for (unsigned sub = 0; sub < 4; ++sub) {
-			retval.push_back(this->tiles[layer][sub].to_short());
-		}
-		return retval;
-	}
-
-};
-
-bool operator==(const tile16x3& lhs, const tile16x3& rhs) {
-	bool retval = lhs.behavior == rhs.behavior;
-
-	for (unsigned layer = 0; layer < 3; ++layer)
-	for (unsigned sub = 0; sub < 4; ++sub)
-		retval = retval && lhs.tiles[layer][sub] == rhs.tiles[layer][sub];
-
-	return retval;
-}
-
-static std::vector<tile16x3> tile16x3map_convert_metatiles(
+static std::vector<tile16x3> tile16x3map_convert_to_metatiles(
 	input_path_and_data input,
 	palette_data palettes,
 	tiles_data tileset
@@ -152,10 +137,23 @@ static std::vector<tile16x3> tile16x3map_convert_metatiles(
 	return retval;
 }
 
+static std::vector<tile16x3> tile16x3map_extract_metatiles(
+	input_path_and_data input,
+	palette_data palettes,
+	tiles_data tileset
+) {
+	// order is irrelevant. Access pattern prevents compression, beyond metatiling, so order doesn't even matter for that.
+	std::vector<tile16x3> _a = tile16x3map_convert_to_metatiles(input, palettes, tileset);
+	std::unordered_set<tile16x3> _b(_a.begin(), _a.end());
+	std::vector<tile16x3> _c(_b.begin(), _b.end());
+	return _c;
+}
+
 static void tile16x3map_write_to_elf(
 	input_path_and_data input,
 	std::pair<std::string, palette_data> palettes,
 	std::pair<std::string, tiles_data> tiles,
+	std::pair<std::string, tile16x3s_data> tile16x3s,
 	std::string var_name,
 	std::ostream& headerstream,
 	Object& elf
@@ -164,25 +162,22 @@ static void tile16x3map_write_to_elf(
 
 	input_tile16x3map mapimage = std::get<input_tile16x3map>(input.second);
 
-	std::string tile16x3set_name("tile16x3set.");
-	tile16x3set_name += var_name;
+	std::vector<tile16x3> metatiles = tile16x3map_convert_to_metatiles(input, palettes.second, tiles.second);
 
-	std::vector<tile16x3> metatiles = tile16x3map_convert_metatiles(input, palettes.second, tiles.second);
+	std::vector<tile16x3> metatileset = tile16x3s.second.tile16x3s;
 
-	indexed_insert_only_set<tile16x3> metatileset;
 	std::vector<uint16_t> metatilemap;
 	for (tile16x3 metatile : metatiles) {
-		metatilemap.push_back(
-			static_cast<uint16_t>(
-				metatileset.find_or_push_back(metatile)
-			)
-		);
-	}
+		auto result = std::find(metatileset.begin(), metatileset.end(), metatile);
+		if (metatileset.end() == result) {
+			std::string msg(input.first);
+			msg += ": lost tile";
+			throw std::logic_error(msg);
+		}
 
-	std::vector<uint16_t> serialized_metatileset;
-	for (tile16x3 metatile : metatileset) {
-		std::vector<uint16_t> serialized_metatile = metatile.to_shorts();
-		std::copy(serialized_metatile.begin(), serialized_metatile.end(), std::back_inserter(serialized_metatileset));
+		metatilemap.push_back(
+			static_cast<uint16_t>(result - metatileset.begin())
+		);
 	}
 
 	std::vector<uint16_t> serialized = {
@@ -196,7 +191,6 @@ static void tile16x3map_write_to_elf(
 	};
 	std::copy(metatilemap.begin(), metatilemap.end(), std::back_inserter(serialized));
 
-	std::initializer_list<relocation_template> relocs_metatileset {};
 	std::initializer_list<relocation_template> relocs {
 		{
 			.offset = 0,
@@ -211,11 +205,10 @@ static void tile16x3map_write_to_elf(
 		{
 			.offset = 12,
 			.type = R_ARM_ABS32,
-			.symbol_name = tile16x3set_name,
+			.symbol_name = tile16x3s.first,
 		},
 	};
 
-	elf.push_single_variable_rodata_sections({tile16x3set_name, STB_LOCAL}, serialized_metatileset, relocs_metatileset);
 	elf.push_single_variable_rodata_sections({var_name, STB_GLOBAL}, serialized, relocs);
 }
 
@@ -249,5 +242,6 @@ const type_functions tile16x3map_type_functions(
 	  &tile16x3map_write_struct
 	, &tile16x3map_extract_palettes
 	, &tile16x3map_extract_tiles
+	, &tile16x3map_extract_metatiles
 	, &tile16x3map_write_to_elf
 );

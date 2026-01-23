@@ -54,6 +54,19 @@ static std::string tileset_name_for_image(input_path_and_data input) {
 	return retval;
 }
 
+static std::string tile16x3set_name_for_image(input_path_and_data input) {
+	std::string retval = "tile16x3s.";
+	auto properties = input_properties(input.second);
+	auto palette_name_pair = properties.find("Tile16x3set Tag");
+	if (palette_name_pair != properties.end()) {
+		retval += palette_name_pair->second;
+	} else {
+		retval += variable_name_for_image(input);
+		retval += "$";
+	}
+	return retval;
+}
+
 int write_types_header(std::filesystem::path headerfile) {
 	std::ofstream headerstream(headerfile);
 	headerstream << "#ifndef GRAPHICS_TYPES" << std::endl;
@@ -215,6 +228,53 @@ int compile_object(std::filesystem::path srcdir, std::filesystem::path objfile, 
 		}
 	}
 
+	std::map<const std::filesystem::path, const std::string> file_to_tile16x3s_name;
+	std::map<const std::string, const tile16x3s_data> tile16x3s_datas;
+	{
+		std::map<const std::string, std::vector<tile16x3>> tile16x3set_data_builders;
+		for (auto images : sorted_inputs) {
+			const type typ = images.first;
+			auto fns_ptr = type_functionss.find(typ);
+			if (fns_ptr != type_functionss.end()) {
+				type_functions fns = fns_ptr->second;
+
+				if (fns.extract_tile16x3s) {
+					for (auto image : images.second) {
+						const std::string tile16x3set_name = tile16x3set_name_for_image(image);
+						file_to_tile16x3s_name.emplace(image.first, tile16x3set_name);
+
+						const std::string palette_name = file_to_palette_name.at(image.first);
+						palette_data palette = palette_datas.at(palette_name);
+
+						const std::string tiles_name = file_to_tiles_name.at(image.first);
+						tiles_data tiles = tiles_datas.at(tiles_name);
+
+						auto out = tile16x3set_data_builders.try_emplace(tile16x3set_name).first;
+						std::vector<tile16x3> new_data = fns.extract_tile16x3s(image, palette, tiles);
+
+						size_t old_data_size = out->second.size();
+
+						for (tile16x3 tile : new_data) {
+							auto old_data_begin = out->second.begin();
+							auto old_data_end = old_data_begin + old_data_size;
+
+							if (old_data_end == std::find(old_data_begin, old_data_end, tile)) {
+								out->second.push_back(tile);
+							}
+						}
+					}
+				}
+			}
+		}
+
+		for (auto builder_pair : tile16x3set_data_builders) {
+			std::string tilesname = builder_pair.first;
+			std::vector<tile16x3> builder = builder_pair.second;
+
+			tile16x3s_datas.try_emplace(tilesname, builder);
+		}
+	}
+
 
 	Object elf(objfile);
 	std::ofstream headerstream(headerfile);
@@ -269,6 +329,18 @@ int compile_object(std::filesystem::path srcdir, std::filesystem::path objfile, 
 		elf.push_single_variable_rodata_sections({var_name, STB_LOCAL}, compressed.data);
 	}
 
+	for (auto const& tile16x3set_data : tile16x3s_datas) {
+		std::string var_name = tile16x3set_data.first;
+
+		std::vector<uint16_t> serialized_metatileset;
+		for (tile16x3 metatile : tile16x3set_data.second.tile16x3s) {
+			std::vector<uint16_t> serialized_metatile = metatile.to_shorts();
+			std::copy(serialized_metatile.begin(), serialized_metatile.end(), std::back_inserter(serialized_metatileset));
+		}
+
+		elf.push_single_variable_rodata_sections({var_name, STB_LOCAL}, serialized_metatileset);
+	}
+
 	{
 		for (auto images : sorted_inputs) {
 			const type typ = images.first;
@@ -304,10 +376,23 @@ int compile_object(std::filesystem::path srcdir, std::filesystem::path objfile, 
 							}
 						}
 
+						std::pair<std::string, tile16x3s_data> my_tile16x3s_data;
+						{
+							auto tile16x3s_name_ptr = file_to_tile16x3s_name.find(image.first);
+							if (tile16x3s_name_ptr != file_to_tile16x3s_name.end()) {
+								std::string tile16x3s_name = tile16x3s_name_ptr->second;
+								auto tile16x3s_ptr = tile16x3s_datas.find(tile16x3s_name);
+								if (tile16x3s_ptr != tile16x3s_datas.end()) {
+									my_tile16x3s_data = *tile16x3s_ptr;
+								}
+							}
+						}
+
 						fns.write_to_elf(
 							image,
 							my_palette_data,
 							my_tiles_data,
+							my_tile16x3s_data,
 							var_name,
 							headerstream,
 							elf

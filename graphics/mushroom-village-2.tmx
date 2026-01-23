@@ -2,6 +2,7 @@
 <map version="1.10" tiledversion="1.11.2" orientation="orthogonal" renderorder="right-down" width="17" height="13" tilewidth="16" tileheight="16" infinite="0" nextlayerid="4" nextobjectid="1">
  <properties>
   <property name="Palette Tag" value="mushroom_village"/>
+  <property name="Tile16x3set Tag" value="mushroom_village"/>
   <property name="Tileset Tag" value="mushroom_village"/>
   <property name="Type" value="Walkaround"/>
  </properties>

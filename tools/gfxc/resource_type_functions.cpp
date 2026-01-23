@@ -33,6 +33,47 @@ tiles_data::tiles_data() {}
 tiles_data::tiles_data(uint16_t _tag, std::vector<gbatile_4bpp> _tiles) :
 	tag(_tag), tiles(_tiles) {}
 
+bg_tile_t::bg_tile_t() : tile(0), hflip(false), vflip(false), palette(0) {}
+bg_tile_t::bg_tile_t(uint16_t tile, bool hflip, bool vflip, uint16_t palette) : tile(tile), hflip(hflip), vflip(vflip), palette(palette) {}
+
+std::array<uint8_t, 2> bg_tile_t::to_bytes(void) const {
+	std::array<uint8_t, 2> retval = {
+		static_cast<uint8_t>(this->tile),
+		static_cast<uint8_t>((this->tile >> 8) | (hflip ? 0x4 : 0) | (vflip ? 0x8 : 0) | (palette << 4)),
+	};
+	return retval;
+}
+
+uint16_t bg_tile_t::to_short(void) const {
+	return static_cast<uint16_t>((this->tile) | (hflip ? 0x400 : 0) | (vflip ? 0x800: 0) | (palette << 12));
+}
+
+bool operator==(const bg_tile_t& lhs, const bg_tile_t& rhs) {
+	return ((lhs.tile == rhs.tile) && (lhs.hflip == rhs.hflip) && (lhs.vflip == rhs.vflip) && (lhs.palette == rhs.palette));
+}
+
+std::vector<uint16_t> tile16x3::to_shorts(void) const {
+	std::vector<uint16_t> retval = {this->behavior};
+	for (unsigned layer = 0; layer < 3; ++layer)
+	for (unsigned sub = 0; sub < 4; ++sub) {
+		retval.push_back(this->tiles[layer][sub].to_short());
+	}
+	return retval;
+}
+
+bool operator==(const tile16x3& lhs, const tile16x3& rhs) {
+	bool retval = lhs.behavior == rhs.behavior;
+
+	for (unsigned layer = 0; layer < 3; ++layer)
+	for (unsigned sub = 0; sub < 4; ++sub)
+		retval = retval && lhs.tiles[layer][sub] == rhs.tiles[layer][sub];
+
+	return retval;
+}
+
+tile16x3s_data::tile16x3s_data() {}
+tile16x3s_data::tile16x3s_data(std::vector<tile16x3> _tile16x3s) : tile16x3s(_tile16x3s) {}
+
 /* * * * * * * * * * * * * * * * * * */
 
 palette_data_builder::palette_data_builder() {}

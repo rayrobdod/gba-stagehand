@@ -134,6 +134,7 @@ static void sprite_write_to_elf(
 	input_path_and_data input,
 	std::pair<std::string, palette_data> palettes,
 	std::pair<std::string, tiles_data> tiles,
+	[[maybe_unused]] std::pair<std::string, tile16x3s_data> tile16x3s,
 	std::string var_name,
 	std::ostream& headerstream,
 	Object& elf
@@ -192,5 +193,6 @@ const type_functions sprite_type_functions(
 	  &sprite_write_struct
 	, &sprite_extract_palettes
 	, &sprite_extract_tiles
+	, nullptr
 	, &sprite_write_to_elf
 );
