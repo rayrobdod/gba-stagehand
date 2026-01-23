@@ -102,7 +102,9 @@ keypad_t keyinput_get_new(void) {
 }
 
 static const struct tile16x3 clear_tile16x3[] = {
-	{WB_NORMAL, {{{0},{0},{0},{0}},{{0},{0},{0},{0}},{{0},{0},{0},{0}}}},
+	[WB_NORMAL] = {WB_NORMAL, {{{0},{0},{0},{0}},{{0},{0},{0},{0}},{{0},{0},{0},{0}}}},
+	[WB_IMPASSABLE] = {WB_IMPASSABLE, {{{0},{0},{0},{0}},{{0},{0},{0},{0}},{{0},{0},{0},{0}}}},
+	[WB_IMPASSABLE_S] = {WB_IMPASSABLE_S, {{{0},{0},{0},{0}},{{0},{0},{0},{0}},{{0},{0},{0},{0}}}},
 };
 static const struct tile16x3map clear_map = {
 	.tileset = {
@@ -113,10 +115,29 @@ static const struct tile16x3map clear_map = {
 	.metatileset = clear_tile16x3,
 	.width = 3,
 	.height = 3,
-	.metatilemap = {0,0,0,0,0,0,0,0,0,0},
+	.metatilemap = {0,0,0, 0,0,0, 0,0,0},
 };
 
 void test_walkaround__move_down(void) {
+	const struct walkaround_model expected_walking_state = {
+		.map = &clear_map,
+		.player = {
+			.pos = {1, 2},
+			.turn_timer = 0,
+			.action = ACTION_WALKING,
+			.facing = DIRECTION_SOUTH,
+		},
+	};
+	const struct walkaround_model expected_none_state = {
+		.map = &clear_map,
+		.player = {
+			.pos = {1, 2},
+			.turn_timer = 0,
+			.action = ACTION_NONE,
+			.facing = DIRECTION_SOUTH,
+		},
+	};
+
 	walkaround_state = (struct walkaround_model) {
 		.map = &clear_map,
 		.player = {
@@ -140,20 +161,56 @@ void test_walkaround__move_down(void) {
 	keypad_current_down = KEYPAD_DOWN;
 	MainCB_walkaround_main();
 
+	TEST_ASSERT_EQUAL_UNSIGNED(
+		-4*16 + 1,
+		walkaround_viewmodel.camera.mapoffs.y);
+	TEST_ASSERT_EQUAL_UNSIGNED(
+		1*16+14 + 1,
+		walkaround_viewmodel.player.mapoffs.y);
+
 	TEST_ASSERT(
 		! walkaround_viewmodel.start_menu.is_open,
 		"! walkaround_viewmodel.start_menu.is_open");
 	TEST_ASSERT_EQUAL_MODEL(
-		&(struct walkaround_model) {
-			.map = &clear_map,
-			.player = {
-				.pos = {1, 2},
-				.turn_timer = 0,
-				.action = ACTION_WALKING,
-				.facing = DIRECTION_SOUTH,
-			},
-		},
+		&expected_walking_state,
 		&walkaround_state);
+
+	keypad_current_new = KEYPAD_NONE;
+	keypad_current_down = KEYPAD_NONE;
+	for (unsigned dy = 2; dy <= 16; dy += 1) {
+		MainCB_walkaround_main();
+
+		TEST_ASSERT_EQUAL_UNSIGNED(
+			-4*16 + dy,
+			walkaround_viewmodel.camera.mapoffs.y);
+		TEST_ASSERT_EQUAL_UNSIGNED(
+			1*16+14 + dy,
+			walkaround_viewmodel.player.mapoffs.y);
+
+		TEST_ASSERT(
+			! walkaround_viewmodel.start_menu.is_open,
+			"! walkaround_viewmodel.start_menu.is_open");
+		TEST_ASSERT_EQUAL_MODEL(
+			&expected_walking_state,
+			&walkaround_state);
+	}
+
+	MainCB_walkaround_main();
+	TEST_ASSERT_EQUAL_UNSIGNED(
+		-4*16+16,
+		walkaround_viewmodel.camera.mapoffs.y);
+	TEST_ASSERT_EQUAL_UNSIGNED(
+		1*16+14+16,
+		walkaround_viewmodel.player.mapoffs.y);
+
+	TEST_ASSERT(
+		! walkaround_viewmodel.start_menu.is_open,
+		"! walkaround_viewmodel.start_menu.is_open");
+	TEST_ASSERT_EQUAL_MODEL(
+		&expected_none_state,
+		&walkaround_state);
+
+
 }
 
 void test_walkaround__turn_down(void) {
@@ -190,6 +247,110 @@ void test_walkaround__turn_down(void) {
 				.pos = {1, 1},
 				.turn_timer = 4,
 				.action = ACTION_TURNING,
+				.facing = DIRECTION_SOUTH,
+			},
+		},
+		&walkaround_state);
+}
+
+void test_walkaround__cannot_walk_down_into_impassable_space(void) {
+	static const struct tile16x3map south_impassable_map = {
+		.tileset = {
+			.palette = NULL,
+			.tileset = NULL,
+			.tileset_count = 0,
+		},
+		.metatileset = clear_tile16x3,
+		.width = 3,
+		.height = 3,
+		.metatilemap = {0,0,0, 0,0,0, 0,WB_IMPASSABLE,0},
+	};
+
+	walkaround_state = (struct walkaround_model) {
+		.map = &south_impassable_map,
+		.player = {
+			.pos = {1, 1},
+			.turn_timer = 0,
+			.action = ACTION_NONE,
+			.facing = DIRECTION_SOUTH,
+		},
+	};
+	walkaround_viewmodel = (struct walkaround_viewmodel) {
+		.camera = {
+			.mapoffs = {-6*16, -4*16},
+		},
+		.player = {
+			.oam_id = shadow_id_invalid,
+			.mapoffs = {1*16+8, 1*16+14},
+		},
+	};
+
+	keypad_current_new = KEYPAD_DOWN;
+	keypad_current_down = KEYPAD_DOWN;
+	MainCB_walkaround_main();
+
+	TEST_ASSERT(
+		! walkaround_viewmodel.start_menu.is_open,
+		"! walkaround_viewmodel.start_menu.is_open");
+	TEST_ASSERT_EQUAL_MODEL(
+		&(struct walkaround_model) {
+			.map = &south_impassable_map,
+			.player = {
+				.pos = {1, 1},
+				.turn_timer = 0,
+				.action = ACTION_NONE,
+				.facing = DIRECTION_SOUTH,
+			},
+		},
+		&walkaround_state);
+}
+
+void test_walkaround__cannot_walk_down_when_current_is_impassable_south(void) {
+	static const struct tile16x3map south_impassable_map = {
+		.tileset = {
+			.palette = NULL,
+			.tileset = NULL,
+			.tileset_count = 0,
+		},
+		.metatileset = clear_tile16x3,
+		.width = 3,
+		.height = 3,
+		.metatilemap = {0,0,0, 0,WB_IMPASSABLE_S,0, 0,0,0},
+	};
+
+	walkaround_state = (struct walkaround_model) {
+		.map = &south_impassable_map,
+		.player = {
+			.pos = {1, 1},
+			.turn_timer = 0,
+			.action = ACTION_NONE,
+			.facing = DIRECTION_SOUTH,
+		},
+	};
+	walkaround_viewmodel = (struct walkaround_viewmodel) {
+		.camera = {
+			.mapoffs = {-6*16, -4*16},
+		},
+		.player = {
+			.oam_id = shadow_id_invalid,
+			.mapoffs = {1*16+8, 1*16+14},
+		},
+	};
+
+	keypad_current_new = KEYPAD_DOWN;
+	keypad_current_down = KEYPAD_DOWN;
+	MainCB_walkaround_main();
+
+	TEST_ASSERT(
+		! walkaround_viewmodel.start_menu.is_open,
+		"! walkaround_viewmodel.start_menu.is_open");
+	TEST_ASSERT_EQUAL_MODEL(
+		&(struct walkaround_model) {
+			.map = &south_impassable_map,
+			.player = {
+				.pos = {1, 1},
+				.turn_timer = 0,
+				.action = ACTION_NONE,
 				.facing = DIRECTION_SOUTH,
 			},
 		},
@@ -237,6 +398,8 @@ int main() {
 
 	RUN_TEST(test_walkaround__move_down);
 	RUN_TEST(test_walkaround__turn_down);
+	RUN_TEST(test_walkaround__cannot_walk_down_into_impassable_space);
+	RUN_TEST(test_walkaround__cannot_walk_down_when_current_is_impassable_south);
 	RUN_TEST(test_walkaround__start_opens_menu);
 
 	MgbaPrintf(MGBA_LOG_INFO, "Total: %d; Failing: %d", total, failed);
