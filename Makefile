@@ -348,7 +348,11 @@ OBJS += $(BUILDOBJDIR)/resource_credits.o
 $(BUILDOBJDIR)/resource_credits.o $(BUILDSRCDIR)/resource_credits.h &: $(METADATA) $(SOURCES_PNG)
 	@echo "  METADATA"
 	@$(MKDIR) -p $(BUILDSRCDIR)
-	$(V)$(METADATA) --out-object $(BUILDOBJDIR)/resource_credits.o --out-header $(BUILDSRCDIR)/resource_credits.h $(SOURCES_PNG)
+	$(V)$(METADATA) \
+		--out-object $(BUILDOBJDIR)/resource_credits.o \
+		--out-header $(BUILDSRCDIR)/resource_credits.h \
+		--out-text $(BUILDDIR)/main/CREDITS.md \
+		$(SOURCES_PNG)
 
 $(ELF): $(OBJS) source/sys/gba_cart.ld
 	@echo "  LD      $@"

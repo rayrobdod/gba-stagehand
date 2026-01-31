@@ -205,7 +205,7 @@ static void MainCB_credits_print(void) {
 		(coord16_t) {1, 1},
 		(coord16_t) {1, 1},
 		(font_colors_t) {0, 7, 15, 8, false},
-		view_model->current->title);
+		view_model->current->primary.title);
 
 	text_print_immediate(
 		view_model->window_shadow_tiles.author,
@@ -214,7 +214,7 @@ static void MainCB_credits_print(void) {
 		(coord16_t) {1, 1},
 		(coord16_t) {1, 1},
 		(font_colors_t) {0, 7, 15, 8, false},
-		view_model->current->author);
+		view_model->current->primary.author);
 
 	text_print_immediate(
 		view_model->window_shadow_tiles.authorurl,
@@ -223,7 +223,7 @@ static void MainCB_credits_print(void) {
 		(coord16_t) {1, 1},
 		(coord16_t) {-1, 0},
 		(font_colors_t) {0, 12, 15, 0, false},
-		view_model->current->author_url);
+		view_model->current->primary.author_url);
 
 	text_print_immediate(
 		view_model->window_shadow_tiles.license,
@@ -232,7 +232,7 @@ static void MainCB_credits_print(void) {
 		(coord16_t) {1, 1},
 		(coord16_t) {1, 1},
 		(font_colors_t) {0, 7, 15, 8, false},
-		view_model->current->licensed_under);
+		view_model->current->primary.licensed_under);
 
 	{
 		struct text_print_step_state url_print_step_state;
@@ -245,7 +245,7 @@ static void MainCB_credits_print(void) {
 			(coord16_t) {1, 1},
 			(coord16_t) {-1, 0},
 			(font_colors_t) {0, 12, 15, 0, false},
-			view_model->current->retrieved_from);
+			view_model->current->primary.retrieved_from);
 
 		const int max_x = TILE_PIXEL_SIDE * URL_WINDOW_WIDTH - 1;
 

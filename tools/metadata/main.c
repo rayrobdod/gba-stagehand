@@ -3,9 +3,8 @@
 #include <stdlib.h>
 #include "parse_arguments.h"
 #include "extract_metadata.h"
-#include "generate_credits.h"
-#include "should_append_metadata.h"
-
+#include "generate_in_game.h"
+#include "generate_text_file.h"
 
 int main(int argc, char* argv[]) {
 	if (argc < 1) {
@@ -21,17 +20,32 @@ int main(int argc, char* argv[]) {
 	}
 
 	unsigned metadata_count = 0;
-	struct metadata* metadatas = calloc(args.inPngFileCount, sizeof(struct metadata));
+	struct metadata_and_filenames* metadatas = calloc(args.inPngFileCount, sizeof(struct metadata_and_filenames));
 
 	for (size_t i = 0; i < args.inPngFileCount; i++) {
 		struct metadata_result result = extract_metadata_from_png(args.inPngFiles[i]);
 		if (result.error_message) {
 			printf("%s: %s\n", args.inPngFiles[i], result.error_message);
 			return -1;
-		} else if (should_append_metadata(&result.value, metadata_count, metadatas)) {
-			metadatas[metadata_count++] = result.value;
 		} else {
-			free_metadata_fields(result.value);
+			size_t j;
+			for (j = 0; j < metadata_count; j++) {
+				if (equal_metadata(&result.value, &metadatas[j].metadata)) {
+					metadatas[j].filenames_count += 1;
+					metadatas[j].filenames = reallocarray(metadatas[j].filenames, metadatas[j].filenames_count, sizeof(char*));
+					metadatas[j].filenames[metadatas[j].filenames_count - 1] = args.inPngFiles[i];
+
+					free_metadata_fields(result.value);
+					break;
+				}
+			}
+			if (j == metadata_count) {
+				metadata_count += 1;
+				metadatas[j].metadata = result.value;
+				metadatas[j].filenames_count = 1;
+				metadatas[j].filenames = calloc(1, sizeof(char*));
+				metadatas[j].filenames[0] = args.inPngFiles[i];
+			}
 		}
 	}
 
@@ -41,9 +55,13 @@ int main(int argc, char* argv[]) {
 	if (NULL != args.outCreditsObject) {
 		generate_credits_object(args.outCreditsObject, metadata_count, metadatas);
 	}
+	if (NULL != args.outTextFile) {
+		generate_text_file(args.outTextFile, metadata_count, metadatas);
+	}
 
 	for (unsigned i = 0; i < args.inPngFileCount; i++) {
-		free_metadata_fields(metadatas[i]);
+		free_metadata_fields(metadatas[i].metadata);
+		free(metadatas[i].filenames);
 	}
 	free(metadatas);
 	free(args.inPngFiles);
