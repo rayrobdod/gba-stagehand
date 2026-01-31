@@ -17,9 +17,10 @@ struct font_glyph {
 };
 
 void font_write_to_elf(
-	std::pair<std::filesystem::path, struct bufferedimage> image,
+	input_path_and_data input,
 	[[gnu::unused]] std::pair<std::string, palette_data> palettes,
 	[[gnu::unused]] std::pair<std::string, tiles_data> tiles,
+	[[maybe_unused]] std::pair<std::string, tile16x3s_data> tile16x3s,
 	std::string var_name,
 	std::ostream& headerstream,
 	Object& elf
@@ -27,7 +28,9 @@ void font_write_to_elf(
 	uint8_t height = 0;
 	std::vector<font_glyph> glyphs;
 
-	for (auto pixel : image.second.pixels()) {
+	bufferedimage image = std::get<bufferedimage>(input.second);
+
+	for (auto pixel : image.pixels()) {
 		if (pixel == outofbounds)
 			continue;
 		if (pixel == background)
@@ -40,13 +43,13 @@ void font_write_to_elf(
 			continue;
 
 		std::ostringstream msg;
-		msg << image.first.string();
+		msg << input.first.string();
 		msg << ": contained a color other than the allowed five: ";
 		msg << pixel;
 		throw std::logic_error(msg.str());
 	}
 
-	for (auto subimg : image.second.subs(16, 16)) {
+	for (auto subimg : image.subs(16, 16)) {
 		for (unsigned y = height; y < 16; y++) {
 			for (unsigned x = 0; x < 16; x++) {
 				if (subimg.pixel(x,y) != outofbounds) {
@@ -57,7 +60,7 @@ void font_write_to_elf(
 		}
 	}
 
-	for (auto subimg : image.second.subs(16, 16)) {
+	for (auto subimg : image.subs(16, 16)) {
 		font_glyph glyph;
 
 		glyph.width = 0;
@@ -139,6 +142,7 @@ void font_write_struct(std::ostream& headerstream) {
 
 const type_functions font_type_functions(
 	  &font_write_struct
+	, nullptr
 	, nullptr
 	, nullptr
 	, &font_write_to_elf

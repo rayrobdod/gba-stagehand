@@ -5,6 +5,11 @@
 #include <stdint.h>
 
 typedef uint8_t shadow_oam_id_t;
+typedef uint8_t shadow_oam_palid_t;
+typedef uint8_t shadow_oam_tileid_t;
+static const shadow_oam_id_t shadow_id_invalid = 0xFF;
+static const shadow_oam_palid_t shadow_palid_invalid = 0xFF;
+static const shadow_oam_tileid_t shadow_tileid_invalid = 0xFF;
 
 enum hotspot {
 	HOTSPOT_CENTER,
@@ -30,6 +35,12 @@ struct shadow_oam_position {
 	enum hotspot hotspot : 8;
 	bool hflip : 1;
 	bool vflip : 1;
+	unsigned priority : 2;
+};
+
+struct shadow_oam_add_sprite_no_palette_vram_op {
+	shadow_oam_id_t sprite_index;
+	shadow_oam_palid_t palette_index;
 };
 
 void shadow_oam_init(void);
@@ -40,7 +51,14 @@ void shadow_oam_preload_sprite(
 shadow_oam_id_t shadow_oam_add_sprite(
 	const struct shadow_oam_template*,
 	const struct shadow_oam_position);
+struct shadow_oam_add_sprite_no_palette_vram_op shadow_oam_add_sprite_no_palette_vram_op(
+	const struct shadow_oam_template*,
+	const struct shadow_oam_position);
 void shadow_oam_remove_sprite(shadow_oam_id_t);
+bool shadow_oam_rewrite_sprite(
+	shadow_oam_id_t shadow_oam_index,
+	const struct shadow_oam_template* template,
+	const struct shadow_oam_position position);
 void shadow_oam_move_sprite(shadow_oam_id_t,
 	const struct shadow_oam_position);
 

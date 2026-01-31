@@ -11,17 +11,6 @@
 // may improve frit compression
 static constexpr bool SORT_BY_PALETTE = true;
 
-bg_tile_t::bg_tile_t() : tile(0), hflip(false), vflip(false), palette(0) {}
-bg_tile_t::bg_tile_t(uint16_t tile, bool hflip, bool vflip, uint16_t palette) : tile(tile), hflip(hflip), vflip(vflip), palette(palette) {}
-
-std::array<uint8_t, 2> bg_tile_t::to_bytes(void) {
-	std::array<uint8_t, 2> retval = {
-		static_cast<uint8_t>(this->tile),
-		static_cast<uint8_t>((this->tile >> 8) | (hflip ? 0x4 : 0) | (vflip ? 0x8 : 0) | (palette << 4)),
-	};
-	return retval;
-}
-
 std::ostream& operator<<(std::ostream& os, const std::set<rgba16_t>& value) {
 	std::ios_base::fmtflags initial_flags = os.flags();
 	auto initial_width = os.width();
@@ -60,8 +49,9 @@ std::ostream& operator<<(std::ostream& os, const std::array<rgba16_t, 16>& value
 	return os;
 }
 
-std::vector<gbatile_4bpp> background_extract_tiles(std::pair<std::filesystem::path, struct bufferedimage> image, palette_data palettes) {
+std::vector<gbatile_4bpp> background_extract_tiles(input_path_and_data input, palette_data palettes) {
 	std::vector<gbatile_4bpp> retval;
+	bufferedimage image = std::get<bufferedimage>(input.second);
 
 	if (SORT_BY_PALETTE) {
 		std::vector<std::vector<gbatile_4bpp>> tileset_per_palette;
@@ -69,7 +59,7 @@ std::vector<gbatile_4bpp> background_extract_tiles(std::pair<std::filesystem::pa
 		for (size_t i = 0; i < palettes.colorss.size(); i++)
 			tileset_per_palette.emplace_back();
 
-		for (auto subimg : image.second.subs(8, 8)) {
+		for (auto subimg : image.subs(8, 8)) {
 			uint16_t pal_i = find_palette_superset<std::vector<std::vector<rgba16_t>>>(palettes.colorss, subimg.palette());
 			const std::vector<rgba16_t> used_pal = palettes.colorss[pal_i];
 
@@ -92,7 +82,7 @@ std::vector<gbatile_4bpp> background_extract_tiles(std::pair<std::filesystem::pa
 		}
 
 	} else {
-		for (auto subimg : image.second.subs(8, 8)) {
+		for (auto subimg : image.subs(8, 8)) {
 			uint16_t pal_i = find_palette_superset<std::vector<std::vector<rgba16_t>>>(palettes.colorss, subimg.palette());
 			const std::vector<rgba16_t> used_pal = palettes.colorss[pal_i];
 
@@ -108,12 +98,13 @@ std::vector<gbatile_4bpp> background_extract_tiles(std::pair<std::filesystem::pa
 	return retval;
 }
 
-std::vector<bg_tile_t> background_extract_map(std::pair<std::filesystem::path, struct bufferedimage> image, palette_data palettes, tiles_data tiles_dat) {
+std::vector<bg_tile_t> background_extract_map(input_path_and_data input, palette_data palettes, tiles_data tiles_dat) {
 	std::vector<bg_tile_t> retval;
+	bufferedimage image = std::get<bufferedimage>(input.second);
 
 	const std::vector<gbatile_4bpp> tiles(tiles_dat.tiles);
 
-	for (auto subimg : image.second.subs(8, 8)) {
+	for (auto subimg : image.subs(8, 8)) {
 		uint16_t pal_i = find_palette_superset<std::vector<std::vector<rgba16_t>>>(palettes.colorss, subimg.palette());
 		const std::vector<rgba16_t> used_pal = palettes.colorss[pal_i];
 
@@ -145,7 +136,7 @@ std::vector<bg_tile_t> background_extract_map(std::pair<std::filesystem::path, s
 			}
 		}
 		if (tile_i >= tiles.size()) {
-			std::string msg(image.first);
+			std::string msg(input.first);
 			msg += ": lost tile between `background_extract_tiles` and `background_write_to_elf`";
 			throw std::logic_error(msg);
 		}
@@ -167,16 +158,17 @@ static void background_write_struct(std::ostream& headerstream) {
 }
 
 static void background_write_to_elf(
-	[[gnu::unused]] std::pair<std::filesystem::path, struct bufferedimage> image,
+	input_path_and_data input,
 	std::pair<std::string, palette_data> palettes,
 	std::pair<std::string, tiles_data> tiles_pair,
+	[[maybe_unused]] std::pair<std::string, tile16x3s_data> tile16x3s,
 	std::string var_name,
 	std::ostream& headerstream,
 	Object& elf
 ) {
 	headerstream << "extern const struct background " << var_name << ";" << std::endl;
 
-	std::vector<bg_tile_t> tilemap = background_extract_map(image, palettes.second, tiles_pair.second);
+	std::vector<bg_tile_t> tilemap = background_extract_map(input, palettes.second, tiles_pair.second);
 
 	std::array<uint16_t, 9> serialized = {
 		0, 0,
@@ -226,5 +218,6 @@ const type_functions background_type_functions(
 	  &background_write_struct
 	, &tileset_extract_palettes
 	, &background_extract_tiles
+	, nullptr
 	, &background_write_to_elf
 );

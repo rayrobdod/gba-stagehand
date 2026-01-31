@@ -5,6 +5,7 @@
 #include "management/shadow_vram.h"
 #include "management/vram_op_queue.h"
 #include "scene/main_menu.h"
+#include "utils/ansi_text_palette.h"
 #include "utils/arraycount.h"
 #include "utils/one_transparent_tileset.h"
 #include "graphics.h"
@@ -47,25 +48,6 @@ static const char lorem_ipsum[] =
 	"cupidatat non proident, sunt\n"
 	"in culpa qui officia deserunt\n"
 	"mollit anim id est laborum.";
-
-static const palette16_t text_pal = {
-	{10, 10, 10},
-	{30, 10, 10},
-	{10, 30, 10},
-	{30, 30, 0},
-	{10, 10, 30},
-	{30, 10, 30},
-	{10, 30, 30},
-	{31, 31, 31},
-	{0, 0, 0},
-	{20, 0, 0},
-	{0, 20, 0},
-	{15, 15, 0},
-	{0, 0, 20},
-	{20, 0, 20},
-	{0, 20, 20},
-	{20, 20, 20},
-};
 
 static const struct shadow_vram_init text_print_shadow_vram_init = {
 	.enable_bg = {true, false, false, true},
@@ -181,7 +163,7 @@ void MainCB_textPrintStep_init(void) {
 	vram_op_queue_enqueue((struct vram_op) {
 		.type = VRAM_QUEUE_OP_BG_PALETTES,
 		.palettes = {
-			.from = &text_pal,
+			.from = &ansi_text_palette,
 			.to_palette = 15,
 			.count = 1,
 		},

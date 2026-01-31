@@ -12,10 +12,13 @@
 #include <string>
 #include <string_view>
 #include <vector>
+#include <QGuiApplication>
 #include "build_compress_suite.hpp"
 #include "choose_compression.hpp"
 #include "image.hpp"
 #include "indexed_insert_only_set.hpp"
+#include "input_data_variant.hpp"
+#include "input_tilemap.hpp"
 #include "object.hpp"
 #include "png_deserialize.hpp"
 #include "resource_type.hpp"
@@ -25,25 +28,40 @@
 
 static const unsigned FIRST_TAG = 0x1000;
 
-static std::string palette_name_for_image(std::pair<std::filesystem::path, struct bufferedimage> image) {
+static std::string palette_name_for_image(input_path_and_data input) {
 	std::string retval = "plte.";
-	auto palette_name_pair = image.second.text().find("Palette Tag");
-	if (palette_name_pair != image.second.text().end()) {
+	auto properties = input_properties(input.second);
+	auto palette_name_pair = properties.find("Palette Tag");
+	if (palette_name_pair != properties.end()) {
 		retval += palette_name_pair->second;
 	} else {
-		retval += variable_name_for_image(image);
+		retval += variable_name_for_image(input);
 		retval += "$";
 	}
 	return retval;
 }
 
-static std::string tileset_name_for_image(std::pair<std::filesystem::path, struct bufferedimage> image) {
+static std::string tileset_name_for_image(input_path_and_data input) {
 	std::string retval = "tiles.";
-	auto palette_name_pair = image.second.text().find("Tileset Tag");
-	if (palette_name_pair != image.second.text().end()) {
+	auto properties = input_properties(input.second);
+	auto palette_name_pair = properties.find("Tileset Tag");
+	if (palette_name_pair != properties.end()) {
 		retval += palette_name_pair->second;
 	} else {
-		retval += variable_name_for_image(image);
+		retval += variable_name_for_image(input);
+		retval += "$";
+	}
+	return retval;
+}
+
+static std::string tile16x3set_name_for_image(input_path_and_data input) {
+	std::string retval = "tile16x3s.";
+	auto properties = input_properties(input.second);
+	auto palette_name_pair = properties.find("Tile16x3set Tag");
+	if (palette_name_pair != properties.end()) {
+		retval += palette_name_pair->second;
+	} else {
+		retval += variable_name_for_image(input);
 		retval += "$";
 	}
 	return retval;
@@ -72,7 +90,18 @@ int write_types_header(std::filesystem::path headerfile) {
 }
 
 int compile_object(std::filesystem::path srcdir, std::filesystem::path objfile, std::filesystem::path headerfile) {
-	std::map<type, std::map<std::filesystem::path, struct bufferedimage>> sorted_imgs;
+	int fake_argc_that_qt_requires_to_be_mutable_for_no_comprehensible_reason = 1;
+	char* fake_argv0_that_qt_requires_to_be_mutable_for_no_comprehensible_reason = strdup("gfxc");
+	char** fake_argv_that_qt_requires_to_be_mutable_for_no_comprehensible_reason = static_cast<char**>(calloc(1, sizeof(char*)));
+	fake_argv_that_qt_requires_to_be_mutable_for_no_comprehensible_reason[0] =
+			fake_argv0_that_qt_requires_to_be_mutable_for_no_comprehensible_reason;
+	QGuiApplication app(
+		fake_argc_that_qt_requires_to_be_mutable_for_no_comprehensible_reason,
+		fake_argv_that_qt_requires_to_be_mutable_for_no_comprehensible_reason);
+	/* Need a QGuiApplication for libtiled to be willing to render tiles */
+
+
+	std::map<type, std::map<std::filesystem::path, input_data>> sorted_inputs;
 
 	for (auto const& dir_entry : std::filesystem::recursive_directory_iterator{srcdir}) {
 		if (dir_entry.is_regular_file() && dir_entry.path().extension() == ".png") {
@@ -83,10 +112,24 @@ int compile_object(std::filesystem::path srcdir, std::filesystem::path objfile, 
 				std::pair nameImage(relative_png, result);
 				type type = resource_type(result);
 
-				sorted_imgs.try_emplace(type);
-				sorted_imgs.at(type).insert(nameImage);
+				sorted_inputs.try_emplace(type);
+				sorted_inputs.at(type).insert(nameImage);
 			} catch (const std::exception& e) {
 				std::cerr << relative_png << ": " << e.what() << std::endl;
+			}
+		}
+		if (dir_entry.is_regular_file() && dir_entry.path().extension() == ".tmx") {
+			std::filesystem::path relative_tmx = dir_entry.path().lexically_relative(srcdir);
+
+			try {
+				input_tile16x3map result = tilemap_deserialize(dir_entry.path());
+				std::pair nameImage(relative_tmx, result);
+				type type = resource_type(result);
+
+				sorted_inputs.try_emplace(type);
+				sorted_inputs.at(type).insert(nameImage);
+			} catch (const std::exception& e) {
+				std::cerr << relative_tmx << ": " << e.what() << std::endl;
 			}
 		}
 	}
@@ -95,7 +138,7 @@ int compile_object(std::filesystem::path srcdir, std::filesystem::path objfile, 
 	std::map<const std::string, const palette_data> palette_datas;
 	{
 		std::map<const std::string, palette_data_builder> palette_data_builders;
-		for (auto images : sorted_imgs) {
+		for (auto images : sorted_inputs) {
 			const type typ = images.first;
 			auto fns_ptr = type_functionss.find(typ);
 			if (fns_ptr != type_functionss.end()) {
@@ -142,7 +185,7 @@ int compile_object(std::filesystem::path srcdir, std::filesystem::path objfile, 
 	std::map<const std::string, const tiles_data> tiles_datas;
 	{
 		std::map<const std::string, std::vector<gbatile_4bpp>> tileset_data_builders;
-		for (auto images : sorted_imgs) {
+		for (auto images : sorted_inputs) {
 			const type typ = images.first;
 			auto fns_ptr = type_functionss.find(typ);
 			if (fns_ptr != type_functionss.end()) {
@@ -182,6 +225,53 @@ int compile_object(std::filesystem::path srcdir, std::filesystem::path objfile, 
 			std::vector<gbatile_4bpp> builder = builder_pair.second;
 
 			tiles_datas.try_emplace(tilesname, next_tiletag++, builder);
+		}
+	}
+
+	std::map<const std::filesystem::path, const std::string> file_to_tile16x3s_name;
+	std::map<const std::string, const tile16x3s_data> tile16x3s_datas;
+	{
+		std::map<const std::string, std::vector<tile16x3>> tile16x3set_data_builders;
+		for (auto images : sorted_inputs) {
+			const type typ = images.first;
+			auto fns_ptr = type_functionss.find(typ);
+			if (fns_ptr != type_functionss.end()) {
+				type_functions fns = fns_ptr->second;
+
+				if (fns.extract_tile16x3s) {
+					for (auto image : images.second) {
+						const std::string tile16x3set_name = tile16x3set_name_for_image(image);
+						file_to_tile16x3s_name.emplace(image.first, tile16x3set_name);
+
+						const std::string palette_name = file_to_palette_name.at(image.first);
+						palette_data palette = palette_datas.at(palette_name);
+
+						const std::string tiles_name = file_to_tiles_name.at(image.first);
+						tiles_data tiles = tiles_datas.at(tiles_name);
+
+						auto out = tile16x3set_data_builders.try_emplace(tile16x3set_name).first;
+						std::vector<tile16x3> new_data = fns.extract_tile16x3s(image, palette, tiles);
+
+						size_t old_data_size = out->second.size();
+
+						for (tile16x3 tile : new_data) {
+							auto old_data_begin = out->second.begin();
+							auto old_data_end = old_data_begin + old_data_size;
+
+							if (old_data_end == std::find(old_data_begin, old_data_end, tile)) {
+								out->second.push_back(tile);
+							}
+						}
+					}
+				}
+			}
+		}
+
+		for (auto builder_pair : tile16x3set_data_builders) {
+			std::string tilesname = builder_pair.first;
+			std::vector<tile16x3> builder = builder_pair.second;
+
+			tile16x3s_datas.try_emplace(tilesname, builder);
 		}
 	}
 
@@ -239,8 +329,20 @@ int compile_object(std::filesystem::path srcdir, std::filesystem::path objfile, 
 		elf.push_single_variable_rodata_sections({var_name, STB_LOCAL}, compressed.data);
 	}
 
+	for (auto const& tile16x3set_data : tile16x3s_datas) {
+		std::string var_name = tile16x3set_data.first;
+
+		std::vector<uint16_t> serialized_metatileset;
+		for (tile16x3 metatile : tile16x3set_data.second.tile16x3s) {
+			std::vector<uint16_t> serialized_metatile = metatile.to_shorts();
+			std::copy(serialized_metatile.begin(), serialized_metatile.end(), std::back_inserter(serialized_metatileset));
+		}
+
+		elf.push_single_variable_rodata_sections({var_name, STB_LOCAL}, serialized_metatileset);
+	}
+
 	{
-		for (auto images : sorted_imgs) {
+		for (auto images : sorted_inputs) {
 			const type typ = images.first;
 			auto fns_ptr = type_functionss.find(typ);
 			if (fns_ptr != type_functionss.end()) {
@@ -274,10 +376,23 @@ int compile_object(std::filesystem::path srcdir, std::filesystem::path objfile, 
 							}
 						}
 
+						std::pair<std::string, tile16x3s_data> my_tile16x3s_data;
+						{
+							auto tile16x3s_name_ptr = file_to_tile16x3s_name.find(image.first);
+							if (tile16x3s_name_ptr != file_to_tile16x3s_name.end()) {
+								std::string tile16x3s_name = tile16x3s_name_ptr->second;
+								auto tile16x3s_ptr = tile16x3s_datas.find(tile16x3s_name);
+								if (tile16x3s_ptr != tile16x3s_datas.end()) {
+									my_tile16x3s_data = *tile16x3s_ptr;
+								}
+							}
+						}
+
 						fns.write_to_elf(
 							image,
 							my_palette_data,
 							my_tiles_data,
+							my_tile16x3s_data,
 							var_name,
 							headerstream,
 							elf
@@ -292,6 +407,8 @@ int compile_object(std::filesystem::path srcdir, std::filesystem::path objfile, 
 
 	headerstream.close();
 
+	free(fake_argv_that_qt_requires_to_be_mutable_for_no_comprehensible_reason);
+	free(fake_argv0_that_qt_requires_to_be_mutable_for_no_comprehensible_reason);
 	return 0;
 }
 

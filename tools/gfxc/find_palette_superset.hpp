@@ -1,4 +1,6 @@
 #include <algorithm>
+#include <set>
+#include "image.hpp"
 
 template<class PALS>
 uint16_t find_palette_superset(PALS haystack, std::set<rgba16_t> needle) {

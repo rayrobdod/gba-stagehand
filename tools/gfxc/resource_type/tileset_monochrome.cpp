@@ -12,17 +12,20 @@ static void tileset_monochrome_write_struct(std::ostream& headerstream) {
 }
 
 static void tileset_monochrome_write_to_elf(
-	std::pair<std::filesystem::path, struct bufferedimage> image,
+	input_path_and_data input,
 	[[gnu::unused]] std::pair<std::string, palette_data> palettes,
 	[[gnu::unused]] std::pair<std::string, tiles_data> tiles,
+	[[maybe_unused]] std::pair<std::string, tile16x3s_data> tile16x3s,
 	std::string var_name,
 	std::ostream& headerstream,
 	Object& elf
 ) {
 	headerstream << "extern const struct bitpacked_tileset " << var_name << ";" << std::endl;
 
+	bufferedimage image = std::get<bufferedimage>(input.second);
+
 	subword_output_iterator<uint8_t, uint1_t, DIRECTION_INC> tiledata_builder;
-	for (auto subimg : image.second.subs(8, 8)) {
+	for (auto subimg : image.subs(8, 8)) {
 		for (auto pixel : subimg.pixels()) {
 			uint1_t palindex(pixel == rgba16_t::BLACK ? 1 : 0);
 
@@ -42,6 +45,7 @@ static void tileset_monochrome_write_to_elf(
 
 const type_functions tileset_monochrome_type_functions(
 	  &tileset_monochrome_write_struct
+	, nullptr
 	, nullptr
 	, nullptr
 	, &tileset_monochrome_write_to_elf

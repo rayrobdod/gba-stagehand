@@ -173,7 +173,7 @@ private:
 	const unsigned _width;
 	const unsigned _height;
 	const std::vector<rgba16_t> _pixels;
-	const std::map<std::string, std::string> _text;
+	const std::map<std::string, std::string> _properties;
 	const rgb15_t _background;
 	const std::map<std::string, std::map<rgba16_t, rgba16_t>> _alt_palettes;
 
@@ -182,7 +182,7 @@ public:
 		unsigned width,
 		unsigned height,
 		std::vector<rgba16_t> pixels,
-		std::map<std::string, std::string> text,
+		std::map<std::string, std::string> properties,
 		rgb15_t background,
 		std::map<std::string, std::map<rgba16_t, rgba16_t>> alt_palettes);
 
@@ -190,7 +190,7 @@ public:
 	unsigned height() const override;
 	rgba16_t pixel(unsigned x, unsigned y) const override;
 
-	const std::map<std::string, std::string>& text() const;
+	const std::map<std::string, std::string>& properties() const;
 	rgb15_t background() const;
 
 	std::map<std::string, std::vector<rgba16_t>> alt_palettes(std::vector<rgba16_t> palette) const;

@@ -139,13 +139,13 @@ bufferedimage::bufferedimage(
 	unsigned width,
 	unsigned height,
 	std::vector<rgba16_t> pixels,
-	std::map<std::string, std::string> text,
+	std::map<std::string, std::string> properties,
 	rgb15_t background,
 	std::map<std::string, std::map<rgba16_t, rgba16_t>> alt_palettes)
 		: _width(width),
 			_height(height),
 			_pixels(pixels),
-			_text(text),
+			_properties(properties),
 			_background(background),
 			_alt_palettes(alt_palettes) {
 }
@@ -158,8 +158,8 @@ unsigned bufferedimage::height() const {
 	return this->_height;
 }
 
-const std::map<std::string, std::string>& bufferedimage::text() const {
-	return this->_text;
+const std::map<std::string, std::string>& bufferedimage::properties() const {
+	return this->_properties;
 }
 
 rgba16_t bufferedimage::pixel(unsigned x, unsigned y) const {

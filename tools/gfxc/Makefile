@@ -1,7 +1,7 @@
 # SPDX-License-Identifier: CC0-1.0
 #
 # SPDX-FileContributor: Antonio Niño Díaz, 2022
-# SPDX-FileContributor: Raymond Dodge, 2025
+# SPDX-FileContributor: Raymond Dodge, 2025-2026
 
 # Program Configuration
 
@@ -10,7 +10,9 @@ NAME	:= gfxc
 # Defines passed to all files
 
 DEFINES	:=
-LIBS	:= -lc -lpng
+LIBS	+= -lc
+LIBS	+= -lpng
+LIBS	+= -ltiled -lQt5Core -lQt5Gui
 
 # Tools
 
@@ -47,6 +49,9 @@ CFLAGS += -Werror
 CFLAGS += -ggdb -DDEBUG
 CXXFLAGS += -std=gnu++20
 CXXFLAGS += -I.
+CXXFLAGS += -I/usr/include/x86_64-linux-gnu/qt5 -fPIC
+CXXFLAGS += -I/usr/include/x86_64-linux-gnu/qt5/QtCore
+CXXFLAGS += -I/usr/include/x86_64-linux-gnu/qt5/QtGui
 CXXFLAGS += -Wall -Wextra
 CXXFLAGS += -Werror
 CXXFLAGS += -Wno-missing-field-initializers

@@ -48,6 +48,13 @@ void TEST_ASSERT_EQUAL_RGB(rgb_t expected, rgb_t actual) {
 	}
 }
 
+void TEST_ASSERT(bool actual, const char* reason) {
+	if (!actual) {
+		currentTestFailed = 1;
+		snprintf(fail_detail, arraycount(fail_detail), "%s", reason);
+	}
+}
+
 void TEST_FAIL(const char* reason) {
 	currentTestFailed = 1;
 	snprintf(fail_detail, arraycount(fail_detail), "%s", reason);

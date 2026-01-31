@@ -1,6 +1,4 @@
-#include <filesystem>
 #include <string>
-#include <utility>
-#include "image.hpp"
+#include "input_data_variant.hpp"
 
-std::string variable_name_for_image(std::pair<std::filesystem::path, bufferedimage> image);
+std::string variable_name_for_image(input_path_and_data input);

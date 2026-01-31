@@ -89,10 +89,10 @@ typedef struct {
 [[gnu::unused]]
 static window_enable_t WIN_ENABLE_ALL = {true, true, true, true, true, true};
 
-struct bgofs {
+typedef struct bgofs {
 	uint16_t h;
 	uint16_t v;
-};
+} bgofs_t;
 
 enum color_effect {
 	COLOR_EFFECT_NONE = 0,
