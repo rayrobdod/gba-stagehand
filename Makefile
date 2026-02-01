@@ -370,6 +370,7 @@ $(HOSTEXEDIR)/test_walkaround : $(HOSTOBJDIR_SRC)/management/shadow_vram.c.o
 $(HOSTEXEDIR)/test_walkaround : $(HOSTOBJDIR_SRC)/utils/ansi_text_palette.c.o
 $(HOSTEXEDIR)/test_walkaround : $(HOSTOBJDIR_SRC)/utils/one_transparent_tileset.c.o
 $(HOSTEXEDIR)/test_walkaround : $(HOSTOBJDIR_SRC)/mix_rgb.c.o
+$(HOSTEXEDIR)/test_walkaround : $(HOSTOBJDIR_SRC)/options.c.o
 $(HOSTEXEDIR)/test_walkaround : $(HOSTOBJDIR_SRC)/text_printer.c.o
 $(TESTEXEDIR)/bench_text_printer.elf : $(BUILDOBJDIR)/graphics.o
 $(TESTEXEDIR)/bench_mode3_copy.elf : $(BUILDOBJDIR)/graphics.o
@@ -389,6 +390,7 @@ $(TESTEXEDIR)/bench_walkaround.elf : $(BUILDOBJDIR)/management/shadow_oam.c.o
 $(TESTEXEDIR)/bench_walkaround.elf : $(BUILDOBJDIR)/management/shadow_vram.c.o
 $(TESTEXEDIR)/bench_walkaround.elf : $(BUILDOBJDIR)/scene/walkaround.c.o
 $(TESTEXEDIR)/test_walkaround.elf : $(BUILDOBJDIR)/graphics.o
+$(TESTEXEDIR)/test_walkaround.elf : $(BUILDOBJDIR)/options.c.o
 $(TESTEXEDIR)/test_walkaround.elf : $(BUILDOBJDIR)/scene/walkaround.c.o
 
 check_host: $(patsubst $(HOSTEXEDIR)/%,$(HOSTREPORTDIR)/%.txt,$(HOST_RUNNERS))

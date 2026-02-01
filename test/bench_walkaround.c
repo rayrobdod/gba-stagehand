@@ -23,6 +23,14 @@ void MainCB_mainMenu_init(void) {
 		"swi	#0x00"
 	);
 }
+void ChangeScene_options([[maybe_unused]] void (*fadeCb)(void), [[maybe_unused]] void (*ChangeScene_return)(void (*)(void))) {
+	MgbaPrintf(MGBA_LOG_INFO, "ENTER: ChangeScene_options");
+	asm(
+		"movs	r0,	#1\n\t"
+		"swi	#0x00"
+	);
+}
+
 
 void setUp(void){}
 void tearDown(void){}

@@ -11,6 +11,7 @@
 #include "graphics.h"
 #include "main.h"
 #include "mgba.h"
+#include "options.h"
 #include "text_printer.h"
 
 static void MainCB_textPrintStep_main(void);
@@ -135,17 +136,19 @@ void MainCB_textPrintStep_init(void) {
 
 	hw_palette.background._4[0][0] = rgb(0,16,31);
 
+	const struct tileset* frame = options_frame_get();
+
 	vram_op_queue_enqueue((struct vram_op) {
 		.type = VRAM_QUEUE_OP_BG_PALETTES,
 		.palettes = {
-			.from = dialog_box.palette,
+			.from = frame->palette,
 			.to_palette = BORDER_PALETTE_NO,
 			.count = 1,
 		},
 	});
 
 	view_model->zero_tile_ref = (bg_tile_t) {.tile = shadow_tiles_load_tileset(&one_transparent_tileset, (struct shadow_tiles_load_tileset) {0})};
-	view_model->border_tile_id = shadow_tiles_load_tileset(&dialog_box, (struct shadow_tiles_load_tileset) {0});
+	view_model->border_tile_id = shadow_tiles_load_tileset(frame, (struct shadow_tiles_load_tileset) {0});
 	view_model->dialog_window_id = shadow_tiles_window_allocate(&dialog_window_template);
 
 	gen_window_border();

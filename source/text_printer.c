@@ -239,6 +239,67 @@ void text_print_immediate(
 	}
 }
 
+void text_clear_immediate(
+	volatile tile_4bpp_t* buffer,
+	const struct shadow_tiles_window_allocate* window_args,
+	coord16_t start_point,
+	coord16_t end_point,
+	uint8_t color
+) {
+	const unsigned tiles_width = window_args->width;
+	const unsigned output_paint = 0x1111 * color;
+
+	for (int pixel_y = start_point.y; pixel_y < end_point.y; pixel_y++) {
+		int tile_y = pixel_y / 8;
+		int subtile_y = pixel_y % 8;
+
+		for (int pixel_x = start_point.x; pixel_x < end_point.x; pixel_x += 4) {
+			int tile_x = pixel_x / 8;
+			int subtile_x = pixel_x % 8;
+
+			unsigned output_mask = 0xFFFF;
+
+			unsigned tileid = tile_y * tiles_width + tile_x;
+			unsigned subtileid = (subtile_y * 2 + subtile_x / 4);
+			unsigned shift = (subtile_x % 4) * 4;
+
+			if (0 <= tile_x && tile_x < window_args->width) {
+				uint16_t output_word = buffer[tileid][subtileid];
+
+				uint16_t output_mask1 = output_mask << shift;
+				output_word &= ~output_mask1;
+				uint16_t output_paint1 = output_paint << shift;
+				output_word |= output_paint1;
+				buffer[tileid][subtileid] = output_word;
+			}
+
+			if (subtile_x == 0 || subtile_x == 4) {
+				continue;
+			} else if (subtile_x < 4) {
+				subtile_x += 4;
+				subtileid += 1;
+			} else {
+				tile_x += 1;
+				subtile_x -= 4;
+				tileid += 1;
+				subtileid -= 1;
+			}
+			shift = 16 - shift;
+
+			if (0 <= tile_x && tile_x < window_args->width) {
+				uint16_t output_word = buffer[tileid][subtileid];
+
+				uint16_t output_mask1 = output_mask >> shift;
+				output_word &= ~output_mask1;
+				uint16_t output_paint1 = output_paint >> shift;
+				output_word |= output_paint1;
+				buffer[tileid][subtileid] = output_word;
+			}
+		}
+	}
+}
+
+
 unsigned text_width(
 	const struct font* font,
 	coord16_t kerning,

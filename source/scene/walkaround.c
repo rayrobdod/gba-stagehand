@@ -12,6 +12,7 @@
 #include "management/shadow_vram.h"
 #include "management/vram_op_queue.h"
 #include "scene/main_menu.h"
+#include "scene/options_menu.h"
 #include "utils/ansi_text_palette.h"
 #include "utils/arraycount.h"
 #include "utils/minmax.h"
@@ -20,9 +21,11 @@
 #include "main.h"
 #include "mgba.h"
 #include "mix_rgb.h"
+#include "options.h"
 #include "text_printer.h"
 
 static void ChangeScene_walkaround_warp(void (*_fadeCb)(void));
+static void ChangeScene_walkaround_return(void (*_fadeCb)(void));
 static void MainCB_walkaround_fadeout_black(void);
 static void MainCB_walkaround_fadesolid_black(void);
 static void MainCB_walkaround_fadein_black(void);
@@ -186,6 +189,7 @@ static const struct shadow_vram_init walkaround_shadow_vram_init = {
 
 static bool const_false(void) { return false;}
 static void menu_action_warp(void) {ChangeScene_walkaround_warp(&FadeCB_walkaround);}
+static void menu_action_options(void) {ChangeScene_options(&FadeCB_walkaround, &ChangeScene_walkaround_return);}
 
 static const struct {
 	const char* label;
@@ -205,6 +209,11 @@ static const struct {
 	{
 		.label = "Example",
 		.action = NULL,
+		.enabled = NULL,
+	},
+	{
+		.label = "Options",
+		.action = &menu_action_options,
 		.enabled = NULL,
 	},
 	{
@@ -274,6 +283,13 @@ void ChangeScene_walkaround_warp(void (*_fadeCb)(void)) {
 	warp_target.transition_is_warp = true;
 	warp_target.map = &mushroom_village_2;
 	warp_target.player_pos = (tile_coord_t) {.x = 10, .y = 7};
+	scene_onframe_callback = &MainCB_walkaround_fadeout_black;
+}
+
+void ChangeScene_walkaround_return(void (*_fadeCb)(void)) {
+	fade_to_initialize(rgb(0, 0, 0));
+	fadeCb = _fadeCb;
+	warp_target.transition_is_warp = false;
 	scene_onframe_callback = &MainCB_walkaround_fadeout_black;
 }
 
@@ -1043,13 +1059,14 @@ static void open_start_menu(void) {
 	walkaround_viewmodel.start_menu.window_id =
 		shadow_tiles_window_allocate(&start_menu_window);
 
+	const struct tileset* dialog_frame = options_frame_get();
 	walkaround_viewmodel.start_menu.border_tile_start =
-		shadow_tiles_load_tileset(&dialog_box, (struct shadow_tiles_load_tileset) {.bg = 0});
+		shadow_tiles_load_tileset(dialog_frame, (struct shadow_tiles_load_tileset) {.bg = 0});
 
 	vram_op_queue_enqueue((struct vram_op) {
 		.type = VRAM_QUEUE_OP_BG_PALETTES,
 		.palettes = {
-			.from = dialog_box.palette,
+			.from = dialog_frame->palette,
 			.to_palette = 14,
 			.count = 1,
 		},
@@ -1075,7 +1092,7 @@ static void open_start_menu(void) {
 
 static void close_start_menu(void) {
 	shadow_tiles_window_deallocate(walkaround_viewmodel.start_menu.window_id);
-	shadow_tiles_deallocate_tileset(walkaround_viewmodel.start_menu.border_tile_start, &dialog_box, (struct shadow_tiles_load_tileset) {.bg = 0});
+	shadow_tiles_deallocate_tileset(walkaround_viewmodel.start_menu.border_tile_start, &dialog_frames_1, (struct shadow_tiles_load_tileset) {.bg = 0});
 	shadow_oam_remove_sprite(walkaround_viewmodel.start_menu.pointer_oam_id);
 	walkaround_viewmodel.start_menu.pointer_oam_id = shadow_id_invalid;
 

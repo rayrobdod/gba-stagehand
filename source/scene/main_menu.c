@@ -12,6 +12,7 @@
 #include "scene/display_credits.h"
 #include "scene/gradient.h"
 #include "scene/mode3.h"
+#include "scene/options_menu.h"
 #include "scene/parallax_mountain_dusk.h"
 #include "scene/text_print_profile.h"
 #include "scene/text_print_step.h"
@@ -22,6 +23,12 @@
 #include "graphics_types.h"
 #include "main.h"
 #include "mgba.h"
+
+static void MainCB_mainMenu_main(void);
+static void FadeCB_mainMenu(void);
+static void ChangeScene_options_for_mainmenu(void (*fadeCb)(void));
+
+//
 
 const MainCallback initial_scene_onframe_callback = MainCB_mainMenu_init;
 
@@ -73,14 +80,14 @@ static const struct {
 		.cb = &MainCB_gradient_init,
 	},
 	{
+		.label = "Options",
+		.startFn = &ChangeScene_options_for_mainmenu,
+	},
+	{
 		.label = "Credits",
 		.cb = &MainCB_credits_init,
 	},
 };
-
-//
-static void MainCB_mainMenu_main(void);
-static void FadeCB_mainMenu(void);
 
 static void print_to_tilemap(bg_tile_t* buffer, unsigned x, unsigned y, char* message) {
 	unsigned start_index = y * 32 + x;
@@ -92,6 +99,15 @@ static void print_to_tilemap(bg_tile_t* buffer, unsigned x, unsigned y, char* me
 }
 
 static const palette16_t mono_pal = {{31,31,31}, {0,0,0}};
+
+static void ChangeScene_mainmenu([[maybe_unused]] void (*_fadeCb)(void)) {
+	scene_onframe_callback = &MainCB_mainMenu_init;
+}
+
+static void ChangeScene_options_for_mainmenu(void (*fadeCb)(void)) {
+	ChangeScene_options(fadeCb, &ChangeScene_mainmenu);
+}
+
 
 void MainCB_mainMenu_init(void) {
 	shadow_oam_free_all();

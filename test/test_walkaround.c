@@ -1,6 +1,7 @@
 #include "scene/walkaround.h"
 #include "scene/walkaround_intern.h"
 
+#include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
 #include "utils/arraycount.h"
@@ -15,6 +16,19 @@ MainCallback scene_onframe_callback;
 #ifdef __unix__
 void vram_op_queue_enqueue([[maybe_unused]] const struct vram_op new_op) {}
 #endif
+
+void ChangeScene_options([[maybe_unused]] void (*fadeCb)(void), [[maybe_unused]] void (*ChangeScene_return)(void (*)(void))) {
+	MgbaPrintf(MGBA_LOG_INFO, "ENTER: ChangeScene_options");
+	#ifdef __unix__
+		exit(1);
+	#else
+		asm(
+			"movs	r0,	#1\n\t"
+			"swi	#0x00"
+		);
+	#endif
+}
+
 
 void TEST_ASSERT_EQUAL_MODEL(const struct walkaround_model* expected, const struct walkaround_model* actual) {
 	if (expected->map != actual->map ||
