@@ -156,14 +156,30 @@ static void MainCB_parallaxMountainDusk_initFadeSolid(void) {
 		});
 	}
 
-	vram_op_queue_enqueue((struct vram_op) {
-		.type = VRAM_QUEUE_OP_BG_MAP_COMPRESSED,
-		.map_compressed = {
-			.from = parallax_mountain_dusk_bg.tilemap,
-			.to_block = SKY_SCREENBLOCK,
-			.to_tile = 0,
-		},
-	});
+	bg_tile_t* map_bg = malloc(divceilmul(parallax_mountain_dusk_bg.tilemap->size, sizeof(bg_tile_t)));
+	if (!map_bg) {
+		MgbaPrintf(MGBA_LOG_ERROR, "Out of memory: parallaxMountainDusk map_bg");
+		vram_op_queue_enqueue((struct vram_op) {
+			.type = VRAM_QUEUE_OP_BG_MAP_COMPRESSED,
+			.map_compressed = {
+				.from = parallax_mountain_dusk_bg.tilemap,
+				.to_block = SKY_SCREENBLOCK,
+				.to_tile = 0,
+			},
+		});
+	} else {
+		HeaderUnCompWram(parallax_mountain_dusk_bg.tilemap, map_bg);
+
+		vram_op_queue_enqueue((struct vram_op) {
+			.type = VRAM_QUEUE_OP_BG_MAP_FREE,
+			.map_free = {
+				.from = map_bg,
+				.to_block = SKY_SCREENBLOCK,
+				.to_tile = 0,
+				.count = parallax_mountain_dusk_bg.tilemap_count,
+			},
+		});
+       }
 
 	vram_op_queue_enqueue((struct vram_op) {
 		.type = VRAM_QUEUE_OP_HWREG_BGOFSS,
