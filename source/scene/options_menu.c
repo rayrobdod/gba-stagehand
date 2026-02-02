@@ -209,7 +209,7 @@ static union palette512 MainCB_options_fadesolid(void) {
 	options_viewmodel = (struct options_viewmodel) {0};
 	options_viewmodel.values = options;
 
-	vram_op_queue_enqueue((struct vram_op) {
+	vram_op_queue_enqueue(&(struct vram_op) {
 		.type = VRAM_QUEUE_OP_HWREG_BGOFSS,
 		.bgofss = {
 			.value = {{0,0},{0,4},{0,4},{0,0},},
@@ -217,7 +217,7 @@ static union palette512 MainCB_options_fadesolid(void) {
 	});
 
 	int background_tile = shadow_tiles_load_tileset(&diagonal_blue_background_tile, (struct shadow_tiles_load_tileset) {.bg = BACKGROUND_BG});
-	vram_op_queue_enqueue((struct vram_op) {
+	vram_op_queue_enqueue(&(struct vram_op) {
 		.type = VRAM_QUEUE_OP_BG_MAP_FILL,
 		.map_fill = {
 			.value = {background_tile, false, false, BACKGROUND_PAL},
@@ -228,7 +228,7 @@ static union palette512 MainCB_options_fadesolid(void) {
 	});
 
 	options_viewmodel.text_transparent_tile = shadow_tiles_load_tileset(&one_transparent_tileset, (struct shadow_tiles_load_tileset) {.bg = TEXT_BG});
-	vram_op_queue_enqueue((struct vram_op) {
+	vram_op_queue_enqueue(&(struct vram_op) {
 		.type = VRAM_QUEUE_OP_BG_MAP_FILL,
 		.map_fill = {
 			.value = {options_viewmodel.text_transparent_tile},
@@ -268,7 +268,7 @@ static union palette512 MainCB_options_fadesolid(void) {
 			border_map[BORDER_RIGHT + 32 * y] = (bg_tile_t) {options_viewmodel.border_tile + 5, false, false, BORDER_PAL};
 		}
 
-		vram_op_queue_enqueue((struct vram_op) {
+		vram_op_queue_enqueue(&(struct vram_op) {
 			.type = VRAM_QUEUE_OP_BG_MAP_FREE,
 			.map_free = {
 				.from = border_map,
@@ -352,7 +352,7 @@ static void options_update_background(void) {
 		options_viewmodel.background_move_delay = BACKGROUND_FREQUENCY;
 		options_viewmodel.background_offset.v -= 1;
 
-		vram_op_queue_enqueue((struct vram_op) {
+		vram_op_queue_enqueue(&(struct vram_op) {
 			.type = VRAM_QUEUE_OP_UINT16,
 			.uint16 = {
 				.value = options_viewmodel.background_offset.v,
@@ -383,7 +383,7 @@ static void options_process_input(void) {
 
 			const struct tileset* new_border = options_frame_get_n(options_viewmodel.values.frame_index);
 
-			vram_op_queue_enqueue((struct vram_op) {
+			vram_op_queue_enqueue(&(struct vram_op) {
 				.type = VRAM_QUEUE_OP_BG_TILES_COMPRESSED,
 				.tiles_compressed = {
 					.from = new_border->tileset,
@@ -391,7 +391,7 @@ static void options_process_input(void) {
 					.to_tile = options_viewmodel.border_tile,
 				},
 			});
-			vram_op_queue_enqueue((struct vram_op) {
+			vram_op_queue_enqueue(&(struct vram_op) {
 				.type = VRAM_QUEUE_OP_BG_PALETTES,
 				.palettes = {
 					.from = new_border->palette,

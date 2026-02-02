@@ -144,7 +144,7 @@ void shadow_oam_free_all(void) {
 		.word_count = sizeof(shadow_tiles_used) / sizeof(uint32_t),
 		.mode = CPU_SET_FILL
 	});
-	vram_op_queue_enqueue((struct vram_op) {
+	vram_op_queue_enqueue(&(struct vram_op) {
 		.type = VRAM_QUEUE_OP_DISABLE_ALL_OAM,
 	});
 }
@@ -187,7 +187,7 @@ static shadow_oam_palid_t shadow_oam_add_palette(
 			shadow_palette[pal_index].tag = paltag;
 
 			if (do_vram_op) {
-				vram_op_queue_enqueue((struct vram_op){
+				vram_op_queue_enqueue(&(struct vram_op){
 					.type = VRAM_QUEUE_OP_OAM_PALETTES,
 					.palettes = {
 						.from = palette,
@@ -238,7 +238,7 @@ static shadow_oam_tileid_t shadow_oam_add_tiles(
 			shadow_tiles[shadow_tile_index].tile_start = tile_index;
 			shadow_tiles[shadow_tile_index].tile_count = tilecount;
 
-			vram_op_queue_enqueue((struct vram_op){
+			vram_op_queue_enqueue(&(struct vram_op){
 				.type = VRAM_QUEUE_OP_OAM_TILES_COMPRESSED,
 				.tiles_compressed = {
 					.from = tiles,
@@ -366,7 +366,7 @@ void shadow_oam_remove_sprite(shadow_oam_id_t index) {
 	shadow_oam_release_palette(oam->palette_index);
 
 	oam->in_use = false;
-	vram_op_queue_enqueue((struct vram_op) {
+	vram_op_queue_enqueue(&(struct vram_op) {
 		.type = VRAM_QUEUE_OP_OAM_ENTRY,
 		.oam = {
 			.to_index = index,
@@ -436,7 +436,7 @@ void shadow_oam_move_sprite(
 	const int dx = hotspot_properties[position.hotspot].x * tilesize_properties[oam->template->shape][oam->template->size].half_width;
 	const int dy = hotspot_properties[position.hotspot].y * tilesize_properties[oam->template->shape][oam->template->size].half_height;
 
-	vram_op_queue_enqueue((struct vram_op) {
+	vram_op_queue_enqueue(&(struct vram_op) {
 		.type = VRAM_QUEUE_OP_OAM_ENTRY,
 		.oam = {
 			.to_index = index,

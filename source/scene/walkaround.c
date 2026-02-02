@@ -322,7 +322,7 @@ static union palette512 MainCB_walkaround_fadesolid(void) {
 	shadow_tiles_load_tileset(&walkaround_state.map->tileset, (struct shadow_tiles_load_tileset) {.bg = 1});
 	shadow_tiles_load_tileset(&one_transparent_tileset, (struct shadow_tiles_load_tileset) {.bg = 0});
 
-	vram_op_queue_enqueue((struct vram_op) {
+	vram_op_queue_enqueue(&(struct vram_op) {
 		.type = VRAM_QUEUE_OP_BG_MAP_FILL,
 		.map_fill = {
 			.value = {0},
@@ -362,7 +362,7 @@ static union palette512 MainCB_walkaround_fadesolid(void) {
 			}
 		}
 
-		vram_op_queue_enqueue((struct vram_op) {
+		vram_op_queue_enqueue(&(struct vram_op) {
 			.type = VRAM_QUEUE_OP_BG_MAP_FREE,
 			.map_free = {
 				.from = terrain,
@@ -388,7 +388,7 @@ static union palette512 MainCB_walkaround_fadesolid(void) {
 	walkaround_viewmodel.player.oam_id = player_oam_indexes.sprite_index;
 
 
-	vram_op_queue_enqueue((struct vram_op) {
+	vram_op_queue_enqueue(&(struct vram_op) {
 		.type = VRAM_QUEUE_OP_HWREG_BGOFSS,
 		.bgofss = {
 			.value = {{0},{0},{0},{0},},
@@ -463,7 +463,7 @@ static bool move_camera_towards(screenoffs_t target_mapoffs, int speed) {
 					}
 				}
 
-				vram_op_queue_enqueue((struct vram_op) {
+				vram_op_queue_enqueue(&(struct vram_op) {
 					.type = VRAM_QUEUE_OP_BG_MAP_COLUMN,
 					.map = {
 						.from = terrain + 32 * 5,
@@ -472,7 +472,7 @@ static bool move_camera_towards(screenoffs_t target_mapoffs, int speed) {
 						.count = 32,
 					},
 				});
-				vram_op_queue_enqueue((struct vram_op) {
+				vram_op_queue_enqueue(&(struct vram_op) {
 					.type = VRAM_QUEUE_OP_BG_MAP_COLUMN,
 					.map = {
 						.from = terrain + 32 * 4,
@@ -481,7 +481,7 @@ static bool move_camera_towards(screenoffs_t target_mapoffs, int speed) {
 						.count = 32,
 					},
 				});
-				vram_op_queue_enqueue((struct vram_op) {
+				vram_op_queue_enqueue(&(struct vram_op) {
 					.type = VRAM_QUEUE_OP_BG_MAP_COLUMN,
 					.map = {
 						.from = terrain + 32 * 3,
@@ -490,7 +490,7 @@ static bool move_camera_towards(screenoffs_t target_mapoffs, int speed) {
 						.count = 32,
 					},
 				});
-				vram_op_queue_enqueue((struct vram_op) {
+				vram_op_queue_enqueue(&(struct vram_op) {
 					.type = VRAM_QUEUE_OP_BG_MAP_COLUMN,
 					.map = {
 						.from = terrain + 32 * 2,
@@ -499,7 +499,7 @@ static bool move_camera_towards(screenoffs_t target_mapoffs, int speed) {
 						.count = 32,
 					},
 				});
-				vram_op_queue_enqueue((struct vram_op) {
+				vram_op_queue_enqueue(&(struct vram_op) {
 					.type = VRAM_QUEUE_OP_BG_MAP_COLUMN,
 					.map = {
 						.from = terrain + 32 * 1,
@@ -508,7 +508,7 @@ static bool move_camera_towards(screenoffs_t target_mapoffs, int speed) {
 						.count = 32,
 					},
 				});
-				vram_op_queue_enqueue((struct vram_op) {
+				vram_op_queue_enqueue(&(struct vram_op) {
 					.type = VRAM_QUEUE_OP_BG_MAP_COLUMN_FREE,
 					.map_free = {
 						.from = terrain,
@@ -553,7 +553,7 @@ static bool move_camera_towards(screenoffs_t target_mapoffs, int speed) {
 					}
 				}
 
-				vram_op_queue_enqueue((struct vram_op) {
+				vram_op_queue_enqueue(&(struct vram_op) {
 					.type = VRAM_QUEUE_OP_BG_MAP_COLUMN,
 					.map = {
 						.from = terrain + 32 * 5,
@@ -562,7 +562,7 @@ static bool move_camera_towards(screenoffs_t target_mapoffs, int speed) {
 						.count = 32,
 					},
 				});
-				vram_op_queue_enqueue((struct vram_op) {
+				vram_op_queue_enqueue(&(struct vram_op) {
 					.type = VRAM_QUEUE_OP_BG_MAP_COLUMN,
 					.map = {
 						.from = terrain + 32 * 4,
@@ -571,7 +571,7 @@ static bool move_camera_towards(screenoffs_t target_mapoffs, int speed) {
 						.count = 32,
 					},
 				});
-				vram_op_queue_enqueue((struct vram_op) {
+				vram_op_queue_enqueue(&(struct vram_op) {
 					.type = VRAM_QUEUE_OP_BG_MAP_COLUMN,
 					.map = {
 						.from = terrain + 32 * 3,
@@ -580,7 +580,7 @@ static bool move_camera_towards(screenoffs_t target_mapoffs, int speed) {
 						.count = 32,
 					},
 				});
-				vram_op_queue_enqueue((struct vram_op) {
+				vram_op_queue_enqueue(&(struct vram_op) {
 					.type = VRAM_QUEUE_OP_BG_MAP_COLUMN,
 					.map = {
 						.from = terrain + 32 * 2,
@@ -589,7 +589,7 @@ static bool move_camera_towards(screenoffs_t target_mapoffs, int speed) {
 						.count = 32,
 					},
 				});
-				vram_op_queue_enqueue((struct vram_op) {
+				vram_op_queue_enqueue(&(struct vram_op) {
 					.type = VRAM_QUEUE_OP_BG_MAP_COLUMN,
 					.map = {
 						.from = terrain + 32 * 1,
@@ -598,7 +598,7 @@ static bool move_camera_towards(screenoffs_t target_mapoffs, int speed) {
 						.count = 32,
 					},
 				});
-				vram_op_queue_enqueue((struct vram_op) {
+				vram_op_queue_enqueue(&(struct vram_op) {
 					.type = VRAM_QUEUE_OP_BG_MAP_COLUMN_FREE,
 					.map_free = {
 						.from = terrain,
@@ -643,7 +643,7 @@ static bool move_camera_towards(screenoffs_t target_mapoffs, int speed) {
 					}
 				}
 
-				vram_op_queue_enqueue((struct vram_op) {
+				vram_op_queue_enqueue(&(struct vram_op) {
 					.type = VRAM_QUEUE_OP_BG_MAP,
 					.map = {
 						.from = terrain + 32 * 2 * 2,
@@ -652,7 +652,7 @@ static bool move_camera_towards(screenoffs_t target_mapoffs, int speed) {
 						.count = 32 * 2,
 					},
 				});
-				vram_op_queue_enqueue((struct vram_op) {
+				vram_op_queue_enqueue(&(struct vram_op) {
 					.type = VRAM_QUEUE_OP_BG_MAP,
 					.map = {
 						.from = terrain + 32 * 2,
@@ -661,7 +661,7 @@ static bool move_camera_towards(screenoffs_t target_mapoffs, int speed) {
 						.count = 32 * 2,
 					},
 				});
-				vram_op_queue_enqueue((struct vram_op) {
+				vram_op_queue_enqueue(&(struct vram_op) {
 					.type = VRAM_QUEUE_OP_BG_MAP_FREE,
 					.map_free = {
 						.from = terrain,
@@ -706,7 +706,7 @@ static bool move_camera_towards(screenoffs_t target_mapoffs, int speed) {
 					}
 				}
 
-				vram_op_queue_enqueue((struct vram_op) {
+				vram_op_queue_enqueue(&(struct vram_op) {
 					.type = VRAM_QUEUE_OP_BG_MAP,
 					.map = {
 						.from = terrain + 32 * 2 * 2,
@@ -715,7 +715,7 @@ static bool move_camera_towards(screenoffs_t target_mapoffs, int speed) {
 						.count = 32 * 2,
 					},
 				});
-				vram_op_queue_enqueue((struct vram_op) {
+				vram_op_queue_enqueue(&(struct vram_op) {
 					.type = VRAM_QUEUE_OP_BG_MAP,
 					.map = {
 						.from = terrain + 32 * 2,
@@ -724,7 +724,7 @@ static bool move_camera_towards(screenoffs_t target_mapoffs, int speed) {
 						.count = 32 * 2,
 					},
 				});
-				vram_op_queue_enqueue((struct vram_op) {
+				vram_op_queue_enqueue(&(struct vram_op) {
 					.type = VRAM_QUEUE_OP_BG_MAP_FREE,
 					.map_free = {
 						.from = terrain,
@@ -743,7 +743,7 @@ static bool move_camera_towards(screenoffs_t target_mapoffs, int speed) {
 			.h = walkaround_viewmodel.camera.bgofs.h,
 			.v = walkaround_viewmodel.camera.bgofs.v,
 		};
-		vram_op_queue_enqueue((struct vram_op) {
+		vram_op_queue_enqueue(&(struct vram_op) {
 			.type = VRAM_QUEUE_OP_HWREG_BGOFSS,
 			.bgofss = {
 				.value = {{0},bgofs,bgofs,bgofs,},
@@ -1063,7 +1063,7 @@ static void open_start_menu(void) {
 	walkaround_viewmodel.start_menu.border_tile_start =
 		shadow_tiles_load_tileset(dialog_frame, (struct shadow_tiles_load_tileset) {.bg = 0});
 
-	vram_op_queue_enqueue((struct vram_op) {
+	vram_op_queue_enqueue(&(struct vram_op) {
 		.type = VRAM_QUEUE_OP_BG_PALETTES,
 		.palettes = {
 			.from = dialog_frame->palette,
@@ -1071,7 +1071,7 @@ static void open_start_menu(void) {
 			.count = 1,
 		},
 	});
-	vram_op_queue_enqueue((struct vram_op) {
+	vram_op_queue_enqueue(&(struct vram_op) {
 		.type = VRAM_QUEUE_OP_BG_PALETTES,
 		.palettes = {
 			.from = &ansi_text_palette,
@@ -1098,7 +1098,7 @@ static void close_start_menu(void) {
 
 	walkaround_viewmodel.start_menu.is_open = false;
 
-	vram_op_queue_enqueue((struct vram_op) {
+	vram_op_queue_enqueue(&(struct vram_op) {
 		.type = VRAM_QUEUE_OP_BG_MAP_FILL,
 		.map_fill = {
 			.value = {0},

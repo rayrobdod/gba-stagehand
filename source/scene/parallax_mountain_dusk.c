@@ -139,7 +139,7 @@ static void MainCB_parallaxMountainDusk_initFadeOut(void) {
 static void MainCB_parallaxMountainDusk_initFadeSolid(void) {
 	view_model = calloc(sizeof(view_model[0]), 1);
 
-	vram_op_queue_enqueue((struct vram_op) {
+	vram_op_queue_enqueue(&(struct vram_op) {
 		.type = VRAM_QUEUE_OP_HWREG_DISPCNT,
 		.dispcnt = {
 			.value = (dispcnt_t) {0}
@@ -147,7 +147,7 @@ static void MainCB_parallaxMountainDusk_initFadeSolid(void) {
 	});
 
 	for (int i = 0; i < 4; i++) {
-		vram_op_queue_enqueue((struct vram_op) {
+		vram_op_queue_enqueue(&(struct vram_op) {
 			.type = VRAM_QUEUE_OP_HWREG_BGCNT,
 			.bgcnt = {
 				.value = my_bgcnts[i],
@@ -159,7 +159,7 @@ static void MainCB_parallaxMountainDusk_initFadeSolid(void) {
 	bg_tile_t* map_bg = malloc(divceilmul(parallax_mountain_dusk_bg.tilemap->size, sizeof(bg_tile_t)));
 	if (!map_bg) {
 		MgbaPrintf(MGBA_LOG_ERROR, "Out of memory: parallaxMountainDusk map_bg");
-		vram_op_queue_enqueue((struct vram_op) {
+		vram_op_queue_enqueue(&(struct vram_op) {
 			.type = VRAM_QUEUE_OP_BG_MAP_COMPRESSED,
 			.map_compressed = {
 				.from = parallax_mountain_dusk_bg.tilemap,
@@ -170,7 +170,7 @@ static void MainCB_parallaxMountainDusk_initFadeSolid(void) {
 	} else {
 		HeaderUnCompWram(parallax_mountain_dusk_bg.tilemap, map_bg);
 
-		vram_op_queue_enqueue((struct vram_op) {
+		vram_op_queue_enqueue(&(struct vram_op) {
 			.type = VRAM_QUEUE_OP_BG_MAP_FREE,
 			.map_free = {
 				.from = map_bg,
@@ -181,7 +181,7 @@ static void MainCB_parallaxMountainDusk_initFadeSolid(void) {
 		});
        }
 
-	vram_op_queue_enqueue((struct vram_op) {
+	vram_op_queue_enqueue(&(struct vram_op) {
 		.type = VRAM_QUEUE_OP_HWREG_BGOFSS,
 		.bgofss = {
 			.value = {
@@ -193,7 +193,7 @@ static void MainCB_parallaxMountainDusk_initFadeSolid(void) {
 		},
 	});
 
-	vram_op_queue_enqueue((struct vram_op) {
+	vram_op_queue_enqueue(&(struct vram_op) {
 		.type = VRAM_QUEUE_OP_BG_TILES_FREE,
 		.tiles_free = {
 			.from = decompress_bg_tileset_buffer,
@@ -204,7 +204,7 @@ static void MainCB_parallaxMountainDusk_initFadeSolid(void) {
 	});
 	decompress_bg_tileset_buffer = NULL;
 
-	vram_op_queue_enqueue((struct vram_op) {
+	vram_op_queue_enqueue(&(struct vram_op) {
 		.type = VRAM_QUEUE_OP_OAM_TILES_FREE,
 		.tiles_free = {
 			.from = decompress_oam_tileset_buffer,
@@ -217,7 +217,7 @@ static void MainCB_parallaxMountainDusk_initFadeSolid(void) {
 
 	unsigned transparent_tile_index = parallax_mountain_dusk_bg.tileset_count;
 
-	vram_op_queue_enqueue((struct vram_op) {
+	vram_op_queue_enqueue(&(struct vram_op) {
 		.type = VRAM_QUEUE_OP_BG_TILES_FILL,
 		.tiles_fill = {
 			.value = 0,
@@ -269,7 +269,7 @@ static void MainCB_parallaxMountainDusk_initFadeSolid(void) {
 		}
 	}
 
-	vram_op_queue_enqueue((struct vram_op) {
+	vram_op_queue_enqueue(&(struct vram_op) {
 		.type = VRAM_QUEUE_OP_BG_MAP_FREE,
 		.map_free = {
 			.from = map_far,
@@ -279,7 +279,7 @@ static void MainCB_parallaxMountainDusk_initFadeSolid(void) {
 		},
 	});
 
-	vram_op_queue_enqueue((struct vram_op) {
+	vram_op_queue_enqueue(&(struct vram_op) {
 		.type = VRAM_QUEUE_OP_BG_MAP_FREE,
 		.map_free = {
 			.from = map_mountains,
@@ -289,7 +289,7 @@ static void MainCB_parallaxMountainDusk_initFadeSolid(void) {
 		},
 	});
 
-	vram_op_queue_enqueue((struct vram_op) {
+	vram_op_queue_enqueue(&(struct vram_op) {
 		.type = VRAM_QUEUE_OP_BG_MAP_FREE,
 		.map_free = {
 			.from = map_trees,
@@ -299,11 +299,11 @@ static void MainCB_parallaxMountainDusk_initFadeSolid(void) {
 		},
 	});
 
-	vram_op_queue_enqueue((struct vram_op) {
+	vram_op_queue_enqueue(&(struct vram_op) {
 		.type = VRAM_QUEUE_OP_DISABLE_ALL_OAM,
 	});
 
-	vram_op_queue_enqueue((struct vram_op) {
+	vram_op_queue_enqueue(&(struct vram_op) {
 		.type = VRAM_QUEUE_OP_HWREG_DISPCNT,
 		.dispcnt = {
 			.value = (dispcnt_t) {
@@ -349,7 +349,7 @@ static void MainCB_parallaxMountainDusk_initFadeIn(void) {
 
 static void advance_layer(struct parallax_layer* layer, const struct background_horizontal_scroll* gfx, unsigned top_row, uint16_t screenblock, volatile uint16_t* hofsreg) {
 	layer->hardware_offset++;
-	vram_op_queue_enqueue((struct vram_op) {
+	vram_op_queue_enqueue(&(struct vram_op) {
 		.type = VRAM_QUEUE_OP_UINT16,
 		.uint16 = {
 			.value = layer->hardware_offset,
@@ -358,7 +358,7 @@ static void advance_layer(struct parallax_layer* layer, const struct background_
 	});
 
 	if (layer->hardware_offset % 8 == 0) {
-		vram_op_queue_enqueue((struct vram_op) {
+		vram_op_queue_enqueue(&(struct vram_op) {
 			.type = VRAM_QUEUE_OP_BG_MAP_COLUMN,
 			.map = {
 				.from = gfx->tilemap +
@@ -437,7 +437,7 @@ void MainCB_parallaxMountainDusk_main(void) {
 			}
 		}
 		if (view_model->foreground_trees[i].enabled) {
-			vram_op_queue_enqueue((struct vram_op) {
+			vram_op_queue_enqueue(&(struct vram_op) {
 				.type = VRAM_QUEUE_OP_OAM_ENTRY,
 				.oam = {
 					.value = {

@@ -73,7 +73,7 @@ static inline void shadow_vram_reserve_screenblock(bgcnt_t cnt) {
 void shadow_vram_init(const struct shadow_vram_init* args) {
 	shadow_vram_free_all();
 
-	vram_op_queue_enqueue((struct vram_op) {
+	vram_op_queue_enqueue(&(struct vram_op) {
 		.type = VRAM_QUEUE_OP_HWREG_DISPCNT,
 		.dispcnt = {
 			.value = (dispcnt_t) {
@@ -91,7 +91,7 @@ void shadow_vram_init(const struct shadow_vram_init* args) {
 	for (int i = 0; i < 4; i++) {
 		if (args->enable_bg[i]) {
 			shadow_vram_reserve_screenblock(args->bgcnt[i]);
-			vram_op_queue_enqueue((struct vram_op) {
+			vram_op_queue_enqueue(&(struct vram_op) {
 				.type = VRAM_QUEUE_OP_HWREG_BGCNT,
 				.bgcnt = {
 					.value = args->bgcnt[i],
@@ -201,7 +201,7 @@ void shadow_tiles_window_queue_map(window_id_t id) {
 			buffer[i] = bg_tile_id;
 			++bg_tile_id;
 		}
-		vram_op_queue_enqueue((struct vram_op){
+		vram_op_queue_enqueue(&(struct vram_op){
 			.type = VRAM_QUEUE_OP_BG_MAP_FREE,
 			.map_free = {
 				.from = (bg_tile_t *) buffer,
@@ -234,7 +234,7 @@ void shadow_tiles_window_queue_map_with_border(window_id_t id, unsigned border_t
 			buffer[i + 1] = (border_tile_start + 1) | (border_palette << 12);
 		}
 		buffer[width + 1] = (border_tile_start + 2) | (border_palette << 12);
-		vram_op_queue_enqueue((struct vram_op){
+		vram_op_queue_enqueue(&(struct vram_op){
 			.type = VRAM_QUEUE_OP_BG_MAP_FREE,
 			.map_free = {
 				.from = (bg_tile_t *) buffer,
@@ -253,7 +253,7 @@ void shadow_tiles_window_queue_map_with_border(window_id_t id, unsigned border_t
 			++bg_tile_id;
 		}
 		buffer[width + 1] = (border_tile_start + 5) | (border_palette << 12);
-		vram_op_queue_enqueue((struct vram_op){
+		vram_op_queue_enqueue(&(struct vram_op){
 			.type = VRAM_QUEUE_OP_BG_MAP_FREE,
 			.map_free = {
 				.from = (bg_tile_t *) buffer,
@@ -271,7 +271,7 @@ void shadow_tiles_window_queue_map_with_border(window_id_t id, unsigned border_t
 			buffer[i + 1] = (border_tile_start + 7) | (border_palette << 12);
 		}
 		buffer[width + 1] = (border_tile_start + 8) | (border_palette << 12);
-		vram_op_queue_enqueue((struct vram_op){
+		vram_op_queue_enqueue(&(struct vram_op){
 			.type = VRAM_QUEUE_OP_BG_MAP_FREE,
 			.map_free = {
 				.from = (bg_tile_t *) buffer,
@@ -290,7 +290,7 @@ void shadow_tiles_window_queue_tiles(window_id_t id, const tile_4bpp_t* data) {
 	const unsigned bg_tile_id = windows[id].bg_tile_start;
 	const unsigned area = windows[id].args.width * windows[id].args.height;
 
-	vram_op_queue_enqueue((struct vram_op){
+	vram_op_queue_enqueue(&(struct vram_op){
 		.type = VRAM_QUEUE_OP_BG_TILES,
 		.tiles = {
 			.from = data,
@@ -308,7 +308,7 @@ void shadow_tiles_window_queue_tiles_free(window_id_t id, tile_4bpp_t* data) {
 	const unsigned bg_tile_id = windows[id].bg_tile_start;
 	const unsigned area = windows[id].args.width * windows[id].args.height;
 
-	vram_op_queue_enqueue((struct vram_op){
+	vram_op_queue_enqueue(&(struct vram_op){
 		.type = VRAM_QUEUE_OP_BG_TILES_FREE,
 		.tiles_free = {
 			.from = data,
@@ -324,7 +324,7 @@ int shadow_tiles_load_tileset(const struct tileset* data, struct shadow_tiles_lo
 		return -1;
 	}
 
-	vram_op_queue_enqueue((struct vram_op) {
+	vram_op_queue_enqueue(&(struct vram_op) {
 		.type = VRAM_QUEUE_OP_BG_TILES_COMPRESSED,
 		.tiles_compressed = {
 			.from = data->tileset,
@@ -349,7 +349,7 @@ bool shadow_tiles_load_tileset_fixed(unsigned bg, unsigned start, unsigned count
 		shadow_tiles_used[i] = true;
 	}
 
-	vram_op_queue_enqueue((struct vram_op) {
+	vram_op_queue_enqueue(&(struct vram_op) {
 		.type = VRAM_QUEUE_OP_BG_TILES,
 		.tiles = {
 			.from = tileset,
@@ -372,7 +372,7 @@ bool shadow_tiles_load_tileset_fixed_compressed(unsigned bg, unsigned start, uns
 		shadow_tiles_used[i] = true;
 	}
 
-	vram_op_queue_enqueue((struct vram_op) {
+	vram_op_queue_enqueue(&(struct vram_op) {
 		.type = VRAM_QUEUE_OP_BG_TILES_COMPRESSED,
 		.tiles_compressed = {
 			.from = tileset,
@@ -393,7 +393,7 @@ bool shadow_tiles_load_background(const struct background* data, struct shadow_t
 		return false;
 	}
 
-	vram_op_queue_enqueue((struct vram_op) {
+	vram_op_queue_enqueue(&(struct vram_op) {
 		.type = VRAM_QUEUE_OP_BG_PALETTES,
 		.palettes = {
 			.from = data->palette,
@@ -402,7 +402,7 @@ bool shadow_tiles_load_background(const struct background* data, struct shadow_t
 		},
 	});
 
-	vram_op_queue_enqueue((struct vram_op) {
+	vram_op_queue_enqueue(&(struct vram_op) {
 		.type = VRAM_QUEUE_OP_BG_MAP_COMPRESSED,
 		.map_compressed = {
 			.from = data->tilemap,

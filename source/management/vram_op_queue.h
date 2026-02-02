@@ -140,6 +140,6 @@ struct vram_op {
 };
 
 void vram_op_queue_execute(void);
-void vram_op_queue_enqueue(const struct vram_op new_op);
+void vram_op_queue_enqueue(const struct vram_op* new_op);
 
 #endif //  #ifndef VRAM_OP_QUEUE_H

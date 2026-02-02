@@ -206,9 +206,9 @@ void vram_op_queue_execute(void) {
 	vram_op_queue_count = 0;
 }
 
-void vram_op_queue_enqueue(const struct vram_op new_op) {
+void vram_op_queue_enqueue(const struct vram_op* const new_op) {
 	if (vram_op_queue_count < VRAM_OP_QUEUE_CAPACITY) {
-		vram_op_queue[vram_op_queue_count] = new_op;
+		vram_op_queue[vram_op_queue_count] = *new_op;
 		vram_op_queue_count++;
 	} else {
 		MgbaPrintf(MGBA_LOG_ERROR, "VRAM Queue exhausted");

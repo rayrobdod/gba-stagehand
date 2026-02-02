@@ -196,7 +196,7 @@ void MainCB_brickBreak_init(void) {
 		&brickbreak_background,
 		(struct shadow_tiles_load_background){.bg = 0});
 
-	vram_op_queue_enqueue((struct vram_op) {
+	vram_op_queue_enqueue(&(struct vram_op) {
 		.type = VRAM_QUEUE_OP_BG_PALETTES,
 		.palettes = {
 			.from = &text_pal,
@@ -207,7 +207,7 @@ void MainCB_brickBreak_init(void) {
 
 	zero_tile_ref = (bg_tile_t) {.tile = shadow_tiles_load_tileset(&one_transparent_tileset, (struct shadow_tiles_load_tileset) {3})};
 
-	vram_op_queue_enqueue((struct vram_op) {
+	vram_op_queue_enqueue(&(struct vram_op) {
 		.type = VRAM_QUEUE_OP_BG_MAP_FILL,
 		.map_fill = {
 			.value = zero_tile_ref,

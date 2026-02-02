@@ -116,7 +116,7 @@ static void gen_window_border(void) {
 
 	#undef TILE
 
-	vram_op_queue_enqueue((struct vram_op) {
+	vram_op_queue_enqueue(&(struct vram_op) {
 		.type = VRAM_QUEUE_OP_BG_MAP_FREE,
 		.map_free = {
 			.from = map,
@@ -138,7 +138,7 @@ void MainCB_textPrintStep_init(void) {
 
 	const struct tileset* frame = options_frame_get();
 
-	vram_op_queue_enqueue((struct vram_op) {
+	vram_op_queue_enqueue(&(struct vram_op) {
 		.type = VRAM_QUEUE_OP_BG_PALETTES,
 		.palettes = {
 			.from = frame->palette,
@@ -153,7 +153,7 @@ void MainCB_textPrintStep_init(void) {
 
 	gen_window_border();
 
-	vram_op_queue_enqueue((struct vram_op) {
+	vram_op_queue_enqueue(&(struct vram_op) {
 		.type = VRAM_QUEUE_OP_BG_MAP_FILL,
 		.map_fill = {
 			.value = view_model->zero_tile_ref,
@@ -163,7 +163,7 @@ void MainCB_textPrintStep_init(void) {
 		},
 	});
 
-	vram_op_queue_enqueue((struct vram_op) {
+	vram_op_queue_enqueue(&(struct vram_op) {
 		.type = VRAM_QUEUE_OP_BG_PALETTES,
 		.palettes = {
 			.from = &ansi_text_palette,

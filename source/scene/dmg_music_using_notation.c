@@ -417,14 +417,14 @@ void MainCB_dmgMusicUsingNotation_init(void) {
 
 	shadow_vram_init(&brick_break_reg);
 
-	vram_op_queue_enqueue((struct vram_op) {
+	vram_op_queue_enqueue(&(struct vram_op) {
 			.type = VRAM_QUEUE_OP_DISABLE_ALL_OAM,
 	});
 	shadow_tiles_load_background(
 		&music_sheet_background,
 		(struct shadow_tiles_load_background){.bg = 0});
 
-	vram_op_queue_enqueue((struct vram_op) {
+	vram_op_queue_enqueue(&(struct vram_op) {
 			.type = VRAM_QUEUE_OP_OAM_TILES_COMPRESSED,
 			.tiles_compressed = {
 				.from = music_sheet_notes.tileset,
@@ -432,7 +432,7 @@ void MainCB_dmgMusicUsingNotation_init(void) {
 				.to_tile = 0,
 			}
 	});
-	vram_op_queue_enqueue((struct vram_op) {
+	vram_op_queue_enqueue(&(struct vram_op) {
 			.type = VRAM_QUEUE_OP_OAM_PALETTES,
 			.palettes = {
 				.from = music_sheet_notes.palette,
@@ -441,7 +441,7 @@ void MainCB_dmgMusicUsingNotation_init(void) {
 			}
 	});
 
-	vram_op_queue_enqueue((struct vram_op) {
+	vram_op_queue_enqueue(&(struct vram_op) {
 		.type = VRAM_QUEUE_OP_BG_PALETTES,
 		.palettes = {
 			.from = &text_pal,
@@ -452,7 +452,7 @@ void MainCB_dmgMusicUsingNotation_init(void) {
 
 	bg_tile_t zero_tile_ref = (bg_tile_t) {.tile = shadow_tiles_load_tileset(&one_transparent_tileset, (struct shadow_tiles_load_tileset) {3})};
 
-	vram_op_queue_enqueue((struct vram_op) {
+	vram_op_queue_enqueue(&(struct vram_op) {
 		.type = VRAM_QUEUE_OP_BG_MAP_FILL,
 		.map_fill = {
 			.value = zero_tile_ref,
@@ -675,7 +675,7 @@ static unsigned draw_note(unsigned sprite_start, struct note note, unsigned x) {
 
 	for (unsigned part_i = 0; part_i < NOTE_SYMBOL_MAX_PLUS_ONE; part_i++) {
 		if (my_note_symbols & (1 << part_i)) {
-			vram_op_queue_enqueue((struct vram_op) {
+			vram_op_queue_enqueue(&(struct vram_op) {
 				.type = VRAM_QUEUE_OP_OAM_ENTRY,
 				.oam = {
 					.to_index = sprite_i++,
@@ -701,7 +701,7 @@ static unsigned draw_note(unsigned sprite_start, struct note note, unsigned x) {
 }
 
 static void draw_measure(enum note_length measure_length, const struct note* const measure[CHANNEL_COUNT]) {
-	vram_op_queue_enqueue((struct vram_op) {
+	vram_op_queue_enqueue(&(struct vram_op) {
 			.type = VRAM_QUEUE_OP_DISABLE_ALL_OAM,
 	});
 

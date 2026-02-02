@@ -112,7 +112,7 @@ static void ChangeScene_options_for_mainmenu(void (*fadeCb)(void)) {
 void MainCB_mainMenu_init(void) {
 	shadow_oam_free_all();
 
-	vram_op_queue_enqueue((struct vram_op) {
+	vram_op_queue_enqueue(&(struct vram_op) {
 		.type = VRAM_QUEUE_OP_HWREG_DISPCNT,
 		.dispcnt = {
 			.value = (dispcnt_t) {
@@ -124,14 +124,14 @@ void MainCB_mainMenu_init(void) {
 		},
 	});
 
-	vram_op_queue_enqueue((struct vram_op) {
+	vram_op_queue_enqueue(&(struct vram_op) {
 		.type = VRAM_QUEUE_OP_HWREG_BGOFSS,
 		.bgofss = {
 			.value = {{0},{0},{0},{0},},
 		},
 	});
 
-	vram_op_queue_enqueue((struct vram_op) {
+	vram_op_queue_enqueue(&(struct vram_op) {
 		.type = VRAM_QUEUE_OP_HWREG_BGCNT,
 		.bgcnt = {
 			.value = (bgcnt_t) {
@@ -143,7 +143,7 @@ void MainCB_mainMenu_init(void) {
 		}
 	});
 
-	vram_op_queue_enqueue((struct vram_op) {
+	vram_op_queue_enqueue(&(struct vram_op) {
 		.type = VRAM_QUEUE_OP_BG_TILES_BITUNPACK,
 		.tiles_bitunpack = {
 			oldschool.data,
@@ -156,7 +156,7 @@ void MainCB_mainMenu_init(void) {
 			}
 		}
 	});
-	vram_op_queue_enqueue((struct vram_op) {
+	vram_op_queue_enqueue(&(struct vram_op) {
 		.type = VRAM_QUEUE_OP_BG_PALETTES,
 		.palettes = {
 			&mono_pal,
@@ -187,7 +187,7 @@ void MainCB_mainMenu_init(void) {
 
 		MgbaPrintf(MGBA_LOG_DEBUG, "sizeof(struct vram_op) = %d", sizeof(struct vram_op));
 
-		vram_op_queue_enqueue((struct vram_op){
+		vram_op_queue_enqueue(&(struct vram_op){
 			.type = VRAM_QUEUE_OP_BG_MAP_FREE,
 			.map_free = {
 				.from = tilemap_buffer,
