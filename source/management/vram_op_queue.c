@@ -53,6 +53,15 @@ static void vram_op_queue_execute_1(struct vram_op* entry) {
 				.mode = CPU_SET_COPY,
 			});
 		break;
+	case VRAM_QUEUE_OP_OAM_TILES_FREE:
+		CpuFastSet(
+			entry->tiles.from,
+			&vram.obj_charblock[entry->tiles.to_block][entry->tiles.to_tile],
+			(struct CpuFastSet){
+				.word_count = entry->tiles.count * (sizeof(tile_4bpp_t) / sizeof(uint32_t)),
+				.mode = CPU_SET_COPY,
+			});
+		break;
 	case VRAM_QUEUE_OP_OAM_TILES_COMPRESSED:
 		HeaderUnCompVram(
 			entry->tiles_compressed.from,

@@ -42,6 +42,8 @@ enum vram_queue_op_type {
 	VRAM_QUEUE_OP_OAM_PALETTES,
 	/** .tiles */
 	VRAM_QUEUE_OP_OAM_TILES,
+	/** .tiles_free ; becomes the owner of `.from` and will free `.from` */
+	VRAM_QUEUE_OP_OAM_TILES_FREE,
 	/** .tiles_compressed */
 	VRAM_QUEUE_OP_OAM_TILES_COMPRESSED,
 	/** .oam */
