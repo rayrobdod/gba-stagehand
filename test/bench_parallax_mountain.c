@@ -6,6 +6,8 @@
 #include "management/keyinput.h"
 #include "gba/bios.h"
 #include "management/vram_op_queue.h"
+#include "transition/cut.h"
+#include "transition/palette_fade.h"
 #include "benchmarks.h"
 #include "main.h"
 #include "mgba.h"
@@ -14,15 +16,21 @@ static unsigned total;
 static unsigned failed;
 
 MainCallback scene_onframe_callback;
-void MainCB_parallaxMountainDusk_main(void);
 
-void MainCB_mainMenu_init(void) {
-	MgbaPrintf(MGBA_LOG_INFO, "ENTER: MainCB_mainMenu_init");
+void transitionTargetCbs_mainMenu_initFadeOut(void) {
+	MgbaPrintf(MGBA_LOG_INFO, "ENTER: transitionTargetCbs_mainMenu");
 	asm(
 		"movs	r0,	#1\n\t"
 		"swi	#0x00"
 	);
 }
+const struct transitionTargetCallbacks transitionTargetCbs_mainMenu = {
+	transitionTargetCbs_mainMenu_initFadeOut,
+	NULL,
+	NULL,
+	NULL,
+	NULL,
+};
 
 void setUp(void){}
 void tearDown(void){}
@@ -34,9 +42,12 @@ static void run_parallaxMountainDusk_initialization_benchmark() {
 	unsigned frameNo = 0;
 	MgbaPrintf(MGBA_LOG_INFO, "parallaxMountainDusk: \033[44mBENCH\033[0m");
 
-	ChangeScene_parallaxMountainDusk(fadeCb);
+	StartTransition(
+		&transition_paletteFade__21_13_17,
+		&(struct transitionSourceCallbacks) {0},
+		&transitionTargetCbs_parallaxMountainDusk);
 
-	while (MainCB_parallaxMountainDusk_main != scene_onframe_callback) {
+	while (transitionTargetCbs_parallaxMountainDusk.target != scene_onframe_callback) {
 		VBlankIntrWait();
 
 		benchmark_start();

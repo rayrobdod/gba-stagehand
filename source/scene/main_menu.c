@@ -6,6 +6,7 @@
 #include "gba/screen.h"
 #include "management/keyinput.h"
 #include "management/shadow_oam.h"
+#include "management/transition.h"
 #include "management/vram_op_queue.h"
 #include "scene/brick_break.h"
 #include "scene/dmg_music_using_notation.h"
@@ -17,6 +18,7 @@
 #include "scene/text_print_profile.h"
 #include "scene/text_print_step.h"
 #include "scene/walkaround.h"
+#include "transition/palette_fade.h"
 #include "utils/arraycount.h"
 #include "utils/saturating_add.h"
 #include "graphics.h"
@@ -24,13 +26,15 @@
 #include "main.h"
 #include "mgba.h"
 
+union palette512 InitFadeIn_mainMenu(void);
 static void MainCB_mainMenu_main(void);
+static void MainCB_load(void);
 static void FadeCB_mainMenu(void);
 static void ChangeScene_options_for_mainmenu(void (*fadeCb)(void));
 
 //
 
-const MainCallback initial_scene_onframe_callback = MainCB_mainMenu_init;
+const MainCallback initial_scene_onframe_callback = MainCB_load;
 
 // model
 static uint8_t selection = 0;
@@ -42,10 +46,23 @@ static shadow_oam_id_t spriteid_arrow = 0;
 //
 static const unsigned TILEMAP_BUFFER_COUNT = 32 * 20;
 
+static const struct transitionSourceCallbacks transitionSourceCbs_mainMenu = {
+	.fadeOut = FadeCB_mainMenu,
+};
+const struct transitionTargetCallbacks transitionTargetCbs_mainMenu = {
+	.initFadeOut = NULL,
+	.fadeOut = NULL,
+	.initFadeIn = InitFadeIn_mainMenu,
+	.fadeIn = FadeCB_mainMenu,
+	.target = MainCB_mainMenu_main,
+};
+
 static const struct {
 	char* label;
 	MainCallback cb;
 	void (*startFn)(void (*fadeCb)(void));
+	const struct transition* transition;
+	const struct transitionTargetCallbacks* transitionCbs;
 } menu_options[] = {
 	{
 		.label = "Brick Break",
@@ -69,7 +86,8 @@ static const struct {
 	},
 	{
 		.label = "Parallax Mountain Dusk",
-		.startFn = &ChangeScene_parallaxMountainDusk,
+		.transition = &transition_paletteFade__21_13_17,
+		.transitionCbs = &transitionTargetCbs_parallaxMountainDusk,
 	},
 	{
 		.label = "DMG Music",
@@ -98,8 +116,6 @@ static void print_to_tilemap(bg_tile_t* buffer, unsigned x, unsigned y, char* me
 	}
 }
 
-static const palette16_t mono_pal = {{31,31,31}, {0,0,0}};
-
 static void ChangeScene_mainmenu([[maybe_unused]] void (*_fadeCb)(void)) {
 	scene_onframe_callback = &MainCB_mainMenu_init;
 }
@@ -108,8 +124,17 @@ static void ChangeScene_options_for_mainmenu(void (*fadeCb)(void)) {
 	ChangeScene_options(fadeCb, &ChangeScene_mainmenu);
 }
 
+static void MainCB_load(void) {
+	StartTransition(
+		&transition_cut,
+		&(struct transitionSourceCallbacks) {0},
+		&transitionTargetCbs_mainMenu);
+}
 
-void MainCB_mainMenu_init(void) {
+union palette512 InitFadeIn_mainMenu(void) {
+	union palette512 retval = {0};
+	retval.background._4[0][0] = rgb(31,31,31);
+
 	shadow_oam_free_all();
 
 	vram_op_queue_enqueue(&(struct vram_op) {
@@ -156,21 +181,15 @@ void MainCB_mainMenu_init(void) {
 			}
 		}
 	});
-	vram_op_queue_enqueue(&(struct vram_op) {
-		.type = VRAM_QUEUE_OP_BG_PALETTES,
-		.palettes = {
-			&mono_pal,
-			0,
-			1,
-		}
-	});
 
-	spriteid_arrow = shadow_oam_add_sprite(
+	struct shadow_oam_add_sprite_no_palette_vram_op spritedata_arrow = shadow_oam_add_sprite_no_palette_vram_op(
 		&arrow_right,
 		(struct shadow_oam_position) {
 			.coord = (ucoords16_t) {.x = 0, .y = DISPLAY_HEIGHT},
 			.hotspot = HOTSPOT_RIGHT,
 		});
+	spriteid_arrow = spritedata_arrow.sprite_index;
+	memcpy(retval.object._4[spritedata_arrow.palette_index], arrow_right.palette, sizeof(rgb_t) * 16);
 
 	bg_tile_t* tilemap_buffer = malloc(TILEMAP_BUFFER_COUNT * sizeof(bg_tile_t));
 	if (tilemap_buffer) {
@@ -199,7 +218,7 @@ void MainCB_mainMenu_init(void) {
 		MgbaPrintf(MGBA_LOG_ERROR, "Did not allocate main_menu's tilemap_buffer");
 	}
 
-	scene_onframe_callback = &MainCB_mainMenu_main;
+	return retval;
 }
 
 static void redraw_arrow(void) {
@@ -230,6 +249,12 @@ static void MainCB_mainMenu_main(void) {
 
 	if (! keyinput_get_new().a) {
 		if (selection < arraycount(menu_options)) {
+			if (menu_options[selection].transition && menu_options[selection].transitionCbs) {
+			StartTransition(
+				menu_options[selection].transition,
+				&transitionSourceCbs_mainMenu,
+				menu_options[selection].transitionCbs);
+			} else
 			if (menu_options[selection].startFn) {
 				menu_options[selection].startFn(FadeCB_mainMenu);
 			} else

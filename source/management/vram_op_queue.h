@@ -16,6 +16,8 @@ enum vram_queue_op_type {
 	VRAM_QUEUE_OP_DISABLE_ALL_OAM,
 	/** .palettes */
 	VRAM_QUEUE_OP_BG_PALETTES,
+	/** .palettes_free */
+	VRAM_QUEUE_OP_BG_PALETTES_FREE,
 	/** .tiles */
 	VRAM_QUEUE_OP_BG_TILES,
 	/** .tiles_free ; becomes the owner of `.from` and will free `.from` */
@@ -66,6 +68,11 @@ struct vram_op {
 			uint16_t to_palette;
 			uint16_t count;
 		} palettes;
+		struct {
+			palette16_t* from;
+			uint16_t to_palette;
+			uint16_t count;
+		} palettes_free;
 		struct {
 			const tile_4bpp_t* from;
 			uint16_t to_block;
