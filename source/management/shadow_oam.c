@@ -273,6 +273,22 @@ void shadow_oam_preload_sprite(
 	shadow_oam_add_tiles(template->tiletag, template->tiles, tilecount);
 }
 
+void shadow_oam_preload_sprite_no_palette_vram_op(
+	union palette512* palette,
+	const struct shadow_oam_template* template) {
+	shadow_oam_palid_t pal_index =
+		shadow_oam_add_palette(template->paltag, template->palette, false);
+	const unsigned tilecount = tilesize_properties[template->shape][template->size].tilecount;
+	shadow_oam_add_tiles(template->tiletag, template->tiles, tilecount);
+	if (palette) {
+		CpuFastCopy(
+			template->palette,
+			palette->object._4[pal_index],
+			sizeof(palette16_t) / sizeof(uint32_t));
+	}
+
+}
+
 shadow_oam_id_t shadow_oam_add_sprite(
 	const struct shadow_oam_template* template,
 	const struct shadow_oam_position position) {
@@ -314,14 +330,14 @@ shadow_oam_id_t shadow_oam_add_sprite(
 	return shadow_oam_index;
 }
 
-struct shadow_oam_add_sprite_no_palette_vram_op shadow_oam_add_sprite_no_palette_vram_op(
+shadow_oam_id_t shadow_oam_add_sprite_no_palette_vram_op(
+	union palette512* palette,
 	const struct shadow_oam_template* template,
 	const struct shadow_oam_position position) {
 	shadow_oam_palid_t pal_index =
 		shadow_oam_add_palette(template->paltag, template->palette, false);
 	if (pal_index == shadow_palid_invalid) {
-		return (struct shadow_oam_add_sprite_no_palette_vram_op)
-				{shadow_id_invalid, shadow_palid_invalid};
+		return shadow_id_invalid;
 	}
 
 	const unsigned tilecount = tilesize_properties[template->shape][template->size].tilecount;
@@ -329,8 +345,7 @@ struct shadow_oam_add_sprite_no_palette_vram_op shadow_oam_add_sprite_no_palette
 		shadow_oam_add_tiles(template->tiletag, template->tiles, tilecount);
 
 	if (shadow_tile_index == shadow_tileid_invalid) {
-		return (struct shadow_oam_add_sprite_no_palette_vram_op)
-				{shadow_id_invalid, shadow_palid_invalid};
+		return shadow_id_invalid;
 	}
 
 	unsigned shadow_oam_index;
@@ -352,8 +367,14 @@ struct shadow_oam_add_sprite_no_palette_vram_op shadow_oam_add_sprite_no_palette
 		shadow_oam_index = shadow_id_invalid;
 	}
 
-	return (struct shadow_oam_add_sprite_no_palette_vram_op)
-			{shadow_oam_index, pal_index};
+	if (palette) {
+		CpuFastCopy(
+			template->palette,
+			palette->object._4[pal_index],
+			sizeof(palette16_t) / sizeof(uint32_t));
+	}
+
+	return shadow_oam_index;
 }
 
 void shadow_oam_remove_sprite(shadow_oam_id_t index) {

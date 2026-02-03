@@ -67,7 +67,8 @@ static const struct {
 } menu_options[] = {
 	{
 		.label = "Brick Break",
-		.cb = &MainCB_brickBreak_init,
+		.transition = &transition_paletteFade_black,
+		.transitionCbs = &transitionTargetCbs_brickBreak,
 	},
 	{
 		.label = "Walkaround",
@@ -185,14 +186,13 @@ union palette512 InitFadeIn_mainMenu(void) {
 		}
 	});
 
-	struct shadow_oam_add_sprite_no_palette_vram_op spritedata_arrow = shadow_oam_add_sprite_no_palette_vram_op(
+	spriteid_arrow = shadow_oam_add_sprite_no_palette_vram_op(
+		&retval,
 		&arrow_right,
 		(struct shadow_oam_position) {
 			.coord = (ucoords16_t) {.x = 0, .y = DISPLAY_HEIGHT},
 			.hotspot = HOTSPOT_RIGHT,
 		});
-	spriteid_arrow = spritedata_arrow.sprite_index;
-	memcpy(retval.object._4[spritedata_arrow.palette_index], arrow_right.palette, sizeof(rgb_t) * 16);
 
 	bg_tile_t* tilemap_buffer = malloc(TILEMAP_BUFFER_COUNT * sizeof(bg_tile_t));
 	if (tilemap_buffer) {
