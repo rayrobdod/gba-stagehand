@@ -47,4 +47,6 @@ struct shadow_tiles_load_background {
 };
 bool shadow_tiles_load_background(const struct background*, struct shadow_tiles_load_background);
 
+bool shadow_tiles_load_background_no_palette_vram_op(const struct background*, struct shadow_tiles_load_background);
+
 #endif        //  #ifndef SHADOW_VRAM_H

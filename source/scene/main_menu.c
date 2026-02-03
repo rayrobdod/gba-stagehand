@@ -48,6 +48,7 @@ static const unsigned TILEMAP_BUFFER_COUNT = 32 * 20;
 
 static const struct transitionSourceCallbacks transitionSourceCbs_mainMenu = {
 	.fadeOut = FadeCB_mainMenu,
+	.cleanup = NULL,
 };
 const struct transitionTargetCallbacks transitionTargetCbs_mainMenu = {
 	.initFadeOut = NULL,
@@ -91,7 +92,8 @@ static const struct {
 	},
 	{
 		.label = "DMG Music",
-		.cb = &MainCB_dmgMusicUsingNotation_init,
+		.transition = &transition_paletteFade_black,
+		.transitionCbs = &transitionTargetCbs_dmgMusicUsingNotation,
 	},
 	{
 		.label = "Gradient",

@@ -48,6 +48,8 @@ static void MainCB_transition_fadeOut(void) {
 }
 
 static void MainCB_transition_init(void) {
+	if (active_transition.source.cleanup)
+		active_transition.source.cleanup();
 	active_transition.transition.initFadeIn(active_transition.target.initFadeIn());
 	scene_onframe_callback = &MainCB_transition_fadeIn;
 }
@@ -56,7 +58,8 @@ static void MainCB_transition_fadeIn(void) {
 	enum progress progress = COMPLETE;
 	progress = transition_progress_and(progress, active_transition.transition.fadeIn);
 
-	active_transition.target.fadeIn();
+	if (active_transition.target.fadeIn)
+		active_transition.target.fadeIn();
 
 	if (COMPLETE == progress)
 		scene_onframe_callback = active_transition.target.target;

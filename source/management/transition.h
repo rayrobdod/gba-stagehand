@@ -26,6 +26,7 @@ struct transitionTargetCallbacks {
 
 struct transitionSourceCallbacks {
 	void (*fadeOut)(void);
+	void (*cleanup)(void);
 };
 
 void StartTransition(

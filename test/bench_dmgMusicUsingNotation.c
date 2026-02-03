@@ -39,7 +39,10 @@ static void run_parallaxMountainDusk_main_benchmark() {
 	unsigned frameNo = 0;
 	MgbaPrintf(MGBA_LOG_INFO, "dmgMusicUsingNotation main: \033[44mBENCH\033[0m");
 
-	scene_onframe_callback = MainCB_dmgMusicUsingNotation_init;
+	StartTransition(
+		&transition_paletteFade_black,
+		&(struct transitionSourceCallbacks) {0},
+		&transitionTargetCbs_dmgMusicUsingNotation);
 
 	while (frameNo != 20) {
 		VBlankIntrWait();
