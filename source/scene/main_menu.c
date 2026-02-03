@@ -83,7 +83,8 @@ static const struct {
 	},
 	{
 		.label = "Text Print Step",
-		.cb = &MainCB_textPrintStep_init,
+		.transition = &transition_paletteFade_dodgerblue,
+		.transitionCbs = &transitionTargetCbs_textPrintStep,
 	},
 	{
 		.label = "Parallax Mountain Dusk",
