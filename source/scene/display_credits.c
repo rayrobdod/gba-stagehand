@@ -141,7 +141,8 @@ void MainCB_credits_init(void) {
 	hw_palette.background._4[0][0] = rgb(31,16,16);
 
 	view_model->current = resource_credits;
-	view_model->zero_tile_ref = (bg_tile_t) {.tile = shadow_tiles_load_tileset(&one_transparent_tileset, (struct shadow_tiles_load_tileset) {0})};
+	shadow_tiles_load_tileset_retval_t zero_tile_ids = shadow_tiles_load_tileset(&one_transparent_tileset, (shadow_tiles_load_tileset_args_t) {0});
+	view_model->zero_tile_ref = (bg_tile_t) {.tile = zero_tile_ids.tileid, .palette = zero_tile_ids.palid};
 
 	vram_op_queue_enqueue(&(struct vram_op) {
 		.type = VRAM_QUEUE_OP_BG_MAP_FILL,

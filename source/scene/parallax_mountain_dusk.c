@@ -109,10 +109,10 @@ const struct transitionTargetCallbacks transitionTargetCbs_parallaxMountainDusk 
 };
 
 static void InitLoad_parallaxMountainDusk(void) {
-	decompress_bg_tileset_buffer = malloc(divceilmul(parallax_mountain_dusk_bg.tileset->size, sizeof(bg_tile_t)));
+	decompress_bg_tileset_buffer = malloc(divceilmul(parallax_mountain_dusk_bg.tileset.tileset->size, sizeof(bg_tile_t)));
 	decompress_oam_tileset_buffer = malloc(divceilmul(parallax_mountain_dusk_foreground_trees.tileset->size, sizeof(bg_tile_t)));
 	decompress_state = calloc(sizeof(struct suspended_decompression), 1);
-	HeaderUnCompSuspendableInit(decompress_state, parallax_mountain_dusk_bg.tileset, decompress_bg_tileset_buffer);
+	HeaderUnCompSuspendableInit(decompress_state, parallax_mountain_dusk_bg.tileset.tileset, decompress_bg_tileset_buffer);
 	decompress_state_state = SUSPENDED_DECOMP_BG_TILES;
 }
 
@@ -203,7 +203,7 @@ static union palette512 InitFadeIn_parallaxMountainDusk(void) {
 			.from = decompress_bg_tileset_buffer,
 			.to_block = MY_CHARBLOCK,
 			.to_tile = 0,
-			.count = parallax_mountain_dusk_bg.tileset_count,
+			.count = parallax_mountain_dusk_bg.tileset.tileset_count,
 		},
 	});
 	decompress_bg_tileset_buffer = NULL;
@@ -219,7 +219,7 @@ static union palette512 InitFadeIn_parallaxMountainDusk(void) {
 	});
 	decompress_oam_tileset_buffer = NULL;
 
-	unsigned transparent_tile_index = parallax_mountain_dusk_bg.tileset_count;
+	unsigned transparent_tile_index = parallax_mountain_dusk_bg.tileset.tileset_count;
 
 	vram_op_queue_enqueue(&(struct vram_op) {
 		.type = VRAM_QUEUE_OP_BG_TILES_FILL,
@@ -336,7 +336,7 @@ static union palette512 InitFadeIn_parallaxMountainDusk(void) {
 
 	union palette512 final_palette = {0};
 	for (int i = 0; i < 16; i++)
-		final_palette.background._4[0][i] = parallax_mountain_dusk_bg.palette[0][i];
+		final_palette.background._4[0][i] = parallax_mountain_dusk_bg.tileset.palette[0][i];
 	for (int i = 0; i < 16; i++)
 		final_palette.object._4[0][i] = parallax_mountain_dusk_foreground_trees.palette[0][i];
 

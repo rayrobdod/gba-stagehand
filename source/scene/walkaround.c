@@ -320,8 +320,8 @@ static union palette512 MainCB_walkaround_fadesolid(void) {
 
 	walkaround_viewmodel = (struct walkaround_viewmodel) {0};
 
-	shadow_tiles_load_tileset(&walkaround_state.map->tileset, (struct shadow_tiles_load_tileset) {.bg = 1});
-	shadow_tiles_load_tileset(&one_transparent_tileset, (struct shadow_tiles_load_tileset) {.bg = 0});
+	shadow_tiles_load_tileset_fixed_no_palette_vram_op(&final_palette, &walkaround_state.map->tileset, (shadow_tiles_load_tileset_fixed_t) {.bg = 1, .start_palette = 0, .start_tiles = 0});
+	shadow_tiles_load_tileset_fixed_no_palette_vram_op(&final_palette, &one_transparent_tileset, (shadow_tiles_load_tileset_fixed_t) {.bg = 0, .start_palette = 0, .start_tiles = 0});
 
 	vram_op_queue_enqueue(&(struct vram_op) {
 		.type = VRAM_QUEUE_OP_BG_MAP_FILL,
@@ -396,7 +396,6 @@ static union palette512 MainCB_walkaround_fadesolid(void) {
 		},
 	});
 
-	memcpy(final_palette.background._4[0], walkaround_state.map->tileset.palette, sizeof(palette16_t) * 12);
 	return final_palette;
 }
 
@@ -1057,17 +1056,9 @@ static void open_start_menu(void) {
 		shadow_tiles_window_allocate(&start_menu_window);
 
 	const struct tileset* dialog_frame = options_frame_get();
-	walkaround_viewmodel.start_menu.border_tile_start =
-		shadow_tiles_load_tileset(dialog_frame, (struct shadow_tiles_load_tileset) {.bg = 0});
+	walkaround_viewmodel.start_menu.border_tile_ids =
+		shadow_tiles_load_tileset(dialog_frame, (shadow_tiles_load_tileset_args_t) {.bg = 0});
 
-	vram_op_queue_enqueue(&(struct vram_op) {
-		.type = VRAM_QUEUE_OP_BG_PALETTES,
-		.palettes = {
-			.from = dialog_frame->palette,
-			.to_palette = 14,
-			.count = 1,
-		},
-	});
 	vram_op_queue_enqueue(&(struct vram_op) {
 		.type = VRAM_QUEUE_OP_BG_PALETTES,
 		.palettes = {
@@ -1077,7 +1068,7 @@ static void open_start_menu(void) {
 		},
 	});
 
-	shadow_tiles_window_queue_map_with_border(walkaround_viewmodel.start_menu.window_id, walkaround_viewmodel.start_menu.border_tile_start, 14);
+	shadow_tiles_window_queue_map_with_border(walkaround_viewmodel.start_menu.window_id, walkaround_viewmodel.start_menu.border_tile_ids);
 	shadow_tiles_window_queue_tiles_free(walkaround_viewmodel.start_menu.window_id, start_menu_tiles);
 
 	walkaround_viewmodel.start_menu.pointer_oam_id =
@@ -1089,7 +1080,7 @@ static void open_start_menu(void) {
 
 static void close_start_menu(void) {
 	shadow_tiles_window_deallocate(walkaround_viewmodel.start_menu.window_id);
-	shadow_tiles_deallocate_tileset(walkaround_viewmodel.start_menu.border_tile_start, &dialog_frames_1, (struct shadow_tiles_load_tileset) {.bg = 0});
+	shadow_tiles_deallocate_tileset(walkaround_viewmodel.start_menu.border_tile_ids, &dialog_frames_1, (shadow_tiles_load_tileset_args_t) {.bg = 0});
 	shadow_oam_remove_sprite(walkaround_viewmodel.start_menu.pointer_oam_id);
 	walkaround_viewmodel.start_menu.pointer_oam_id = shadow_id_invalid;
 

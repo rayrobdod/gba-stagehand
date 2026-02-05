@@ -205,19 +205,17 @@ static union palette512 InitFadeIn_brickBreak(void) {
 	ballvelocity = (coords8_t){.x = BALLPOS_SCALE, .y = -BALLPOS_SCALE};
 
 	shadow_tiles_load_background_no_palette_vram_op(
+		&palette,
 		&brickbreak_background,
 		(struct shadow_tiles_load_background){.bg = 0});
-	CpuFastCopy(
-		brickbreak_background.palette,
-		palette.background._4[0],
-		brickbreak_background.palette_count * sizeof(palette16_t) / sizeof(uint32_t));
 
 	CpuFastCopy(
 		text_pal,
 		palette.background._4[15],
 		sizeof(palette16_t) / sizeof(uint32_t));
 
-	zero_tile_ref = (bg_tile_t) {.tile = shadow_tiles_load_tileset(&one_transparent_tileset, (struct shadow_tiles_load_tileset) {3})};
+	shadow_tiles_load_tileset_retval_t zero_tile_ids = shadow_tiles_load_tileset_no_palette_vram_op(&palette, &one_transparent_tileset, (shadow_tiles_load_tileset_args_t) {3});
+	zero_tile_ref = (bg_tile_t) {.tile = zero_tile_ids.tileid, .palette = zero_tile_ids.palid};
 
 	vram_op_queue_enqueue(&(struct vram_op) {
 		.type = VRAM_QUEUE_OP_BG_MAP_FILL,

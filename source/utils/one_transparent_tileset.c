@@ -12,6 +12,9 @@ static const struct CompressedData transparent_tile = {
 
 const struct tileset one_transparent_tileset = {
 	.palette = NULL,
+	.palette_count = 0,
+	.paltag = 1,
 	.tileset = &transparent_tile,
 	.tileset_count = 1,
+	.tiletag = 1,
 };

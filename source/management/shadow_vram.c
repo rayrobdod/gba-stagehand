@@ -36,6 +36,13 @@ static const struct {
 
 
 __attribute__((aligned(4)))
+__attribute__((section(".sbss.shadow_vram.palette")))
+static struct shadow_palette {
+	uint8_t refcount;
+	paltag_t tag;
+} shadow_palette[16] = {0};
+
+__attribute__((aligned(4)))
 __attribute__((section(".sbss.shadow_vram.tiles_used")))
 static bool shadow_tiles_used[4 * 0x200] = {0};
 
@@ -115,9 +122,11 @@ void shadow_vram_free_all(void) {
 		.word_count = sizeof(shadow_tiles_used) / sizeof(uint32_t),
 		.mode = CPU_SET_FILL
 	});
+	_Static_assert(0 == (sizeof(shadow_palette) % 32), "CpuFastSet requires 32-byte-multiple length");
+	CpuFastFill(0, shadow_palette, sizeof(shadow_palette) / sizeof(uint32_t));
 }
 
-static int shadow_tiles_allocate(unsigned bg, unsigned tilecount) {
+static shadow_vram_tileid_t shadow_tiles_allocate(unsigned bg, unsigned tilecount) {
 	unsigned charblock = shadow_tiles_bgcnt[bg].charblock;
 	unsigned start = charblock * TILES_PER_CHARBLOCK;
 	const unsigned max = min(4 * TILES_PER_CHARBLOCK, start + 2 * TILES_PER_CHARBLOCK);
@@ -137,10 +146,34 @@ static int shadow_tiles_allocate(unsigned bg, unsigned tilecount) {
 			return start - charblock * TILES_PER_CHARBLOCK;
 		}
 	}
-	return -1;
+	return shadow_vram_tileid_invalid;
+}
+static shadow_vram_palid_t shadow_tiles_allocate_palette(unsigned palette_count) {
+	if (0 == palette_count)
+		return 0;
+
+	unsigned start = 0;
+	const unsigned max = 16;
+	unsigned span = 0;
+
+	while (start + span < max) {
+		if (shadow_palette[start + span].refcount) {
+			start += span + 1;
+			span = 0;
+			continue;
+		}
+		span++;
+		if (span >= palette_count) {
+			for (unsigned i = start; i < start + palette_count; i++) {
+				shadow_palette[i].refcount += 1;
+			}
+			return start;
+		}
+	}
+	return shadow_vram_palid_invalid;
 }
 
-static void shadow_tiles_deallocate(unsigned bg, unsigned bg_tile_start, unsigned tilecount) {
+static void shadow_tiles_deallocate(unsigned bg, shadow_vram_tileid_t bg_tile_start, unsigned tilecount) {
 	unsigned charblock = shadow_tiles_bgcnt[bg].charblock;
 	unsigned start = charblock * TILES_PER_CHARBLOCK + bg_tile_start;
 
@@ -148,6 +181,13 @@ static void shadow_tiles_deallocate(unsigned bg, unsigned bg_tile_start, unsigne
 		shadow_tiles_used[start + i] = false;
 	}
 }
+static void shadow_tiles_deallocate_palette(shadow_vram_palid_t start, unsigned palette_count) {
+	for (unsigned i = 0; i < palette_count; i++) {
+		shadow_palette[start + i].refcount -= 1;
+	}
+}
+
+
 
 window_id_t shadow_tiles_window_allocate(const struct shadow_tiles_window_allocate* args) {
 	window_id_t index;
@@ -213,7 +253,7 @@ void shadow_tiles_window_queue_map(window_id_t id) {
 	}
 }
 
-void shadow_tiles_window_queue_map_with_border(window_id_t id, unsigned border_tile_start, unsigned border_palette) {
+void shadow_tiles_window_queue_map_with_border(window_id_t id, shadow_tiles_load_tileset_retval_t border_ids) {
 	if (id >= arraycount(windows)) return;
 	if (! windows[id].in_use) return;
 
@@ -229,11 +269,11 @@ void shadow_tiles_window_queue_map_with_border(window_id_t id, unsigned border_t
 	{
 		uint16_t* buffer = malloc(sizeof(uint16_t) * (width + 2));
 		if (!buffer) return;
-		buffer[0] = border_tile_start | (border_palette << 12);
+		buffer[0] = border_ids.tileid | (border_ids.palid << 12);
 		for (unsigned i = 0; i < width; i++) {
-			buffer[i + 1] = (border_tile_start + 1) | (border_palette << 12);
+			buffer[i + 1] = (border_ids.tileid + 1) | (border_ids.palid << 12);
 		}
-		buffer[width + 1] = (border_tile_start + 2) | (border_palette << 12);
+		buffer[width + 1] = (border_ids.tileid + 2) | (border_ids.palid << 12);
 		vram_op_queue_enqueue(&(struct vram_op){
 			.type = VRAM_QUEUE_OP_BG_MAP_FREE,
 			.map_free = {
@@ -247,12 +287,12 @@ void shadow_tiles_window_queue_map_with_border(window_id_t id, unsigned border_t
 		uint16_t* buffer = malloc(sizeof(uint16_t) * (width + 2));
 		if (!buffer) return;
 
-		buffer[0] = (border_tile_start + 3) | (border_palette << 12);
+		buffer[0] = (border_ids.tileid + 3) | (border_ids.palid << 12);
 		for (unsigned i = 0; i < width; i++) {
 			buffer[i+1] = bg_tile_id;
 			++bg_tile_id;
 		}
-		buffer[width + 1] = (border_tile_start + 5) | (border_palette << 12);
+		buffer[width + 1] = (border_ids.tileid + 5) | (border_ids.palid << 12);
 		vram_op_queue_enqueue(&(struct vram_op){
 			.type = VRAM_QUEUE_OP_BG_MAP_FREE,
 			.map_free = {
@@ -266,11 +306,11 @@ void shadow_tiles_window_queue_map_with_border(window_id_t id, unsigned border_t
 	{
 		uint16_t* buffer = malloc(sizeof(uint16_t) * (width + 2));
 		if (!buffer) return;
-		buffer[0] = (border_tile_start + 6) | (border_palette << 12);
+		buffer[0] = (border_ids.tileid + 6) | (border_ids.palid << 12);
 		for (unsigned i = 0; i < width; i++) {
-			buffer[i + 1] = (border_tile_start + 7) | (border_palette << 12);
+			buffer[i + 1] = (border_ids.tileid + 7) | (border_ids.palid << 12);
 		}
-		buffer[width + 1] = (border_tile_start + 8) | (border_palette << 12);
+		buffer[width + 1] = (border_ids.tileid + 8) | (border_ids.palid << 12);
 		vram_op_queue_enqueue(&(struct vram_op){
 			.type = VRAM_QUEUE_OP_BG_MAP_FREE,
 			.map_free = {
@@ -318,74 +358,122 @@ void shadow_tiles_window_queue_tiles_free(window_id_t id, tile_4bpp_t* data) {
 		}});
 }
 
-int shadow_tiles_load_tileset(const struct tileset* data, struct shadow_tiles_load_tileset args) {
-	int start = shadow_tiles_allocate(args.bg, data->tileset_count);
-	if (start < 0) {
-		return -1;
+
+
+shadow_tiles_load_tileset_retval_t shadow_tiles_load_tileset_no_palette_vram_op(
+		union palette512* palette,
+		const struct tileset* data,
+		shadow_tiles_load_tileset_args_t args) {
+	shadow_tiles_load_tileset_retval_t retval = {
+		.tileid = shadow_vram_tileid_invalid,
+		.palid = shadow_vram_palid_invalid,
+	};
+
+	shadow_vram_tileid_t tileid = shadow_tiles_allocate(args.bg, data->tileset_count);
+	if (shadow_vram_tileid_invalid == tileid) {
+		return retval;
 	}
+	shadow_vram_palid_t palid = shadow_tiles_allocate_palette(data->palette_count);
+	if (shadow_vram_palid_invalid == palid) {
+		return retval;
+	}
+
+	retval.tileid = tileid;
+	retval.palid = palid;
 
 	vram_op_queue_enqueue(&(struct vram_op) {
 		.type = VRAM_QUEUE_OP_BG_TILES_COMPRESSED,
 		.tiles_compressed = {
 			.from = data->tileset,
 			.to_block = shadow_tiles_bgcnt[args.bg].charblock,
-			.to_tile = start,
+			.to_tile = tileid,
 		},
 	});
-
-	return start;
-}
-void shadow_tiles_deallocate_tileset(window_id_t tile_start, const struct tileset* data, struct shadow_tiles_load_tileset args) {
-	shadow_tiles_deallocate(args.bg, tile_start, data->tileset_count);
-}
-
-bool shadow_tiles_load_tileset_fixed(unsigned bg, unsigned start, unsigned count, const tile_4bpp_t* tileset) {
-	start += TILES_PER_CHARBLOCK * shadow_tiles_bgcnt[bg].charblock;
-	for (unsigned i = start; i < start + count; i++) {
-		if (shadow_tiles_used[i])
-			return false;
+	if (palette) {
+		CpuFastCopy(
+			data->palette,
+			palette->background._4[palid],
+			data->palette_count * sizeof(palette16_t) / sizeof(uint32_t));
 	}
-	for (unsigned i = start; i < start + count; i++) {
+
+	return retval;
+}
+shadow_tiles_load_tileset_retval_t shadow_tiles_load_tileset(
+		const struct tileset* data,
+		shadow_tiles_load_tileset_args_t args) {
+	shadow_tiles_load_tileset_retval_t retval =
+		shadow_tiles_load_tileset_no_palette_vram_op(
+			NULL, data, args);
+
+	if (retval.palid) {
+		vram_op_queue_enqueue(&(struct vram_op) {
+			.type = VRAM_QUEUE_OP_BG_PALETTES,
+			.palettes = {
+				.from = data->palette,
+				.to_palette = retval.palid,
+				.count = data->palette_count,
+			},
+		});
+	}
+
+	return retval;
+}
+
+void shadow_tiles_deallocate_tileset(shadow_tiles_load_tileset_retval_t position, const struct tileset* data, shadow_tiles_load_tileset_args_t args) {
+	shadow_tiles_deallocate(args.bg, position.tileid, data->tileset_count);
+	shadow_tiles_deallocate_palette(position.palid, data->palette_count);
+}
+
+
+
+bool shadow_tiles_load_tileset_fixed_no_palette_vram_op(
+		union palette512* palette,
+		const struct tileset* data,
+		shadow_tiles_load_tileset_fixed_t args) {
+	const unsigned start_tiles = args.start_tiles + TILES_PER_CHARBLOCK * shadow_tiles_bgcnt[args.bg].charblock;
+	for (unsigned i = start_tiles; i < start_tiles + data->tileset_count; i++) {
+		if (shadow_tiles_used[i]) {
+			MgbaPrintf(MGBA_LOG_INFO, "Load Tileset fixed fail tiles");
+			return false;
+		}
+	}
+	for (unsigned i = args.start_palette; i < args.start_palette + data->palette_count; i++) {
+		if (shadow_palette[i].refcount && shadow_palette[i].tag != data->paltag) {
+			MgbaPrintf(MGBA_LOG_INFO, "Load Tileset fixed fail palette");
+			return false;
+		}
+	}
+
+	for (unsigned i = start_tiles; i < start_tiles + data->tileset_count; i++) {
 		shadow_tiles_used[i] = true;
 	}
-
-	vram_op_queue_enqueue(&(struct vram_op) {
-		.type = VRAM_QUEUE_OP_BG_TILES,
-		.tiles = {
-			.from = tileset,
-			.to_block = 0,
-			.to_tile = start,
-			.count = count,
-		},
-	});
-
-	return true;
-}
-
-bool shadow_tiles_load_tileset_fixed_compressed(unsigned bg, unsigned start, unsigned count, const struct CompressedData* tileset) {
-	start += TILES_PER_CHARBLOCK * shadow_tiles_bgcnt[bg].charblock;
-	for (unsigned i = start; i < start + count; i++) {
-		if (shadow_tiles_used[i])
-			return false;
-	}
-	for (unsigned i = start; i < start + count; i++) {
-		shadow_tiles_used[i] = true;
+	for (unsigned i = args.start_palette; i < args.start_palette + data->palette_count; i++) {
+		shadow_palette[i].refcount += 1;
+		shadow_palette[i].tag = data->paltag;
 	}
 
 	vram_op_queue_enqueue(&(struct vram_op) {
 		.type = VRAM_QUEUE_OP_BG_TILES_COMPRESSED,
 		.tiles_compressed = {
-			.from = tileset,
-			.to_block = 0,
-			.to_tile = start,
+			.from = data->tileset,
+			.to_block = 0, // start_tiles includes the charblock
+			.to_tile = start_tiles,
 		},
 	});
+	if (palette) {
+		CpuFastCopy(
+			data->palette,
+			palette->background._4[args.start_palette],
+			data->palette_count * sizeof(palette16_t) / sizeof(uint32_t));
+	}
 
 	return true;
 }
 
-bool shadow_tiles_load_background(const struct background* data, struct shadow_tiles_load_background args) {
-	if (! shadow_tiles_load_background_no_palette_vram_op(data, args)) {
+bool shadow_tiles_load_tileset_fixed(
+		const struct tileset* data,
+		shadow_tiles_load_tileset_fixed_t args) {
+	if (! shadow_tiles_load_tileset_fixed_no_palette_vram_op(NULL, data, args)) {
 		return false;
 	}
 
@@ -393,7 +481,7 @@ bool shadow_tiles_load_background(const struct background* data, struct shadow_t
 		.type = VRAM_QUEUE_OP_BG_PALETTES,
 		.palettes = {
 			.from = data->palette,
-			.to_palette = 0,
+			.to_palette = args.start_palette,
 			.count = data->palette_count,
 		},
 	});
@@ -401,12 +489,47 @@ bool shadow_tiles_load_background(const struct background* data, struct shadow_t
 	return true;
 }
 
-bool shadow_tiles_load_background_no_palette_vram_op(const struct background* data, struct shadow_tiles_load_background args) {
-	MgbaPrintf(MGBA_LOG_DEBUG, "ENTER shadow_tiles_load_background");
-	MgbaPrintf(MGBA_LOG_DEBUG, "  data->tilemap_count = %d",  data->tilemap_count);
-	MgbaPrintf(MGBA_LOG_DEBUG, "  data->tileset_count = %d",  data->tileset_count);
 
-	if (! shadow_tiles_load_tileset_fixed_compressed(args.bg, 0, data->tileset_count, data->tileset)) {
+
+bool shadow_tiles_load_background_no_palette_vram_op(
+		union palette512* palette,
+		const struct background* data,
+		struct shadow_tiles_load_background args) {
+	if (! shadow_tiles_load_tileset_fixed_no_palette_vram_op(
+		palette,
+		&data->tileset,
+		(shadow_tiles_load_tileset_fixed_t) {
+			.bg = args.bg,
+			.start_palette = 0,
+			.start_tiles = 0,
+		})
+	) {
+		return false;
+	}
+
+	vram_op_queue_enqueue(&(struct vram_op) {
+		.type = VRAM_QUEUE_OP_BG_MAP_COMPRESSED,
+		.map_compressed = {
+			.from = data->tilemap,
+			.to_block = shadow_tiles_bgcnt[args.bg].screenblock,
+			.to_tile = 0,
+		},
+	});
+
+	return true;
+}
+
+bool shadow_tiles_load_background(
+		const struct background* data,
+		struct shadow_tiles_load_background args) {
+	if (! shadow_tiles_load_tileset_fixed(
+		&data->tileset,
+		(shadow_tiles_load_tileset_fixed_t) {
+			.bg = args.bg,
+			.start_palette = 0,
+			.start_tiles = 0,
+		})
+	) {
 		return false;
 	}
 

@@ -7,6 +7,7 @@
 #include "find_palette_superset.hpp"
 #include "indexed_insert_only_set.hpp"
 #include "object.hpp"
+#include "tileset.hpp"
 
 template<>
 struct std::hash<tile16x3> {
@@ -181,33 +182,27 @@ static void tile16x3map_write_to_elf(
 	}
 
 	std::vector<uint16_t> serialized = {
-		0, 0,
-		0, 0,
-		static_cast<uint16_t>(tiles.second.tiles.size()),
-		0,
+		0, 0, 0, 0,
+		0, 0, 0, 0,
 		0, 0,
 		static_cast<uint16_t>(mapimage.width()),
 		static_cast<uint16_t>(mapimage.height()),
 	};
 	std::copy(metatilemap.begin(), metatilemap.end(), std::back_inserter(serialized));
 
-	std::initializer_list<relocation_template> relocs {
-		{
-			.offset = 0,
-			.type = R_ARM_ABS32,
-			.symbol_name = palettes.first,
-		},
-		{
-			.offset = 4,
-			.type = R_ARM_ABS32,
-			.symbol_name = tiles.first,
-		},
-		{
-			.offset = 12,
-			.type = R_ARM_ABS32,
-			.symbol_name = tile16x3s.first,
-		},
+	std::array<relocation_template, 3> relocs;
+	relocs[2] = {
+		.offset = 16,
+		.type = R_ARM_ABS32,
+		.symbol_name = tile16x3s.first,
 	};
+
+	tileset_serialized(
+		std::span<uint16_t, 8>(serialized.begin(), 8),
+		std::span<relocation_template, 2>(relocs.begin(), 2),
+		palettes,
+		tiles);
+
 
 	elf.push_single_variable_rodata_sections({var_name, STB_GLOBAL}, serialized, relocs);
 }

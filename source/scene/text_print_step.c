@@ -28,7 +28,7 @@ union bg_tile_2_uint {
 __attribute__((section(".sbss")))
 static struct {
 	bg_tile_t zero_tile_ref;
-	uint32_t border_tile_id;
+	shadow_tiles_load_tileset_retval_t border_tile_ids;
 	window_id_t dialog_window_id;
 	struct text_print_step_state printer_state;
 	enum text_print_step_retval printer_retval;
@@ -79,7 +79,6 @@ static const struct shadow_tiles_window_allocate dialog_window_template = {
 };
 
 
-static const unsigned BORDER_PALETTE_NO = 1;
 static const unsigned TEXT_PALETTE_NO = 15;
 static const unsigned TILEMAP_BUFFER_COUNT = 32 * 20;
 
@@ -111,7 +110,7 @@ static void gen_window_border(void) {
 	const unsigned left = dialog_window_template.x;
 	const unsigned right = left + dialog_window_template.width;
 
-	#define TILE(index) ((bg_tile_t) {.tile = view_model->border_tile_id + index, .palette = BORDER_PALETTE_NO})
+	#define TILE(index) ((bg_tile_t) {.tile = view_model->border_tile_ids.tileid + index, .palette = view_model->border_tile_ids.palid})
 
 	map[(left - 1) + 32 * (top - 1)] = TILE(0);
 	map[(right) + 32 * (top - 1)] = TILE(2);
@@ -153,11 +152,8 @@ static union palette512 InitFadeIn_mainMenu(void) {
 
 	const struct tileset* frame = options_frame_get();
 
-	palette.background._4[0][0] = rgb(4, 18, 31);
-	CpuFastCopy(frame->palette, palette.background._4[BORDER_PALETTE_NO], sizeof(palette16_t) / sizeof(uint32_t));
-
-	view_model->zero_tile_ref = (bg_tile_t) {.tile = shadow_tiles_load_tileset(&one_transparent_tileset, (struct shadow_tiles_load_tileset) {0})};
-	view_model->border_tile_id = shadow_tiles_load_tileset(frame, (struct shadow_tiles_load_tileset) {0});
+	view_model->zero_tile_ref = (bg_tile_t) {.tile = shadow_tiles_load_tileset(&one_transparent_tileset, (shadow_tiles_load_tileset_args_t) {0}).tileid};
+	view_model->border_tile_ids = shadow_tiles_load_tileset_no_palette_vram_op(&palette, frame, (shadow_tiles_load_tileset_args_t) {0});
 	view_model->dialog_window_id = shadow_tiles_window_allocate(&dialog_window_template);
 
 	gen_window_border();
@@ -190,6 +186,8 @@ static union palette512 InitFadeIn_mainMenu(void) {
 
 	shadow_tiles_window_queue_tiles(view_model->dialog_window_id, view_model->dialog_window_shadow_tiles);
 	shadow_tiles_window_queue_map(view_model->dialog_window_id);
+
+	palette.background._4[0][0] = rgb(4, 18, 31);
 
 	return palette;
 }
