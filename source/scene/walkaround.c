@@ -13,6 +13,7 @@
 #include "management/vram_op_queue.h"
 #include "scene/main_menu.h"
 #include "scene/options_menu.h"
+#include "transition/palette_fade.h"
 #include "utils/ansi_text_palette.h"
 #include "utils/arraycount.h"
 #include "utils/minmax.h"
@@ -24,11 +25,10 @@
 #include "options.h"
 #include "text_printer.h"
 
-static void ChangeScene_walkaround_warp(void (*_fadeCb)(void));
-static void ChangeScene_walkaround_return(void (*_fadeCb)(void));
-static void MainCB_walkaround_fadeout_black(void);
-static void MainCB_walkaround_fadesolid_black(void);
-static void MainCB_walkaround_fadein_black(void);
+static void InitFadeOut_walkaround_newgame(void);
+static void InitFadeOut_walkaround_return(void);
+static void InitFadeOut_walkaround_warp(void);
+static union palette512 InitFadeIn_walkaround(void);
 static void FadeCB_walkaround(void);
 static void close_start_menu(void);
 
@@ -118,9 +118,6 @@ FOREACH_DIRECTION(BASE_MALE_WALKING)
 
 
 __attribute__((section(".sbss")))
-static void (*fadeCb)(void) = {0};
-
-__attribute__((section(".sbss")))
 static struct {
 	bool transition_is_warp;
 	const struct tile16x3map* map;
@@ -147,6 +144,31 @@ static const struct walkaround_model initial_state = {
 	},
 };
 
+static const struct transitionSourceCallbacks transitionSourceCbs_walkaround = {
+	.fadeOut = FadeCB_walkaround,
+	.cleanup = NULL,
+};
+const struct transitionTargetCallbacks transitionTargetCbs_walkaround_newgame = {
+	.initFadeOut = InitFadeOut_walkaround_newgame,
+	.fadeOut = NULL,
+	.initFadeIn = InitFadeIn_walkaround,
+	.fadeIn = FadeCB_walkaround,
+	.target = MainCB_walkaround,
+};
+const struct transitionTargetCallbacks transitionTargetCbs_walkaround_return = {
+	.initFadeOut = InitFadeOut_walkaround_return,
+	.fadeOut = NULL,
+	.initFadeIn = InitFadeIn_walkaround,
+	.fadeIn = FadeCB_walkaround,
+	.target = MainCB_walkaround,
+};
+const struct transitionTargetCallbacks transitionTargetCbs_walkaround_warp = {
+	.initFadeOut = InitFadeOut_walkaround_warp,
+	.fadeOut = NULL,
+	.initFadeIn = InitFadeIn_walkaround,
+	.fadeIn = FadeCB_walkaround,
+	.target = MainCB_walkaround,
+};
 
 enum {
 	START_MENU_WIDTH = 8,
@@ -187,9 +209,18 @@ static const struct shadow_vram_init walkaround_shadow_vram_init = {
 	}
 };
 
-static bool const_false(void) { return false;}
-static void menu_action_warp(void) {ChangeScene_walkaround_warp(&FadeCB_walkaround);}
-static void menu_action_options(void) {ChangeScene_options(&FadeCB_walkaround, &ChangeScene_walkaround_return);}
+static bool const_false(void) {return false;}
+static void menu_action_warp(void) {
+	StartTransition(
+		&transition_paletteFade_black,
+		&transitionSourceCbs_walkaround,
+		&transitionTargetCbs_walkaround_warp);
+}
+static void menu_action_options(void) {
+	ChangeScene_options(
+		&transitionSourceCbs_walkaround,
+		&transitionTargetCbs_walkaround_return);
+}
 
 static const struct {
 	const char* label;
@@ -269,39 +300,20 @@ static struct shadow_oam_position player_oam_position(mapoffs_t player_mappos) {
 	};
 }
 
-void ChangeScene_walkaround_newgame(void (*_fadeCb)(void)) {
-	fade_to_initialize(rgb(0, 0, 0));
-	fadeCb = _fadeCb;
+static void InitFadeOut_walkaround_newgame(void) {
 	walkaround_state = initial_state;
 	warp_target.transition_is_warp = false;
-	scene_onframe_callback = &MainCB_walkaround_fadeout_black;
 }
-
-void ChangeScene_walkaround_warp(void (*_fadeCb)(void)) {
-	fade_to_initialize(rgb(0, 0, 0));
-	fadeCb = _fadeCb;
+static void InitFadeOut_walkaround_return(void) {
+	warp_target.transition_is_warp = false;
+}
+static void InitFadeOut_walkaround_warp(void) {
 	warp_target.transition_is_warp = true;
 	warp_target.map = &mushroom_village_2;
 	warp_target.player_pos = (tile_coord_t) {.x = 10, .y = 7};
-	scene_onframe_callback = &MainCB_walkaround_fadeout_black;
 }
 
-void ChangeScene_walkaround_return(void (*_fadeCb)(void)) {
-	fade_to_initialize(rgb(0, 0, 0));
-	fadeCb = _fadeCb;
-	warp_target.transition_is_warp = false;
-	scene_onframe_callback = &MainCB_walkaround_fadeout_black;
-}
-
-static void MainCB_walkaround_fadeout_black(void) {
-	if (fade_step()) {
-		scene_onframe_callback = &MainCB_walkaround_fadesolid_black;
-	} else {
-		fadeCb();
-	}
-}
-
-static union palette512 MainCB_walkaround_fadesolid(void) {
+static union palette512 InitFadeIn_walkaround(void) {
 	union palette512 final_palette = {0};
 	shadow_vram_init(&walkaround_shadow_vram_init);
 	shadow_oam_init();
@@ -397,19 +409,6 @@ static union palette512 MainCB_walkaround_fadesolid(void) {
 	});
 
 	return final_palette;
-}
-
-static void MainCB_walkaround_fadesolid_black(void) {
-	union palette512 final_palette = MainCB_walkaround_fadesolid();
-	fade_from_initialize(final_palette.all, 512);
-	scene_onframe_callback = &MainCB_walkaround_fadein_black;
-}
-
-static void MainCB_walkaround_fadein_black(void) {
-	if (fade_step()) {
-		scene_onframe_callback = &MainCB_walkaround_main;
-	}
-	MainCB_walkaround_main();
 }
 
 static screenoffs_t center_player_in_camera_target(void) {
@@ -1131,7 +1130,7 @@ static void start_menu_do_input(void) {
 	}
 }
 
-void MainCB_walkaround_main(void) {
+void MainCB_walkaround(void) {
 	bool refresh_player = false;
 
 	if (walkaround_viewmodel.start_menu.is_open) {

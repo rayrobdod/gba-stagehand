@@ -30,7 +30,7 @@ union palette512 InitFadeIn_mainMenu(void);
 static void MainCB_mainMenu_main(void);
 static void MainCB_load(void);
 static void FadeCB_mainMenu(void);
-static void ChangeScene_options_for_mainmenu(void (*fadeCb)(void));
+static void ChangeScene_options_for_mainmenu(void);
 
 //
 
@@ -61,7 +61,6 @@ const struct transitionTargetCallbacks transitionTargetCbs_mainMenu = {
 static const struct {
 	char* label;
 	MainCallback cb;
-	void (*startFn)(void (*fadeCb)(void));
 	const struct transition* transition;
 	const struct transitionTargetCallbacks* transitionCbs;
 } menu_options[] = {
@@ -72,7 +71,8 @@ static const struct {
 	},
 	{
 		.label = "Walkaround",
-		.startFn = &ChangeScene_walkaround_newgame,
+		.transition = &transition_paletteFade_black,
+		.transitionCbs = &transitionTargetCbs_walkaround_newgame,
 	},
 	{
 		.label = "Mode 3",
@@ -103,7 +103,7 @@ static const struct {
 	},
 	{
 		.label = "Options",
-		.startFn = &ChangeScene_options_for_mainmenu,
+		.cb = &ChangeScene_options_for_mainmenu,
 	},
 	{
 		.label = "Credits",
@@ -120,12 +120,10 @@ static void print_to_tilemap(bg_tile_t* buffer, unsigned x, unsigned y, char* me
 	}
 }
 
-static void ChangeScene_mainmenu([[maybe_unused]] void (*_fadeCb)(void)) {
-	scene_onframe_callback = &MainCB_mainMenu_init;
-}
-
-static void ChangeScene_options_for_mainmenu(void (*fadeCb)(void)) {
-	ChangeScene_options(fadeCb, &ChangeScene_mainmenu);
+static void ChangeScene_options_for_mainmenu(void) {
+	ChangeScene_options(
+		&transitionSourceCbs_mainMenu,
+		&transitionTargetCbs_mainMenu);
 }
 
 static void MainCB_load(void) {
@@ -257,9 +255,6 @@ static void MainCB_mainMenu_main(void) {
 				menu_options[selection].transition,
 				&transitionSourceCbs_mainMenu,
 				menu_options[selection].transitionCbs);
-			} else
-			if (menu_options[selection].startFn) {
-				menu_options[selection].startFn(FadeCB_mainMenu);
 			} else
 			if (menu_options[selection].cb) {
 				scene_onframe_callback = menu_options[selection].cb;

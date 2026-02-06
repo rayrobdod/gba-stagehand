@@ -367,6 +367,8 @@ $(HOSTEXEDIR)/test_walkaround : $(HOSTOBJDIR_SRC)/gba/hw_reg.c.o
 $(HOSTEXEDIR)/test_walkaround : $(HOSTOBJDIR_SRC)/gba/palette.c.o
 $(HOSTEXEDIR)/test_walkaround : $(HOSTOBJDIR_SRC)/management/shadow_oam.c.o
 $(HOSTEXEDIR)/test_walkaround : $(HOSTOBJDIR_SRC)/management/shadow_vram.c.o
+$(HOSTEXEDIR)/test_walkaround : $(HOSTOBJDIR_SRC)/management/transition.c.o
+$(HOSTEXEDIR)/test_walkaround : $(HOSTOBJDIR_SRC)/transition/palette_fade.c.o
 $(HOSTEXEDIR)/test_walkaround : $(HOSTOBJDIR_SRC)/utils/ansi_text_palette.c.o
 $(HOSTEXEDIR)/test_walkaround : $(HOSTOBJDIR_SRC)/utils/one_transparent_tileset.c.o
 $(HOSTEXEDIR)/test_walkaround : $(HOSTOBJDIR_SRC)/mix_rgb.c.o

@@ -1,4 +1,4 @@
-void MainCB_walkaround_main(void);
+void MainCB_walkaround(void);
 
 #include "gba/hw_reg.h"
 #include "management/shadow_vram.h"

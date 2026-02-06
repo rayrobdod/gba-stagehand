@@ -7,6 +7,7 @@
 #include "management/shadow_oam.h"
 #include "management/shadow_vram.h"
 #include "management/vram_op_queue.h"
+#include "transition/palette_fade.h"
 #include "utils/ansi_text_palette.h"
 #include "utils/one_transparent_tileset.h"
 #include "utils/saturating_add.h"
@@ -17,11 +18,9 @@
 #include "mix_rgb.h"
 #include "text_printer.h"
 
-static void MainCB_options_fadeout_black(void);
-static void MainCB_options_fadesolid_black(void);
-static void MainCB_options_fadein_black(void);
+static void MainCB_options(void);
 static void options_update_background(void);
-static void MainCB_options_main(void);
+static union palette512 InitFadeIn_options(void);
 
 enum {
 	BACKGROUND_BG = 3,
@@ -54,9 +53,7 @@ enum options_exit_type {
 };
 
 __attribute__((section(".sbss")))
-void (*fadeCb)(void) = {0};
-__attribute__((section(".sbss")))
-void (*ChangeScene_return)(void (*fadeCb)(void));
+struct transitionTargetCallbacks returnCbs;
 
 __attribute__((section(".sbss.viewmodel.options")))
 static struct options_viewmodel {
@@ -131,6 +128,17 @@ static const font_colors_t SELECTED_COLORS = {
 	.write_background = false,
 };
 
+static const struct transitionSourceCallbacks transitionSourceCbs_options = {
+	.fadeOut = options_update_background,
+	.cleanup = NULL,
+};
+static const struct transitionTargetCallbacks transitionTargetCbs_options = {
+	.initFadeOut = NULL,
+	.fadeOut = NULL,
+	.initFadeIn = InitFadeIn_options,
+	.fadeIn = options_update_background,
+	.target = MainCB_options,
+};
 
 static void options_draw_main_text(enum options_row row) {
 	switch (row) {
@@ -186,22 +194,18 @@ static void options_draw_main_text(enum options_row row) {
 	}
 }
 
-void ChangeScene_options(void (*_fadeCb)(void), void (*_ChangeScene_return)(void (*)(void))) {
-	fade_to_initialize(rgb(0, 0, 0));
-	fadeCb = _fadeCb;
-	ChangeScene_return = _ChangeScene_return;
-	scene_onframe_callback = &MainCB_options_fadeout_black;
+void ChangeScene_options(
+		const struct transitionSourceCallbacks* _source,
+		const struct transitionTargetCallbacks* _returnCbs) {
+	returnCbs = *_returnCbs;
+
+	StartTransition(
+		&transition_paletteFade_black,
+		_source,
+		&transitionTargetCbs_options);
 }
 
-static void MainCB_options_fadeout_black(void) {
-	if (fade_step()) {
-		scene_onframe_callback = &MainCB_options_fadesolid_black;
-	} else {
-		fadeCb();
-	}
-}
-
-static union palette512 MainCB_options_fadesolid(void) {
+static union palette512 InitFadeIn_options(void) {
 	union palette512 final_palette = {0};
 	shadow_vram_init(&options_shadow_vram_init);
 	shadow_oam_init();
@@ -327,19 +331,6 @@ static union palette512 MainCB_options_fadesolid(void) {
 	return final_palette;
 }
 
-static void MainCB_options_fadesolid_black(void) {
-	union palette512 final_palette = MainCB_options_fadesolid();
-	fade_from_initialize(final_palette.all, 512);
-	scene_onframe_callback = &MainCB_options_fadein_black;
-}
-
-static void MainCB_options_fadein_black(void) {
-	if (fade_step()) {
-		scene_onframe_callback = &MainCB_options_main;
-	}
-	options_update_background();
-}
-
 static void options_update_background(void) {
 	if (0 == options_viewmodel.background_move_delay) {
 		options_viewmodel.background_move_delay = BACKGROUND_FREQUENCY;
@@ -411,20 +402,29 @@ static void options_process_input(void) {
 			if (options_viewmodel.exit_selection == OPTIONS_EXIT_COMMIT)
 				options = options_viewmodel.values;
 
-			ChangeScene_return(&options_update_background);
+			StartTransition(
+				&transition_paletteFade_black,
+				&transitionSourceCbs_options,
+				&returnCbs);
 			break;
 		}
 	}
 	else if (! new_inputs.b) {
-		ChangeScene_return(&options_update_background);
+		StartTransition(
+			&transition_paletteFade_black,
+			&transitionSourceCbs_options,
+			&returnCbs);
 	}
 	else if (! new_inputs.start) {
 		options = options_viewmodel.values;
-		ChangeScene_return(&options_update_background);
+		StartTransition(
+			&transition_paletteFade_black,
+			&transitionSourceCbs_options,
+			&returnCbs);
 	}
 }
 
-void MainCB_options_main(void) {
+static void MainCB_options(void) {
 	options_update_background();
 	options_process_input();
 }

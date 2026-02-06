@@ -1,11 +1,14 @@
 #include "scene/walkaround.h"
+#include "scene/walkaround_intern.h"
 
 #include <stddef.h>
 #include <stdio.h>
+#include "gba/bios.h"
 #include "management/isr.h"
 #include "management/keyinput.h"
-#include "gba/bios.h"
+#include "management/transition.h"
 #include "management/vram_op_queue.h"
+#include "transition/palette_fade.h"
 #include "benchmarks.h"
 #include "main.h"
 #include "mgba.h"
@@ -14,16 +17,8 @@ static unsigned total;
 static unsigned failed;
 
 MainCallback scene_onframe_callback;
-void MainCB_walkaround_main(void);
 
-void MainCB_mainMenu_init(void) {
-	MgbaPrintf(MGBA_LOG_INFO, "ENTER: MainCB_mainMenu_init");
-	asm(
-		"movs	r0,	#1\n\t"
-		"swi	#0x00"
-	);
-}
-void ChangeScene_options([[maybe_unused]] void (*fadeCb)(void), [[maybe_unused]] void (*ChangeScene_return)(void (*)(void))) {
+void ChangeScene_options(...) {
 	MgbaPrintf(MGBA_LOG_INFO, "ENTER: ChangeScene_options");
 	asm(
 		"movs	r0,	#1\n\t"
@@ -42,9 +37,12 @@ static void run_walkaround_initialization_benchmark() {
 	unsigned frameNo = 0;
 	MgbaPrintf(MGBA_LOG_INFO, "walkaround init: \033[44mBENCH\033[0m");
 
-	ChangeScene_walkaround_newgame(fadeCb);
+	StartTransition(
+		&transition_paletteFade_black,
+		&(struct transitionSourceCallbacks) {0},
+		&transitionTargetCbs_walkaround_newgame);
 
-	while (MainCB_walkaround_main != scene_onframe_callback) {
+	while (MainCB_walkaround != scene_onframe_callback) {
 		VBlankIntrWait();
 
 		benchmark_start();
@@ -70,8 +68,12 @@ static void run_walkaround_initialization_benchmark() {
 static void run_walkaround_idle_benchmark() {
 	MgbaPrintf(MGBA_LOG_INFO, "walkaround idle: \033[44mBENCH\033[0m");
 
-	ChangeScene_walkaround_newgame(fadeCb);
-	while (MainCB_walkaround_main != scene_onframe_callback) {
+	StartTransition(
+		&transition_paletteFade_black,
+		&(struct transitionSourceCallbacks) {0},
+		&transitionTargetCbs_walkaround_newgame);
+
+	while (MainCB_walkaround != scene_onframe_callback) {
 		vram_op_queue_execute();
 		scene_onframe_callback();
 	}
