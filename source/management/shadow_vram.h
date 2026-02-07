@@ -26,6 +26,7 @@ typedef struct {
 struct shadow_vram_init {
 	bool enable_bg[4];
 	bool enable_obj;
+	bool enable_win[3];
 	bgcnt_t bgcnt[4];
 };
 void shadow_vram_init(const struct shadow_vram_init*);

@@ -35,7 +35,7 @@ void setUp(void){}
 void tearDown(void){}
 
 
-static void run_parallaxMountainDusk_main_benchmark() {
+static void bench_dmgMusicUsingNotation_init() {
 	unsigned frameNo = 0;
 	MgbaPrintf(MGBA_LOG_INFO, "dmgMusicUsingNotation main: \033[44mBENCH\033[0m");
 
@@ -44,7 +44,7 @@ static void run_parallaxMountainDusk_main_benchmark() {
 		&(struct transitionSourceCallbacks) {0},
 		&transitionTargetCbs_dmgMusicUsingNotation);
 
-	while (frameNo != 20) {
+	while (transitionTargetCbs_dmgMusicUsingNotation.target != scene_onframe_callback) {
 		VBlankIntrWait();
 
 		benchmark_start();
@@ -75,11 +75,12 @@ int main() {
 	total = 0;
 	failed = 0;
 
+	reg_interrupt.WAITCNT = common_waitcnt;
 	isr_switchboard_init();
 	isr_enable(II_VBLANK);
 	MgbaOpen();
 
-	run_parallaxMountainDusk_main_benchmark();
+	bench_dmgMusicUsingNotation_init();
 
 	return failed != 0;
 }

@@ -19,6 +19,7 @@
 #include "scene/text_print_step.h"
 #include "scene/walkaround.h"
 #include "transition/palette_fade.h"
+#include "transition/star_iris.h"
 #include "utils/arraycount.h"
 #include "utils/saturating_add.h"
 #include "graphics.h"
@@ -102,6 +103,11 @@ static const struct {
 		.cb = &MainCB_gradient_init,
 	},
 	{
+		.label = "Star Iris Transition",
+		.transition = &transition_starIris,
+		.transitionCbs = &transitionTargetCbs_mainMenu,
+	},
+	{
 		.label = "Options",
 		.cb = &ChangeScene_options_for_mainmenu,
 	},
@@ -135,7 +141,7 @@ static void MainCB_load(void) {
 
 union palette512 InitFadeIn_mainMenu(void) {
 	union palette512 retval = {0};
-	retval.background._4[0][0] = rgb(31,31,31);
+	retval.background._4[0][1] = rgb(31,31,31);
 
 	shadow_oam_free_all();
 
@@ -180,6 +186,8 @@ union palette512 InitFadeIn_mainMenu(void) {
 				.src_length = oldschool.size,
 				.src_bitsize = oldschool.unit_width,
 				.dest_bitsize = 4,
+				.offset = 1,
+				.zero = true,
 			}
 		}
 	});

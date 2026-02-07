@@ -91,6 +91,9 @@ void shadow_vram_init(const struct shadow_vram_init* args) {
 				.enable_bg2 = args->enable_bg[2],
 				.enable_bg3 = args->enable_bg[3],
 				.enable_obj = args->enable_obj,
+				.enable_win0 = args->enable_win[0],
+				.enable_win1 = args->enable_win[1],
+				.enable_win_obj = args->enable_win[2],
 			}
 		}
 	});

@@ -44,7 +44,7 @@ static rgb_t hsb2rgb(int /* [0, 6 * 256] fixpoint 256 */ hue, int /* [0, 31] */ 
 static void HblankCB_gradient(void) {
 	uint16_t row = reg_lcd.VCOUNT;
 	if (row < DISPLAY_HEIGHT) {
-		hw_palette.background._4[0][0] = row_colors[row];
+		hw_palette.background._4[0][1] = row_colors[row];
 	}
 }
 
