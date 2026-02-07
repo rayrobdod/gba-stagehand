@@ -100,7 +100,8 @@ static const struct {
 	},
 	{
 		.label = "Gradient",
-		.cb = &MainCB_gradient_init,
+		.transition = &transition_cut,
+		.transitionCbs = &transitionTargetCbs_gradient,
 	},
 	{
 		.label = "Star Iris Transition",

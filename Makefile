@@ -388,6 +388,9 @@ $(TESTEXEDIR)/bench_parallax_mountain.elf : $(BUILDOBJDIR)/graphics.o
 $(TESTEXEDIR)/bench_parallax_mountain.elf : $(BUILDOBJDIR)/management/keyinput.c.o
 $(TESTEXEDIR)/bench_parallax_mountain.elf : $(BUILDOBJDIR)/scene/parallax_mountain_dusk.c.o
 $(TESTEXEDIR)/bench_parallax_mountain.elf : $(BUILDOBJDIR)/transition/palette_fade.c.o
+$(TESTEXEDIR)/bench_scene_gradient.elf : $(BUILDOBJDIR)/management/keyinput.c.o
+$(TESTEXEDIR)/bench_scene_gradient.elf : $(BUILDOBJDIR)/scene/gradient.c.o
+$(TESTEXEDIR)/bench_scene_gradient.elf : $(BUILDOBJDIR)/transition/cut.c.o
 $(TESTEXEDIR)/bench_text_printer.elf : $(BUILDOBJDIR)/graphics.o
 $(TESTEXEDIR)/bench_transitions.elf : $(filter $(BUILDOBJDIR)/transition/%.c.o, $(OBJS))
 $(TESTEXEDIR)/bench_walkaround.elf : $(BUILDOBJDIR)/graphics.o
