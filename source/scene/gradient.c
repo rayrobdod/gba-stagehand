@@ -10,6 +10,7 @@
 #include "management/keyinput.h"
 #include "management/vram_op_queue.h"
 #include "scene/main_menu.h"
+#include "transition/cut.h"
 #include "utils/minmax.h"
 #include "main.h"
 

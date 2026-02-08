@@ -18,6 +18,7 @@
 #include "scene/text_print_profile.h"
 #include "scene/text_print_step.h"
 #include "scene/walkaround.h"
+#include "transition/cut.h"
 #include "transition/palette_fade.h"
 #include "transition/star_iris.h"
 #include "utils/arraycount.h"
@@ -77,11 +78,11 @@ static const struct {
 	},
 	{
 		.label = "Mode 3",
-		.cb = &MainCB_mode3_init,
+		.cb = &MainCB_mode3,
 	},
 	{
 		.label = "Text Print Profile",
-		.cb = &MainCB_textPrintProfile_init,
+		.cb = &MainCB_textPrintProfile,
 	},
 	{
 		.label = "Text Print Step",

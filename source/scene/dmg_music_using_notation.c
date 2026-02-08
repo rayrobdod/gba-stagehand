@@ -12,6 +12,7 @@
 #include "management/shadow_vram.h"
 #include "management/vram_op_queue.h"
 #include "scene/main_menu.h"
+#include "transition/palette_fade.h"
 #include "utils/ansi_text_palette.h"
 #include "utils/arraycount.h"
 #include "utils/one_transparent_tileset.h"
@@ -462,7 +463,7 @@ static void MainCB_dmgMusicUsingNotation(void) {
 
 		reg_sound.master.X = (reg_sound_control_master_t) {0};
 		StartTransition(
-			&transition_cut,
+			&transition_paletteFade_black,
 			&transitionSourceCbs_dmgMusicUsingNotation,
 			&transitionTargetCbs_mainMenu);
 		return;

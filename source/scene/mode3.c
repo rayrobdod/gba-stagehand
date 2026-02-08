@@ -8,6 +8,7 @@
 #include "gba/vram.h"
 #include "management/isr.h"
 #include "scene/main_menu.h"
+#include "transition/cut.h"
 #include "graphics.h"
 #include "main.h"
 #include "mgba.h"
@@ -41,7 +42,7 @@ static const struct reg_dma dma_mountain_1 = {
 	},
 };
 
-void MainCB_mode3_init(void) {
+void MainCB_mode3(void) {
 
 	// According to the debug print, the gba is able to write half the data during a vblank
 	// mGBA seems fine with writing the whole data in one frame,
@@ -93,5 +94,8 @@ void MainCB_mode3_init(void) {
 	isr_disable(II_KEYPAD);
 	isr_enable(II_VBLANK);
 
-	scene_onframe_callback = &MainCB_mainMenu_init;
+	StartTransition(
+		&transition_cut,
+		&(struct transitionSourceCallbacks) {0},
+		&transitionTargetCbs_mainMenu);
 }

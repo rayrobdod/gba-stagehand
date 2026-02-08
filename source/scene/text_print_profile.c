@@ -8,6 +8,7 @@
 #include "gba/palette.h"
 #include "gba/vram.h"
 #include "management/isr.h"
+#include "transition/cut.h"
 #include "graphics.h"
 #include "main.h"
 #include "scene/main_menu.h"
@@ -65,7 +66,7 @@ static uint32_t profile_stop() {
 	return (reg_timer[3].counter << 16) | (reg_timer[2].counter);
 }
 
-void MainCB_textPrintProfile_init(void) {
+void MainCB_textPrintProfile(void) {
 	VBlankIntrWait();
 	reg_lcd.DISPCNT = (dispcnt_t){0};
 
@@ -225,5 +226,8 @@ void MainCB_textPrintProfile_init(void) {
 	isr_disable(II_KEYPAD);
 	isr_enable(II_VBLANK);
 
-	scene_onframe_callback = &MainCB_mainMenu_init;
+	StartTransition(
+		&transition_cut,
+		&(struct transitionSourceCallbacks) {0},
+		&transitionTargetCbs_mainMenu);
 }

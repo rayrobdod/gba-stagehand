@@ -9,6 +9,7 @@
 #include "management/shadow_vram.h"
 #include "management/vram_op_queue.h"
 #include "scene/main_menu.h"
+#include "transition/cut.h"
 #include "utils/one_transparent_tileset.h"
 #include "graphics.h"
 #include "resource_credits.h"
@@ -294,5 +295,8 @@ static void MainCB_credits_clean(void) {
 		view_model = NULL;
 	}
 
-	scene_onframe_callback = &MainCB_mainMenu_init;
+	StartTransition(
+		&transition_cut,
+		&(struct transitionSourceCallbacks) {0},
+		&transitionTargetCbs_mainMenu);
 }
