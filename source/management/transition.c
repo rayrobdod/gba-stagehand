@@ -50,7 +50,9 @@ static void MainCB_transition_fadeOut(void) {
 static void MainCB_transition_init(void) {
 	if (active_transition.source.cleanup)
 		active_transition.source.cleanup();
-	active_transition.transition.initFadeIn(active_transition.target.initFadeIn());
+
+	union palette512 palette = active_transition.target.initFadeIn();
+	active_transition.transition.initFadeIn(&palette);
 	scene_onframe_callback = &MainCB_transition_fadeIn;
 }
 

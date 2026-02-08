@@ -23,8 +23,8 @@ static enum progress transition_paletteFade(void) {
 		return ONGOING;
 	}
 };
-static void transition_paletteFade_initIn(union palette512 palette) {
-	fade_from_initialize(palette.all, 512);
+static void transition_paletteFade_initIn(const union palette512* palette) {
+	fade_from_initialize(palette->all, 512);
 };
 
 const struct transition transition_paletteFade_black = {

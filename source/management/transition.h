@@ -12,7 +12,7 @@ enum progress {
 struct transition {
 	void (*initFadeOut)(void);
 	enum progress (*fadeOut)(void);
-	void (*initFadeIn)(union palette512);
+	void (*initFadeIn)(const union palette512*);
 	enum progress (*fadeIn)(void);
 };
 

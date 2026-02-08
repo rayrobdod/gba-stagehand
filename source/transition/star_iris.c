@@ -108,10 +108,13 @@ static enum progress transition_starIris_out(void) {
 	return ONGOING;
 };
 
-static void transition_starIris_initIn(union palette512 palette) {
+static void transition_starIris_initIn(const union palette512* palette) {
 	palette16_t* buffer = malloc(sizeof(palette16_t) * 32);
 	if (buffer) {
-		CpuFastCopy(palette.all, buffer, sizeof(palette16_t) * 32 / sizeof(uint16_t));
+		CpuFastCopy(
+			palette->all,
+			buffer,
+			sizeof(palette16_t) * 32 / sizeof(uint32_t));
 		buffer[0][0] = rgb(0,0,0);
 		vram_op_queue_enqueue(&(struct vram_op) {
 			.type = VRAM_QUEUE_OP_BG_PALETTES_FREE,

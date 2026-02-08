@@ -1,13 +1,16 @@
 #include "transition/cut.h"
 
 #include <stdlib.h>
-#include <string.h>
+#include "gba/bios.h"
 #include "management/vram_op_queue.h"
 
-void transition_cut_initIn(union palette512 palette) {
-	palette16_t* buffer = malloc(sizeof(rgb_t) * 512);
+void transition_cut_initIn(const union palette512* palette) {
+	palette16_t* buffer = malloc(sizeof(palette16_t) * 32);
 	if (buffer) {
-		memcpy(buffer, palette.all, sizeof(rgb_t) * 512);
+		CpuFastCopy(
+			palette->all,
+			buffer,
+			sizeof(palette16_t) * 32 / sizeof(uint32_t));
 		vram_op_queue_enqueue(&(struct vram_op) {
 			.type = VRAM_QUEUE_OP_BG_PALETTES_FREE,
 			.palettes_free = {
