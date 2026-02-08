@@ -706,7 +706,7 @@ static void draw_measure(enum note_length measure_length, const struct note* con
 	});
 
 	char measure_number_str[8];
-	snprintf(measure_number_str, 8, "%d", current_measure);
+	snprintf(measure_number_str, sizeof(measure_number_str), "%d", current_measure);
 	uint32_t zero = 0;
 	CpuFastSet(
 		&zero,

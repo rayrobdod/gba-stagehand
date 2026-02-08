@@ -154,7 +154,7 @@ static void options_draw_main_text(enum options_row row) {
 			0);
 
 		char index_str[4] = {0};
-		snprintf(index_str, 4, "%d", options_viewmodel.values.frame_index);
+		snprintf(index_str, sizeof(index_str), "%d", options_viewmodel.values.frame_index);
 
 		text_print_immediate(
 			options_viewmodel.main_window_tiles,

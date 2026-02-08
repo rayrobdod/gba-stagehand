@@ -149,7 +149,7 @@ void MainCB_textPrintProfile_init(void) {
 		(font_colors_t) {0,5,2,3, true},
 		"Frames");
 
-	snprintf(buffer, 32, "%ld", time);
+	snprintf(buffer, sizeof(buffer), "%ld", time);
 	start_x = text_width(&bitmapfont, (coord16_t) {1,1}, buffer);
 	text_print_immediate(
 		vram.bg_charblock[0],
@@ -160,7 +160,7 @@ void MainCB_textPrintProfile_init(void) {
 		(font_colors_t) {0,1,2,3, true},
 		buffer);
 
-	snprintf(buffer, 32, "%ld.%03ld", time / CYCLES_PER_FRAME, ((time * 1000) / CYCLES_PER_FRAME) % 1000);
+	snprintf(buffer, sizeof(buffer), "%ld.%03ld", time / CYCLES_PER_FRAME, ((time * 1000) / CYCLES_PER_FRAME) % 1000);
 	start_x = text_width(&bitmapfont, (coord16_t) {1,1}, buffer);
 	text_print_immediate(
 		vram.bg_charblock[0],
@@ -172,7 +172,7 @@ void MainCB_textPrintProfile_init(void) {
 		buffer);
 
 	if (strlen(lorem_ipsum)) {
-		snprintf(buffer, 32, "%ld", time / strlen(lorem_ipsum));
+		snprintf(buffer, sizeof(buffer), "%ld", time / strlen(lorem_ipsum));
 		start_x = text_width(&bitmapfont, (coord16_t) {1,1}, buffer);
 		text_print_immediate(
 			vram.bg_charblock[0],
@@ -185,7 +185,7 @@ void MainCB_textPrintProfile_init(void) {
 
 
 
-		snprintf(buffer, 32, "%ld.%03ld", time / CYCLES_PER_FRAME / strlen(lorem_ipsum), (((time / strlen(lorem_ipsum)) * 1000) / CYCLES_PER_FRAME) % 1000);
+		snprintf(buffer, sizeof(buffer), "%ld.%03ld", time / CYCLES_PER_FRAME / strlen(lorem_ipsum), (((time / strlen(lorem_ipsum)) * 1000) / CYCLES_PER_FRAME) % 1000);
 		start_x = text_width(&bitmapfont, (coord16_t) {1,1}, buffer);
 		text_print_immediate(
 			vram.bg_charblock[0],
