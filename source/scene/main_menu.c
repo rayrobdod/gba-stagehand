@@ -78,11 +78,13 @@ static const struct {
 	},
 	{
 		.label = "Mode 3",
-		.cb = &MainCB_mode3,
+		.transition = &transition_starIris,
+		.transitionCbs = &transitionTargetCbs_mode3,
 	},
 	{
 		.label = "Text Print Profile",
-		.cb = &MainCB_textPrintProfile,
+		.transition = &transition_cut,
+		.transitionCbs = &transitionTargetCbs_textPrintProfile,
 	},
 	{
 		.label = "Text Print Step",

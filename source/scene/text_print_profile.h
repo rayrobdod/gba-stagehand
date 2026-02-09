@@ -1,1 +1,2 @@
-void MainCB_textPrintProfile(void);
+#include "management/transition.h"
+extern const struct transitionTargetCallbacks transitionTargetCbs_textPrintProfile;
