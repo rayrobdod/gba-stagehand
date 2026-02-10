@@ -11,4 +11,4 @@ void mix_rgb_many_1(
 
 void fade_to_initialize(rgb_t);
 void fade_from_initialize(const rgb_t* target, unsigned count);
-bool fade_step();
+bool fade_step(void);

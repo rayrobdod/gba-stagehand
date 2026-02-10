@@ -1,4 +1,4 @@
-void MainCB_walkaround_main(void);
+void MainCB_walkaround(void);
 
 #include "gba/hw_reg.h"
 #include "management/shadow_vram.h"
@@ -44,7 +44,7 @@ extern struct walkaround_viewmodel {
 		uint8_t num_items;
 		uint8_t enabled_items[8];
 		window_id_t window_id;
-		uint16_t border_tile_start;
+		shadow_tiles_load_tileset_retval_t border_tile_ids;
 		shadow_oam_id_t pointer_oam_id;
 	} start_menu;
 	struct {

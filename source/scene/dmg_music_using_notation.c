@@ -12,6 +12,8 @@
 #include "management/shadow_vram.h"
 #include "management/vram_op_queue.h"
 #include "scene/main_menu.h"
+#include "transition/palette_fade.h"
+#include "utils/ansi_text_palette.h"
 #include "utils/arraycount.h"
 #include "utils/one_transparent_tileset.h"
 #include "dmg_music.h"
@@ -39,8 +41,9 @@ struct note {
 	enum note_length length;
 };
 
+static union palette512 InitFadeIn_dmgMusicUsingNotation(void);
+static void MainCB_dmgMusicUsingNotation(void);
 
-static void MainCB_dmgMusicUsingNotation_main(void);
 static void start_note_1(struct note);
 static void start_note_2(struct note);
 static void draw_measure(enum note_length measure_length, const struct note* const measure[CHANNEL_COUNT]);
@@ -321,24 +324,6 @@ static const struct shadow_vram_init brick_break_reg = {
 		},
 	}
 };
-static const palette16_t text_pal = {
-	{10, 10, 10},
-	{30, 10, 10},
-	{10, 30, 10},
-	{30, 30, 0},
-	{10, 10, 30},
-	{30, 10, 30},
-	{10, 30, 30},
-	{31, 31, 31},
-	{0, 0, 0},
-	{20, 0, 0},
-	{0, 20, 0},
-	{15, 15, 0},
-	{0, 0, 20},
-	{20, 0, 20},
-	{0, 20, 20},
-	{20, 20, 20},
-};
 
 static const struct shadow_tiles_window_allocate measure_number_window_template = {
 	.bg = 3,
@@ -347,6 +332,18 @@ static const struct shadow_tiles_window_allocate measure_number_window_template 
 	.y = 2,
 	.width = MEASURE_NUMBER_WINDOW_WIDTH,
 	.height = 2,
+};
+
+static const struct transitionSourceCallbacks transitionSourceCbs_dmgMusicUsingNotation = {
+	.fadeOut = NULL,
+	.cleanup = NULL,
+};
+const struct transitionTargetCallbacks transitionTargetCbs_dmgMusicUsingNotation = {
+	.initFadeOut = NULL,
+	.fadeOut = NULL,
+	.initFadeIn = InitFadeIn_dmgMusicUsingNotation,
+	.fadeIn = NULL,
+	.target = MainCB_dmgMusicUsingNotation,
 };
 
 
@@ -366,7 +363,7 @@ static struct {
 	tile_4bpp_t measure_number_shadow_tiles[2 * MEASURE_NUMBER_WINDOW_WIDTH];
 }* view_model = NULL;
 
-void MainCB_dmgMusicUsingNotation_init(void) {
+static union palette512 InitFadeIn_dmgMusicUsingNotation(void) {
 	reg_sound._1 = (struct reg_sound_1) {0};
 	reg_sound._2 = (struct reg_sound_2) {0};
 
@@ -413,6 +410,7 @@ void MainCB_dmgMusicUsingNotation_init(void) {
 	};
 
 
+	union palette512 palette = {0};
 	view_model = calloc(sizeof(view_model[0]), 1);
 
 	shadow_vram_init(&brick_break_reg);
@@ -420,7 +418,8 @@ void MainCB_dmgMusicUsingNotation_init(void) {
 	vram_op_queue_enqueue(&(struct vram_op) {
 			.type = VRAM_QUEUE_OP_DISABLE_ALL_OAM,
 	});
-	shadow_tiles_load_background(
+	shadow_tiles_load_background_no_palette_vram_op(
+		&palette,
 		&music_sheet_background,
 		(struct shadow_tiles_load_background){.bg = 0});
 
@@ -432,25 +431,11 @@ void MainCB_dmgMusicUsingNotation_init(void) {
 				.to_tile = 0,
 			}
 	});
-	vram_op_queue_enqueue(&(struct vram_op) {
-			.type = VRAM_QUEUE_OP_OAM_PALETTES,
-			.palettes = {
-				.from = music_sheet_notes.palette,
-				.to_palette = 0,
-				.count = 1,
-			}
-	});
+	CpuFastCopy(music_sheet_notes.palette, palette.object._4[0], sizeof(palette16_t) / sizeof(uint32_t));
+	CpuFastCopy(ansi_text_palette, palette.background._4[15], sizeof(palette16_t) / sizeof(uint32_t));
 
-	vram_op_queue_enqueue(&(struct vram_op) {
-		.type = VRAM_QUEUE_OP_BG_PALETTES,
-		.palettes = {
-			.from = &text_pal,
-			.to_palette = 15,
-			.count = 1,
-		},
-	});
-
-	bg_tile_t zero_tile_ref = (bg_tile_t) {.tile = shadow_tiles_load_tileset(&one_transparent_tileset, (struct shadow_tiles_load_tileset) {3})};
+	shadow_tiles_load_tileset_retval_t zero_tile_ids = shadow_tiles_load_tileset_no_palette_vram_op(&palette, &one_transparent_tileset, (shadow_tiles_load_tileset_args_t) {3});
+	bg_tile_t zero_tile_ref = (bg_tile_t) {.tile = zero_tile_ids.tileid, .palette = zero_tile_ids.palid};
 
 	vram_op_queue_enqueue(&(struct vram_op) {
 		.type = VRAM_QUEUE_OP_BG_MAP_FILL,
@@ -464,11 +449,12 @@ void MainCB_dmgMusicUsingNotation_init(void) {
 
 	view_model->measure_number_window = shadow_tiles_window_allocate(&measure_number_window_template);
 	shadow_tiles_window_queue_map(view_model->measure_number_window);
+	shadow_tiles_window_queue_tiles(view_model->measure_number_window, view_model->measure_number_shadow_tiles);
 
-	scene_onframe_callback = &MainCB_dmgMusicUsingNotation_main;
+	return palette;
 }
 
-static void MainCB_dmgMusicUsingNotation_main(void) {
+static void MainCB_dmgMusicUsingNotation(void) {
 	if (! keyinput_get_down().b) {
 		if (view_model) {
 			free(view_model);
@@ -476,7 +462,10 @@ static void MainCB_dmgMusicUsingNotation_main(void) {
 		}
 
 		reg_sound.master.X = (reg_sound_control_master_t) {0};
-		scene_onframe_callback = &MainCB_mainMenu_init;
+		StartTransition(
+			&transition_paletteFade_black,
+			&transitionSourceCbs_dmgMusicUsingNotation,
+			&transitionTargetCbs_mainMenu);
 		return;
 	}
 

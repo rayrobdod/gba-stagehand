@@ -1,1 +1,1 @@
-void ChangeScene_walkaround_newgame(void (*fadeCb)(void));
+extern const struct transitionTargetCallbacks transitionTargetCbs_walkaround_newgame;

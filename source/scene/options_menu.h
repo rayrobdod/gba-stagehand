@@ -1,1 +1,5 @@
-void ChangeScene_options(void (*fadeCb)(void), void (*ChangeScene_return)(void (*)(void)));
+#include "management/transition.h"
+
+void ChangeScene_options(
+		const struct transitionSourceCallbacks* _source,
+		const struct transitionTargetCallbacks* _returnCbs);

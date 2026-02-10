@@ -1,12 +1,11 @@
-#include "scene/dmg_music_using_notation.h"
+#include "scene/gradient.h"
 
 #include <stddef.h>
 #include <stdio.h>
 #include "management/isr.h"
-#include "management/keyinput.h"
 #include "gba/bios.h"
-#include "management/vram_op_queue.h"
-#include "transition/palette_fade.h"
+#include "gba/hw_reg.h"
+#include "transition/cut.h"
 #include "benchmarks.h"
 #include "main.h"
 #include "mgba.h"
@@ -45,11 +44,11 @@ int main() {
 	MgbaOpen();
 
 	run_transition_benchmark(
-		&transition_paletteFade_black,
+		&transition_cut,
 		&(struct transitionSourceCallbacks) {0},
-		&transitionTargetCbs_dmgMusicUsingNotation,
-		"dmgMusicUsingNotation init",
-		RTBV_SUMMARY_ONLY);
+		&transitionTargetCbs_gradient,
+		"gradient init",
+		RTBV_ALL_FRAMES);
 
 	return failed != 0;
 }

@@ -8,15 +8,26 @@
 #include "gba/palette.h"
 #include "gba/vram.h"
 #include "management/isr.h"
-#include "graphics.h"
-#include "main.h"
 #include "scene/main_menu.h"
+#include "transition/cut.h"
+#include "graphics.h"
 #include "text_printer.h"
 
 _Static_assert(sizeof(uint16_t) == sizeof(bg_tile_t));
 union bg_tile_2_uint {
 	bg_tile_t tile;
 	uint16_t uint;
+};
+
+static union palette512 InitFadeIn_textPrintProfile(void);
+static void MainCB_textPrintProfile(void);
+
+const struct transitionTargetCallbacks transitionTargetCbs_textPrintProfile = {
+	.initFadeOut = NULL,
+	.fadeOut = NULL,
+	.initFadeIn = InitFadeIn_textPrintProfile,
+	.fadeIn = NULL,
+	.target = MainCB_textPrintProfile,
 };
 
 static const struct shadow_tiles_window_allocate whole_screen_window = {
@@ -65,20 +76,27 @@ static uint32_t profile_stop() {
 	return (reg_timer[3].counter << 16) | (reg_timer[2].counter);
 }
 
-void MainCB_textPrintProfile_init(void) {
-	VBlankIntrWait();
+static union palette512 InitFadeIn_textPrintProfile(void) {
+	union palette512 retval = {0};
+	retval.background._4[0][0] = rgb(0,16,31);
+	retval.background._4[0][1] = rgb(31,31,31);
+	retval.background._4[0][2] = rgb(16,16,16);
+	retval.background._4[0][3] = rgb(0,0,0);
+	retval.background._4[0][4] = rgb(0,31,0);
+	retval.background._4[0][5] = rgb(31,16,16);
+
+	hw_palette.background._4[0][0] = rgb(0,16,31);
+	reg_lcd.DISPCNT = (dispcnt_t){0};
+	return retval;
+}
+
+void MainCB_textPrintProfile(void) {
 	reg_lcd.DISPCNT = (dispcnt_t){0};
 
 	for (uint16_t i = 0; i < 32 * 32; i++) {
 		vram.screenblock[31][i] = (bg_tile_t) {.tile = i, .hflip = false, .vflip = false, .palette = 0};
 	}
 
-	hw_palette.background._4[0][0] = rgb(0,16,31);
-	hw_palette.background._4[0][1] = rgb(31,31,31);
-	hw_palette.background._4[0][2] = rgb(16,16,16);
-	hw_palette.background._4[0][3] = rgb(0,0,0);
-	hw_palette.background._4[0][4] = rgb(0,31,0);
-	hw_palette.background._4[0][5] = rgb(31,16,16);
 
 	CpuFastSet(
 		&zero_uint32,
@@ -225,5 +243,8 @@ void MainCB_textPrintProfile_init(void) {
 	isr_disable(II_KEYPAD);
 	isr_enable(II_VBLANK);
 
-	scene_onframe_callback = &MainCB_mainMenu_init;
+	StartTransition(
+		&transition_cut,
+		&(struct transitionSourceCallbacks) {0},
+		&transitionTargetCbs_mainMenu);
 }

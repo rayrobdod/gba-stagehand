@@ -148,12 +148,9 @@ std::vector<bg_tile_t> background_extract_map(input_path_and_data input, palette
 static void background_write_struct(std::ostream& headerstream) {
 	headerstream << std::endl
 		<< "struct background {" << std::endl
-		<< "	const palette16_t* palette;" << std::endl
-		<< "	const struct CompressedData* tileset;" << std::endl
+		<< "	struct tileset tileset;" << std::endl
 		<< "	const struct CompressedData* tilemap;" << std::endl
-		<< "	const uint16_t palette_count;" << std::endl
-		<< "	const uint16_t tileset_count;" << std::endl
-		<< "	const uint16_t tilemap_count;" << std::endl
+		<< "	uint16_t tilemap_count;" << std::endl
 		<< "};" << std::endl;
 }
 
@@ -170,36 +167,24 @@ static void background_write_to_elf(
 
 	std::vector<bg_tile_t> tilemap = background_extract_map(input, palettes.second, tiles_pair.second);
 
-	std::array<uint16_t, 9> serialized = {
-		0, 0,
-		0, 0,
-		0, 0,
-		static_cast<uint16_t>(palettes.second.colorss.size()),
-		static_cast<uint16_t>(tiles_pair.second.tiles.size()),
-		static_cast<uint16_t>(tilemap.size()),
-	};
-
 	std::string pal_name = palettes.first;
 	std::string tileset_name = tiles_pair.first;
 	std::string tilemap_name("map.");
 	tilemap_name += var_name;
 
-	std::initializer_list<relocation_template> relocs {
-		{
-			.offset = 0,
-			.type = R_ARM_ABS32,
-			.symbol_name = pal_name,
-		},
-		{
-			.offset = 4,
-			.type = R_ARM_ABS32,
-			.symbol_name = tileset_name,
-		},
-		{
-			.offset = 8,
-			.type = R_ARM_ABS32,
-			.symbol_name = tilemap_name,
-		},
+	std::array<uint16_t, 12> serialized = {0};
+	std::array<relocation_template, 3> relocs = {0};
+
+	tileset_serialized(
+		std::span<uint16_t, 8>(serialized.begin(), 8),
+		std::span<relocation_template, 2>(relocs.begin(), 2),
+		palettes,
+		tiles_pair);
+	serialized[10] = static_cast<uint16_t>(tilemap.size());
+	relocs[2] = {
+		.offset = 16,
+		.type = R_ARM_ABS32,
+		.symbol_name = tilemap_name,
 	};
 
 	std::vector<uint8_t> tilemap_bytes;
