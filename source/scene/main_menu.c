@@ -115,7 +115,8 @@ static const struct {
 	},
 	{
 		.label = "Credits",
-		.cb = &MainCB_credits_init,
+		.transition = &transition_cut,
+		.transitionCbs = &transitionTargetCbs_credits,
 	},
 };
 
