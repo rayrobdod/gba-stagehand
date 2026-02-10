@@ -3,8 +3,20 @@
 
 #include "gba/palette.h"
 
+#define ANSI_PALETTE_RED (1)
+#define ANSI_PALETTE_GREEN (2)
+#define ANSI_PALETTE_YELLOW (3)
+#define ANSI_PALETTE_BLUE (4)
+#define ANSI_PALETTE_MAGENTA (5)
+#define ANSI_PALETTE_CYAN (6)
 #define ANSI_PALETTE_WHITE (7)
 #define ANSI_PALETTE_BLACK (8)
+#define ANSI_PALETTE_BRIGHT_RED (9)
+#define ANSI_PALETTE_BRIGHT_GREEN (10)
+#define ANSI_PALETTE_BRIGHT_YELLOW (11)
+#define ANSI_PALETTE_BRIGHT_BLUE (12)
+#define ANSI_PALETTE_BRIGHT_MAGENTA (13)
+#define ANSI_PALETTE_BRIGHT_CYAN (14)
 #define ANSI_PALETTE_GREY (15)
 
 extern const palette16_t ansi_text_palette;

@@ -71,7 +71,7 @@ void fade_from_initialize(const rgb_t* target, unsigned count) {
 	fade_data.delta = -2;
 }
 
-bool fade_step() {
+bool fade_step(void) {
 	fade_data.step = saturating_add(fade_data.step, 0, 16, fade_data.delta);
 	mix_rgb_many_1(
 		  hw_palette.all
@@ -81,4 +81,9 @@ bool fade_step() {
 		, fade_data.step
 	);
 	return fade_data.step == 0 || fade_data.step == 16;
+}
+
+bool fade_is_complete(void) {
+	return (fade_data.step == 0 && fade_data.delta <= 0) ||
+		(fade_data.step == 16 && fade_data.delta > 0);
 }

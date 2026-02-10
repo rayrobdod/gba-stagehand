@@ -84,10 +84,14 @@ typedef struct {
 typedef struct {
 	window_enable_t win0;
 	window_enable_t win1;
-} window_enable_pair_t;
+	window_enable_t winout;
+	window_enable_t winobj;
+} window_enable_quad_t;
 
 [[gnu::unused]]
 static window_enable_t WIN_ENABLE_ALL = {true, true, true, true, true, true};
+[[gnu::unused]]
+static window_enable_t WIN_DISABLE_ALL = {false, false, false, false, false, false};
 
 typedef struct bgofs {
 	uint16_t h;
@@ -147,8 +151,7 @@ struct reg_lcd {
 	window_horizontal_t WIN1H;	/* 4000042 */
 	window_vertical_t WIN0V;	/* 4000044 */
 	window_vertical_t WIN1V;	/* 4000046 */
-	window_enable_pair_t WININ;	/* 4000048 */
-	window_enable_pair_t WINOUT;	/* 400004A */
+	window_enable_quad_t WIN;	/* 4000048 */
 	uint16_t MOSAIC;	/* 400004C */
 	uint16_t : 16;	/* 400004E */
 	bldcnt_t BLDCNT;	/* 4000050 */

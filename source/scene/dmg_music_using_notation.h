@@ -1,1 +1,2 @@
-void MainCB_dmgMusicUsingNotation_init(void);
+#include "management/transition.h"
+extern const struct transitionTargetCallbacks transitionTargetCbs_dmgMusicUsingNotation;

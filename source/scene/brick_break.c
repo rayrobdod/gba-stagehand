@@ -18,6 +18,18 @@
 #include "mgba.h"
 #include "text_printer.h"
 
+static union palette512 InitFadeIn_brickBreak(void);
+static void MainCB_brickBreak(void);
+
+const struct transitionTargetCallbacks transitionTargetCbs_brickBreak = {
+	.initFadeOut = NULL,
+	.fadeOut = NULL,
+	.initFadeIn = InitFadeIn_brickBreak,
+	.fadeIn = NULL,
+	.target = MainCB_brickBreak,
+};
+
+//
 
 enum {
 	BALLPOS_SCALE = 1 << 6,
@@ -121,7 +133,6 @@ inline static bool ball_hit_brick_collision(ucoords16_t ballpos, coords8_t ballv
 }
 
 //
-static void MainCB_brickBreak_main(void);
 
 static const struct shadow_vram_init brick_break_reg = (struct shadow_vram_init) {
 	.enable_bg = {true, false, false, true},
@@ -153,7 +164,7 @@ static const struct shadow_tiles_window_allocate score_window_template = (struct
 
 static void redraw_score_window() {
 	char scorestr[8];
-	snprintf(scorestr, 8, "%ld", score);
+	snprintf(scorestr, sizeof(scorestr), "%ld", score);
 	uint32_t zero = 0;
 	CpuFastSet(
 		&zero,
@@ -181,7 +192,8 @@ static void redraw_score_window() {
 
 }
 
-void MainCB_brickBreak_init(void) {
+static union palette512 InitFadeIn_brickBreak(void) {
+	union palette512 palette = {0};
 	shadow_oam_init();
 	shadow_vram_init(&brick_break_reg);
 
@@ -192,22 +204,20 @@ void MainCB_brickBreak_init(void) {
 	ballpos = (ucoords16_t){.x = paddle_x * BALLPOS_SCALE, .y = paddle_y * BALLPOS_SCALE};
 	ballvelocity = (coords8_t){.x = BALLPOS_SCALE, .y = -BALLPOS_SCALE};
 
-	shadow_tiles_load_background(
+	shadow_tiles_load_background_no_palette_vram_op(
+		&palette,
 		&brickbreak_background,
 		(struct shadow_tiles_load_background){.bg = 0});
 
-	vram_op_queue_enqueue((struct vram_op) {
-		.type = VRAM_QUEUE_OP_BG_PALETTES,
-		.palettes = {
-			.from = &text_pal,
-			.to_palette = 15,
-			.count = 1,
-		},
-	});
+	CpuFastCopy(
+		text_pal,
+		palette.background._4[15],
+		sizeof(palette16_t) / sizeof(uint32_t));
 
-	zero_tile_ref = (bg_tile_t) {.tile = shadow_tiles_load_tileset(&one_transparent_tileset, (struct shadow_tiles_load_tileset) {3})};
+	shadow_tiles_load_tileset_retval_t zero_tile_ids = shadow_tiles_load_tileset_no_palette_vram_op(&palette, &one_transparent_tileset, (shadow_tiles_load_tileset_args_t) {3});
+	zero_tile_ref = (bg_tile_t) {.tile = zero_tile_ids.tileid, .palette = zero_tile_ids.palid};
 
-	vram_op_queue_enqueue((struct vram_op) {
+	vram_op_queue_enqueue(&(struct vram_op) {
 		.type = VRAM_QUEUE_OP_BG_MAP_FILL,
 		.map_fill = {
 			.value = zero_tile_ref,
@@ -218,21 +228,23 @@ void MainCB_brickBreak_init(void) {
 	});
 
 	for (unsigned i = 0; i < arraycount(paddle_skins); i++) {
-		shadow_oam_preload_sprite(paddle_skins[i]);
+		shadow_oam_preload_sprite_no_palette_vram_op(&palette, paddle_skins[i]);
 	}
 
 	score_window = shadow_tiles_window_allocate(&score_window_template);
 	shadow_tiles_window_queue_map(score_window);
 	redraw_score_window();
 
-	spriteid_ball = shadow_oam_add_sprite(
+	spriteid_ball = shadow_oam_add_sprite_no_palette_vram_op(
+		&palette,
 		&breakout_set_ball_green,
 		(struct shadow_oam_position){
 			.coord = (ucoords16_t){.x = ballpos.x / BALLPOS_SCALE, .y = ballpos.y / BALLPOS_SCALE},
 			.hotspot = HOTSPOT_CENTER,
 		});
 
-	spriteid_paddle = shadow_oam_add_sprite(
+	spriteid_paddle = shadow_oam_add_sprite_no_palette_vram_op(
+		&palette,
 		paddle_skins[paddle_skin],
 		(struct shadow_oam_position){
 			.coord = (ucoords16_t){.x = paddle_x, .y = paddle_y},
@@ -243,7 +255,8 @@ void MainCB_brickBreak_init(void) {
 		uint16_t x = 24 + 16 * (i % 8);
 		uint16_t y = 16 + 8 * (i / 8);
 
-		spriteid_bricks[i] = shadow_oam_add_sprite(
+		spriteid_bricks[i] = shadow_oam_add_sprite_no_palette_vram_op(
+			&palette,
 			brick_skins[2],
 			(struct shadow_oam_position){
 				.coord = (ucoords16_t){.x = x, .y = y},
@@ -254,10 +267,10 @@ void MainCB_brickBreak_init(void) {
 		bricks[i].pos.y = y * BALLPOS_SCALE;
 	}
 
-	scene_onframe_callback = &MainCB_brickBreak_main;
+	return palette;
 }
 
-static void MainCB_brickBreak_main(void) {
+static void MainCB_brickBreak(void) {
 	bool redraw_paddle;
 
 	int dselection = keyinput_horizontal_pressed();

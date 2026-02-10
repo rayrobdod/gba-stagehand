@@ -50,9 +50,39 @@ static void tileset_write_struct(std::ostream& headerstream) {
 	headerstream << std::endl
 		<< "struct tileset {" << std::endl
 		<< "	const palette16_t* palette;" << std::endl
+		<< "	uint16_t palette_count;" << std::endl
+		<< "	paltag_t paltag;" << std::endl
 		<< "	const struct CompressedData* tileset;" << std::endl
-		<< "	const uint16_t tileset_count;" << std::endl
+		<< "	uint16_t tileset_count;" << std::endl
+		<< "	tiletag_t tiletag;" << std::endl
 		<< "};" << std::endl;
+}
+
+void tileset_serialized(
+		std::span<uint16_t, 8> bytebuffer,
+		std::span<relocation_template, 2> relocs,
+		const std::pair<std::string, palette_data> palettes,
+		const std::pair<std::string, tiles_data> tiles) {
+
+	bytebuffer[0] = 0;
+	bytebuffer[1] = 0;
+	bytebuffer[2] = static_cast<uint16_t>(palettes.second.colorss.size());
+	bytebuffer[3] = palettes.second.tag;
+	bytebuffer[4] = 0;
+	bytebuffer[5] = 0;
+	bytebuffer[6] = static_cast<uint16_t>(tiles.second.tiles.size());
+	bytebuffer[7] = tiles.second.tag;
+
+	relocs[0] = {
+		.offset = 0,
+		.type = R_ARM_ABS32,
+		.symbol_name = palettes.first,
+	};
+	relocs[1] = {
+		.offset = 8,
+		.type = R_ARM_ABS32,
+		.symbol_name = tiles.first,
+	};
 }
 
 static void tileset_write_to_elf(
@@ -66,25 +96,10 @@ static void tileset_write_to_elf(
 ) {
 	headerstream << "extern const struct tileset " << var_name << ";" << std::endl;
 
-	std::array<uint16_t, 6> serialized = {
-		0, 0,
-		0, 0,
-		static_cast<uint16_t>(tiles.second.tiles.size()),
-		0,
-	};
+	std::array<uint16_t, 8> serialized = {0};
+	std::array<relocation_template, 2> relocs = {0};
 
-	std::initializer_list<relocation_template> relocs {
-		{
-			.offset = 0,
-			.type = R_ARM_ABS32,
-			.symbol_name = palettes.first,
-		},
-		{
-			.offset = 4,
-			.type = R_ARM_ABS32,
-			.symbol_name = tiles.first,
-		},
-	};
+	tileset_serialized(serialized, relocs, palettes, tiles);
 
 	elf.push_single_variable_rodata_sections({var_name, STB_GLOBAL}, serialized, relocs);
 }

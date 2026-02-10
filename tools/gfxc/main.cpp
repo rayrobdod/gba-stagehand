@@ -279,6 +279,8 @@ int compile_object(std::filesystem::path srcdir, std::filesystem::path objfile, 
 	Object elf(objfile);
 	std::ofstream headerstream(headerfile);
 
+	headerstream << "#include \"gba/shared.h\"" << std::endl << std::endl;
+
 	for (auto const& palette_data : palette_datas) {
 		std::string var_name = palette_data.first;
 

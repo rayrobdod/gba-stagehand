@@ -1,6 +1,7 @@
 #include "scene/walkaround.h"
 #include "scene/walkaround_intern.h"
 
+#include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
 #include "utils/arraycount.h"
@@ -13,8 +14,21 @@ void setUp(void){}
 void tearDown(void){}
 MainCallback scene_onframe_callback;
 #ifdef __unix__
-void vram_op_queue_enqueue([[maybe_unused]] const struct vram_op new_op) {}
+void vram_op_queue_enqueue([[maybe_unused]] const struct vram_op* new_op) {}
 #endif
+
+void ChangeScene_options(...) {
+	MgbaPrintf(MGBA_LOG_INFO, "ENTER: ChangeScene_options");
+	#ifdef __unix__
+		exit(1);
+	#else
+		asm(
+			"movs	r0,	#1\n\t"
+			"swi	#0x00"
+		);
+	#endif
+}
+
 
 void TEST_ASSERT_EQUAL_MODEL(const struct walkaround_model* expected, const struct walkaround_model* actual) {
 	if (expected->map != actual->map ||
@@ -161,7 +175,7 @@ void test_walkaround__move_down(void) {
 
 	keypad_current_new = KEYPAD_DOWN;
 	keypad_current_down = KEYPAD_DOWN;
-	MainCB_walkaround_main();
+	MainCB_walkaround();
 
 	TEST_ASSERT_EQUAL_UNSIGNED(
 		-4*16 + 1,
@@ -180,7 +194,7 @@ void test_walkaround__move_down(void) {
 	keypad_current_new = KEYPAD_NONE;
 	keypad_current_down = KEYPAD_NONE;
 	for (unsigned dy = 2; dy <= 16; dy += 1) {
-		MainCB_walkaround_main();
+		MainCB_walkaround();
 
 		TEST_ASSERT_EQUAL_UNSIGNED(
 			-4*16 + dy,
@@ -197,7 +211,7 @@ void test_walkaround__move_down(void) {
 			&walkaround_state);
 	}
 
-	MainCB_walkaround_main();
+	MainCB_walkaround();
 	TEST_ASSERT_EQUAL_UNSIGNED(
 		-4*16+16,
 		walkaround_viewmodel.camera.mapoffs.y);
@@ -237,7 +251,7 @@ void test_walkaround__turn_down(void) {
 
 	keypad_current_new = KEYPAD_DOWN;
 	keypad_current_down = KEYPAD_DOWN;
-	MainCB_walkaround_main();
+	MainCB_walkaround();
 
 	TEST_ASSERT(
 		! walkaround_viewmodel.start_menu.is_open,
@@ -289,7 +303,7 @@ void test_walkaround__cannot_walk_down_into_impassable_space(void) {
 
 	keypad_current_new = KEYPAD_DOWN;
 	keypad_current_down = KEYPAD_DOWN;
-	MainCB_walkaround_main();
+	MainCB_walkaround();
 
 	TEST_ASSERT(
 		! walkaround_viewmodel.start_menu.is_open,
@@ -341,7 +355,7 @@ void test_walkaround__cannot_walk_down_when_current_is_impassable_south(void) {
 
 	keypad_current_new = KEYPAD_DOWN;
 	keypad_current_down = KEYPAD_DOWN;
-	MainCB_walkaround_main();
+	MainCB_walkaround();
 
 	TEST_ASSERT(
 		! walkaround_viewmodel.start_menu.is_open,
@@ -382,7 +396,7 @@ void test_walkaround__start_opens_menu(void) {
 
 	keypad_current_down = KEYPAD_START;
 	keypad_current_new = KEYPAD_START;
-	MainCB_walkaround_main();
+	MainCB_walkaround();
 
 	TEST_ASSERT(
 		walkaround_viewmodel.start_menu.is_open,

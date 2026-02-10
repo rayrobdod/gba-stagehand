@@ -36,7 +36,7 @@ struct variable_template {
 struct relocation_template {
 	Elf32_Addr offset;
 	unsigned char type;
-	std::string_view symbol_name;
+	std::string symbol_name;
 };
 
 struct Relocations {

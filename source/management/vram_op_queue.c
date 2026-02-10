@@ -35,6 +35,16 @@ static void vram_op_queue_execute_1(struct vram_op* entry) {
 				.mode = CPU_SET_COPY,
 			});
 		break;
+	case VRAM_QUEUE_OP_BG_PALETTES_FREE:
+		CpuFastSet(
+			entry->palettes_free.from,
+			&hw_palette.background._4[entry->palettes_free.to_palette],
+			(struct CpuFastSet){
+				.word_count = entry->palettes_free.count * (sizeof(palette16_t) / sizeof(uint32_t)),
+				.mode = CPU_SET_COPY,
+			});
+		free(entry->tiles_free.from);
+		break;
 	case VRAM_QUEUE_OP_OAM_PALETTES:
 		CpuFastSet(
 			entry->palettes.from,
@@ -45,6 +55,15 @@ static void vram_op_queue_execute_1(struct vram_op* entry) {
 			});
 		break;
 	case VRAM_QUEUE_OP_OAM_TILES:
+		CpuFastSet(
+			entry->tiles.from,
+			&vram.obj_charblock[entry->tiles.to_block][entry->tiles.to_tile],
+			(struct CpuFastSet){
+				.word_count = entry->tiles.count * (sizeof(tile_4bpp_t) / sizeof(uint32_t)),
+				.mode = CPU_SET_COPY,
+			});
+		break;
+	case VRAM_QUEUE_OP_OAM_TILES_FREE:
 		CpuFastSet(
 			entry->tiles.from,
 			&vram.obj_charblock[entry->tiles.to_block][entry->tiles.to_tile],
@@ -183,6 +202,21 @@ static void vram_op_queue_execute_1(struct vram_op* entry) {
 		reg_lcd.BGOFS[2] = entry->bgofss.value[2];
 		reg_lcd.BGOFS[3] = entry->bgofss.value[3];
 		break;
+	case VRAM_QUEUE_OP_HWREG_WIN:
+		reg_lcd.WIN = entry->win;
+		break;
+	case VRAM_QUEUE_OP_HWREG_WINHV:
+		if (0 == entry->winhv.to_index) {
+			reg_lcd.WIN0H = entry->winhv.h;
+			reg_lcd.WIN0V = entry->winhv.v;
+		} else {
+			reg_lcd.WIN1H = entry->winhv.h;
+			reg_lcd.WIN1V = entry->winhv.v;
+		}
+		break;
+	case VRAM_QUEUE_OP_ENABLE_WIN0:
+		reg_lcd.DISPCNT.enable_win0 = true;
+		break;
 	case VRAM_QUEUE_OP_UINT16:
 		*(entry->uint16.to) = entry->uint16.value;
 		break;
@@ -197,9 +231,9 @@ void vram_op_queue_execute(void) {
 	vram_op_queue_count = 0;
 }
 
-void vram_op_queue_enqueue(const struct vram_op new_op) {
+void vram_op_queue_enqueue(const struct vram_op* const new_op) {
 	if (vram_op_queue_count < VRAM_OP_QUEUE_CAPACITY) {
-		vram_op_queue[vram_op_queue_count] = new_op;
+		vram_op_queue[vram_op_queue_count] = *new_op;
 		vram_op_queue_count++;
 	} else {
 		MgbaPrintf(MGBA_LOG_ERROR, "VRAM Queue exhausted");

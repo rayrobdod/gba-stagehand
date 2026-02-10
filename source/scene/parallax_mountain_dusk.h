@@ -1,1 +1,2 @@
-void ChangeScene_parallaxMountainDusk(void (*fadeCb)(void));
+#include "management/transition.h"
+extern const struct transitionTargetCallbacks transitionTargetCbs_parallaxMountainDusk;

@@ -1,0 +1,430 @@
+#include "scene/options_menu.h"
+
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include "management/keyinput.h"
+#include "management/shadow_oam.h"
+#include "management/shadow_vram.h"
+#include "management/vram_op_queue.h"
+#include "transition/palette_fade.h"
+#include "utils/ansi_text_palette.h"
+#include "utils/one_transparent_tileset.h"
+#include "utils/saturating_add.h"
+#include "../options.h"
+#include "graphics.h"
+#include "main.h"
+#include "mgba.h"
+#include "mix_rgb.h"
+#include "text_printer.h"
+
+static void MainCB_options(void);
+static void options_update_background(void);
+static union palette512 InitFadeIn_options(void);
+
+enum {
+	BACKGROUND_BG = 3,
+	BACKGROUND_CHARBLOCK = 2,
+	BACKGROUND_SCREENBLOCK = 27,
+	BACKGROUND_FREQUENCY = 6,
+
+	BORDER_LEFT = 1,
+	BORDER_TOP = 1,
+	BORDER_RIGHT = 28,
+	BORDER_BOTTOM = 19,
+	BORDER_BG = 2,
+	BORDER_CHARBLOCK = 2,
+	BORDER_SCREENBLOCK = 28,
+
+	TEXT_BG = 1,
+	TEXT_CHARBLOCK = 0,
+	TEXT_SCREENBLOCK = 30,
+	TEXT_PAL = 15,
+};
+
+enum options_row {
+	OPTIONS_ROW_FRAME,
+	OPTIONS_ROW_EXIT,
+};
+
+enum options_exit_type {
+	OPTIONS_EXIT_COMMIT,
+	OPTIONS_EXIT_CANCEL,
+};
+
+__attribute__((section(".sbss")))
+struct transitionTargetCallbacks returnCbs;
+
+__attribute__((section(".sbss.viewmodel.options")))
+static struct options_viewmodel {
+	struct options values;
+	enum options_exit_type exit_selection;
+	enum options_row row;
+
+	uint16_t text_transparent_tile;
+	shadow_tiles_load_tileset_retval_t border_tile;
+	window_id_t title_window;
+	window_id_t main_window;
+	bgofs_t background_offset;
+	uint16_t background_move_delay;
+	[[gnu::aligned(4)]] tile_4bpp_t main_window_tiles[26 * 14];
+} options_viewmodel = {0};
+
+static const struct shadow_vram_init options_shadow_vram_init = {
+	.enable_bg = {false, true, true, true},
+	.enable_obj = true,
+	.bgcnt = {
+		[TEXT_BG] = {
+			.priority = 1,
+			.charblock = TEXT_CHARBLOCK,
+			.screenblock = TEXT_SCREENBLOCK,
+		},
+		[BORDER_BG] = {
+			.priority = 2,
+			.charblock = BORDER_CHARBLOCK,
+			.screenblock = BORDER_SCREENBLOCK,
+		},
+		[BACKGROUND_BG] = {
+			.priority = 3,
+			.charblock = BACKGROUND_CHARBLOCK,
+			.screenblock = BACKGROUND_SCREENBLOCK,
+		}
+	}
+};
+
+static const struct shadow_tiles_window_allocate window_allocate_title = {
+	.bg = TEXT_BG,
+	.palette = TEXT_PAL,
+	.x = 10,
+	.y = 2,
+	.width = 30 - 10 * 2,
+	.height = 2,
+};
+static const struct shadow_tiles_window_allocate window_allocate_main = {
+	.bg = TEXT_BG,
+	.palette = TEXT_PAL,
+	.x = 2,
+	.y = 5,
+	.width = 30 - 2 * 2,
+	.height = 20 - 1 - 5,
+};
+
+static const font_colors_t TITLE_COLORS = {
+	.light = ANSI_PALETTE_WHITE,
+	.shadow = ANSI_PALETTE_GREY,
+	.dark = ANSI_PALETTE_BLACK,
+	.write_background = false,
+};
+static const font_colors_t NORMAL_COLORS = {
+	.light = ANSI_PALETTE_BLACK,
+	.shadow = ANSI_PALETTE_WHITE,
+	.dark = ANSI_PALETTE_WHITE,
+	.write_background = false,
+};
+static const font_colors_t SELECTED_COLORS = {
+	.light = ANSI_PALETTE_RED,
+	.shadow = 0,
+	.dark = 0,
+	.write_background = false,
+};
+
+static const struct transitionSourceCallbacks transitionSourceCbs_options = {
+	.fadeOut = options_update_background,
+	.cleanup = NULL,
+};
+static const struct transitionTargetCallbacks transitionTargetCbs_options = {
+	.initFadeOut = NULL,
+	.fadeOut = NULL,
+	.initFadeIn = InitFadeIn_options,
+	.fadeIn = options_update_background,
+	.target = MainCB_options,
+};
+
+static void options_draw_main_text(enum options_row row) {
+	switch (row) {
+	case OPTIONS_ROW_FRAME:
+		text_print_immediate(
+			options_viewmodel.main_window_tiles,
+			&window_allocate_main,
+			&bitmapfont,
+			(coord16_t) {.x = 4, .y = 4},
+			(coord16_t) {.x = 1, .y = 1},
+			(options_viewmodel.row == OPTIONS_ROW_FRAME ? SELECTED_COLORS : NORMAL_COLORS),
+			"Frame:");
+
+		text_clear_immediate(
+			options_viewmodel.main_window_tiles,
+			&window_allocate_main,
+			(coord16_t) {.x = 80, .y = 4},
+			(coord16_t) {.x = 80 + 16, .y = 4 + bitmapfont.glyph_height},
+			0);
+
+		char index_str[4] = {0};
+		snprintf(index_str, sizeof(index_str), "%d", options_viewmodel.values.frame_index);
+
+		text_print_immediate(
+			options_viewmodel.main_window_tiles,
+			&window_allocate_main,
+			&bitmapfont,
+			(coord16_t) {.x = 80, .y = 4},
+			(coord16_t) {.x = 1, .y = 1},
+			(options_viewmodel.row == OPTIONS_ROW_FRAME ? SELECTED_COLORS : NORMAL_COLORS),
+			index_str);
+		break;
+
+	case OPTIONS_ROW_EXIT:
+		text_print_immediate(
+			options_viewmodel.main_window_tiles,
+			&window_allocate_main,
+			&bitmapfont,
+			(coord16_t) {.x = 100, .y = 100},
+			(coord16_t) {.x = 1, .y = 1},
+			(options_viewmodel.row == OPTIONS_ROW_EXIT && options_viewmodel.exit_selection == OPTIONS_EXIT_COMMIT ? SELECTED_COLORS : NORMAL_COLORS),
+			"OK");
+
+		text_print_immediate(
+			options_viewmodel.main_window_tiles,
+			&window_allocate_main,
+			&bitmapfont,
+			(coord16_t) {.x = 140, .y = 100},
+			(coord16_t) {.x = 1, .y = 1},
+			(options_viewmodel.row == OPTIONS_ROW_EXIT && options_viewmodel.exit_selection == OPTIONS_EXIT_CANCEL ? SELECTED_COLORS : NORMAL_COLORS),
+			"Cancel");
+		break;
+	}
+}
+
+void ChangeScene_options(
+		const struct transitionSourceCallbacks* _source,
+		const struct transitionTargetCallbacks* _returnCbs) {
+	returnCbs = *_returnCbs;
+
+	StartTransition(
+		&transition_paletteFade_black,
+		_source,
+		&transitionTargetCbs_options);
+}
+
+static union palette512 InitFadeIn_options(void) {
+	union palette512 final_palette = {0};
+	shadow_vram_init(&options_shadow_vram_init);
+	shadow_oam_init();
+	options_viewmodel = (struct options_viewmodel) {0};
+	options_viewmodel.values = options;
+
+	vram_op_queue_enqueue(&(struct vram_op) {
+		.type = VRAM_QUEUE_OP_HWREG_BGOFSS,
+		.bgofss = {
+			.value = {{0,0},{0,4},{0,4},{0,0},},
+		},
+	});
+
+
+	shadow_tiles_load_tileset_retval_t background_tile_ids = shadow_tiles_load_tileset_no_palette_vram_op(&final_palette, &diagonal_blue_background_tile, (shadow_tiles_load_tileset_args_t) {.bg = BACKGROUND_BG});
+	vram_op_queue_enqueue(&(struct vram_op) {
+		.type = VRAM_QUEUE_OP_BG_MAP_FILL,
+		.map_fill = {
+			.value = {background_tile_ids.tileid, false, false, background_tile_ids.palid},
+			.to_block = BACKGROUND_SCREENBLOCK,
+			.to_tile = 0,
+			.count = sizeof(screenblock_t) / sizeof(bg_tile_t),
+		},
+	});
+
+	options_viewmodel.text_transparent_tile = shadow_tiles_load_tileset(&one_transparent_tileset, (shadow_tiles_load_tileset_args_t) {.bg = TEXT_BG}).tileid;
+	vram_op_queue_enqueue(&(struct vram_op) {
+		.type = VRAM_QUEUE_OP_BG_MAP_FILL,
+		.map_fill = {
+			.value = {options_viewmodel.text_transparent_tile},
+			.to_block = TEXT_SCREENBLOCK,
+			.to_tile = 0,
+			.count = 2 * sizeof(screenblock_t) / sizeof(bg_tile_t),
+		},
+	});
+
+	int border_transparent_tile = shadow_tiles_load_tileset(&one_transparent_tileset, (shadow_tiles_load_tileset_args_t) {.bg = BORDER_BG}).tileid;
+	options_viewmodel.border_tile = shadow_tiles_load_tileset_no_palette_vram_op(&final_palette, options_frame_get(), (shadow_tiles_load_tileset_args_t) {.bg = BORDER_BG});
+	border_transparent_tile = border_transparent_tile | (options_viewmodel.border_tile.palid << 12);
+	border_transparent_tile = border_transparent_tile | (border_transparent_tile << 16);
+	bg_tile_t* border_map = malloc(sizeof(screenblock_t));
+	if (border_map) {
+		CpuFastSet(
+			&border_transparent_tile,
+			border_map,
+			(struct CpuFastSet) {
+				.word_count = sizeof(screenblock_t) / sizeof(uint32_t),
+				.mode = CPU_SET_FILL,
+			}
+		);
+		border_map[BORDER_LEFT + 32 * BORDER_TOP] = (bg_tile_t) {options_viewmodel.border_tile.tileid, false, false, options_viewmodel.border_tile.palid};
+		border_map[BORDER_RIGHT + 32 * BORDER_TOP] = (bg_tile_t) {options_viewmodel.border_tile.tileid + 2, false, false, options_viewmodel.border_tile.palid};
+		border_map[BORDER_LEFT + 32 * BORDER_BOTTOM] = (bg_tile_t) {options_viewmodel.border_tile.tileid + 6, false, false, options_viewmodel.border_tile.palid};
+		border_map[BORDER_RIGHT + 32 * BORDER_BOTTOM] = (bg_tile_t) {options_viewmodel.border_tile.tileid + 8, false, false, options_viewmodel.border_tile.palid};
+		for (unsigned x = BORDER_LEFT + 1; x < BORDER_RIGHT; x++) {
+			border_map[x + 32 * BORDER_TOP] = (bg_tile_t) {options_viewmodel.border_tile.tileid + 1, false, false, options_viewmodel.border_tile.palid};
+			border_map[x + 32 * BORDER_BOTTOM] = (bg_tile_t) {options_viewmodel.border_tile.tileid + 7, false, false, options_viewmodel.border_tile.palid};
+		}
+		for (unsigned y = BORDER_TOP + 1; y < BORDER_BOTTOM; y++) {
+			border_map[BORDER_LEFT + 32 * y] = (bg_tile_t) {options_viewmodel.border_tile.tileid + 3, false, false, options_viewmodel.border_tile.palid};
+			for (unsigned x = BORDER_LEFT + 1; x < BORDER_RIGHT; x++) {
+				border_map[x + 32 * y] = (bg_tile_t) {options_viewmodel.border_tile.tileid + 4, false, false, options_viewmodel.border_tile.palid};
+			}
+			border_map[BORDER_RIGHT + 32 * y] = (bg_tile_t) {options_viewmodel.border_tile.tileid + 5, false, false, options_viewmodel.border_tile.palid};
+		}
+
+		vram_op_queue_enqueue(&(struct vram_op) {
+			.type = VRAM_QUEUE_OP_BG_MAP_FREE,
+			.map_free = {
+				.from = border_map,
+				.to_block = BORDER_SCREENBLOCK,
+				.to_tile = 0,
+				.count = sizeof(screenblock_t) / sizeof(bg_tile_t),
+			},
+		});
+	}
+
+	options_viewmodel.title_window = shadow_tiles_window_allocate(&window_allocate_title);
+	shadow_tiles_window_queue_map(options_viewmodel.title_window);
+	size_t title_buffer_size = sizeof(tile_4bpp_t) * window_allocate_title.width * window_allocate_title.height;
+	tile_4bpp_t* title_buffer = malloc(title_buffer_size);
+	if (title_buffer) {
+		coord16_t kerning = {.x = 1, .y = 1};
+		const char* message = "OPTIONS";
+		uint32_t zero = 0;
+		CpuFastSet(
+			&zero,
+			title_buffer,
+			(struct CpuFastSet){
+				.word_count = title_buffer_size / sizeof(uint32_t),
+				.mode = CPU_SET_FILL,
+			});
+
+		text_print_immediate(
+			title_buffer,
+			&window_allocate_title,
+			&bitmapfont,
+			(coord16_t) {
+				.x = ((8 * window_allocate_title.width) - text_width(&bitmapfont, kerning, message)) / 2,
+				.y = ((8 * window_allocate_title.height) - bitmapfont.glyph_height) / 2 + 1,
+			},
+			kerning,
+			TITLE_COLORS,
+			message);
+		shadow_tiles_window_queue_tiles_free(
+			options_viewmodel.title_window, title_buffer);
+	}
+
+	options_viewmodel.main_window = shadow_tiles_window_allocate(&window_allocate_main);
+	shadow_tiles_window_queue_map(options_viewmodel.main_window);
+	{
+		for (enum options_row i = 0; i <= OPTIONS_ROW_EXIT; i++) {
+			options_draw_main_text(i);
+		}
+
+		shadow_tiles_window_queue_tiles(
+			options_viewmodel.main_window, options_viewmodel.main_window_tiles);
+	}
+
+	memcpy(
+		final_palette.background._4[TEXT_PAL],
+		ansi_text_palette, sizeof(palette16_t));
+	return final_palette;
+}
+
+static void options_update_background(void) {
+	if (0 == options_viewmodel.background_move_delay) {
+		options_viewmodel.background_move_delay = BACKGROUND_FREQUENCY;
+		options_viewmodel.background_offset.v -= 1;
+
+		vram_op_queue_enqueue(&(struct vram_op) {
+			.type = VRAM_QUEUE_OP_UINT16,
+			.uint16 = {
+				.value = options_viewmodel.background_offset.v,
+				.to = &reg_lcd.BGOFS[BACKGROUND_BG].v
+			},
+		});
+	} else {
+		options_viewmodel.background_move_delay -= 1;
+	}
+}
+
+static void options_process_input(void) {
+	const int row_delta = keyinput_vertical_new();
+	if (0 != row_delta) {
+		enum options_row before_row = options_viewmodel.row;
+		options_viewmodel.row = saturating_add(options_viewmodel.row, 0, OPTIONS_ROW_EXIT, row_delta);
+		options_draw_main_text(before_row);
+		options_draw_main_text(options_viewmodel.row);
+
+		shadow_tiles_window_queue_tiles(
+			options_viewmodel.main_window, options_viewmodel.main_window_tiles);
+	}
+	const int col_delta = keyinput_horizontal_new();
+	if (0 != col_delta) {
+		switch (options_viewmodel.row) {
+		case OPTIONS_ROW_FRAME:
+			options_viewmodel.values.frame_index = saturating_add(options_viewmodel.values.frame_index, 0, OPTIONS_FRAMES_COUNT - 1, col_delta);
+
+			const struct tileset* new_border = options_frame_get_n(options_viewmodel.values.frame_index);
+
+			vram_op_queue_enqueue(&(struct vram_op) {
+				.type = VRAM_QUEUE_OP_BG_TILES_COMPRESSED,
+				.tiles_compressed = {
+					.from = new_border->tileset,
+					.to_block = BORDER_CHARBLOCK,
+					.to_tile = options_viewmodel.border_tile.tileid,
+				},
+			});
+			vram_op_queue_enqueue(&(struct vram_op) {
+				.type = VRAM_QUEUE_OP_BG_PALETTES,
+				.palettes = {
+					.from = new_border->palette,
+					.to_palette = options_viewmodel.border_tile.palid,
+					.count = 1,
+				},
+			});
+
+			break;
+		case OPTIONS_ROW_EXIT:
+			options_viewmodel.exit_selection = saturating_add(options_viewmodel.exit_selection, 0, 1, col_delta);
+			break;
+		}
+		options_draw_main_text(options_viewmodel.row);
+		shadow_tiles_window_queue_tiles(
+			options_viewmodel.main_window, options_viewmodel.main_window_tiles);
+	}
+	keypad_t new_inputs = keyinput_get_new();
+	if (! new_inputs.a) {
+		switch (options_viewmodel.row) {
+		case OPTIONS_ROW_FRAME:
+			break;
+		case OPTIONS_ROW_EXIT:
+			if (options_viewmodel.exit_selection == OPTIONS_EXIT_COMMIT)
+				options = options_viewmodel.values;
+
+			StartTransition(
+				&transition_paletteFade_black,
+				&transitionSourceCbs_options,
+				&returnCbs);
+			break;
+		}
+	}
+	else if (! new_inputs.b) {
+		StartTransition(
+			&transition_paletteFade_black,
+			&transitionSourceCbs_options,
+			&returnCbs);
+	}
+	else if (! new_inputs.start) {
+		options = options_viewmodel.values;
+		StartTransition(
+			&transition_paletteFade_black,
+			&transitionSourceCbs_options,
+			&returnCbs);
+	}
+}
+
+static void MainCB_options(void) {
+	options_update_background();
+	options_process_input();
+}

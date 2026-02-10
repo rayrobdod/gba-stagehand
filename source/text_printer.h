@@ -70,6 +70,13 @@ void text_print_immediate(
 	font_colors_t colors,
 	const char* message);
 
+void text_clear_immediate(
+	volatile tile_4bpp_t* buffer,
+	const struct shadow_tiles_window_allocate* window_args,
+	coord16_t start_point,
+	coord16_t end_point,
+	uint8_t color);
+
 /// The width in pixels of `message` when using the other args
 __attribute__((pure, nonnull))
 unsigned text_width(
