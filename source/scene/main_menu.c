@@ -2,7 +2,6 @@
 
 #include <stdint.h>
 #include <stdlib.h>
-#include <string.h>
 #include "gba/screen.h"
 #include "management/keyinput.h"
 #include "management/shadow_oam.h"
@@ -25,11 +24,10 @@
 #include "utils/saturating_add.h"
 #include "graphics.h"
 #include "graphics_types.h"
-#include "main.h"
 #include "mgba.h"
 
-union palette512 InitFadeIn_mainMenu(void);
-static void MainCB_mainMenu_main(void);
+static union palette512 InitFadeIn_mainMenu(void);
+static void MainCB_mainMenu(void);
 static void MainCB_load(void);
 static void FadeCB_mainMenu(void);
 static void ChangeScene_options_for_mainmenu(void);
@@ -57,11 +55,11 @@ const struct transitionTargetCallbacks transitionTargetCbs_mainMenu = {
 	.fadeOut = NULL,
 	.initFadeIn = InitFadeIn_mainMenu,
 	.fadeIn = FadeCB_mainMenu,
-	.target = MainCB_mainMenu_main,
+	.target = MainCB_mainMenu,
 };
 
 static const struct {
-	char* label;
+	const char* label;
 	MainCallback cb;
 	const struct transition* transition;
 	const struct transitionTargetCallbacks* transitionCbs;
@@ -121,12 +119,11 @@ static const struct {
 	},
 };
 
-static void print_to_tilemap(bg_tile_t* buffer, unsigned x, unsigned y, char* message) {
-	unsigned start_index = y * 32 + x;
-	unsigned length = strlen(message);
+static void print_to_tilemap(bg_tile_t* buffer, unsigned x, unsigned y, const char* message) {
+	buffer += y * 32 + x;
 
-	for (unsigned i = 0; i < length; i++) {
-		buffer[start_index + i] = (bg_tile_t){message[i]};
+	while (*message) {
+		*buffer++ = (bg_tile_t){*message++};
 	}
 }
 
@@ -143,7 +140,7 @@ static void MainCB_load(void) {
 		&transitionTargetCbs_mainMenu);
 }
 
-union palette512 InitFadeIn_mainMenu(void) {
+static union palette512 InitFadeIn_mainMenu(void) {
 	union palette512 retval = {0};
 	retval.background._4[0][1] = rgb(31,31,31);
 
@@ -206,8 +203,7 @@ union palette512 InitFadeIn_mainMenu(void) {
 
 	bg_tile_t* tilemap_buffer = malloc(TILEMAP_BUFFER_COUNT * sizeof(bg_tile_t));
 	if (tilemap_buffer) {
-		unsigned i;
-		for (i = 0; i < TILEMAP_BUFFER_COUNT; i++) {
+		for (unsigned i = 0; i < TILEMAP_BUFFER_COUNT; i++) {
 			tilemap_buffer[i] = (bg_tile_t) {' '};
 		}
 
@@ -257,7 +253,7 @@ static void redraw_arrow(void) {
 	);
 }
 
-static void MainCB_mainMenu_main(void) {
+static void MainCB_mainMenu(void) {
 	arrow_wiggle_timer++;
 
 	if (! keyinput_get_new().a) {
