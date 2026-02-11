@@ -179,6 +179,7 @@ static union palette512 InitFadeIn_mainMenu(void) {
 		&bitmapfont,
 		(coord16_t) {2,3},
 		(coord16_t) {1,2},
+		(text_print_overflow_t) {TEXTPRINTOVERFLOWX_CLIP, TEXTPRINTOVERFLOWY_SCROLL},
 		(font_colors_t) {0, 7, 15, 8, false},
 		lorem_ipsum);
 

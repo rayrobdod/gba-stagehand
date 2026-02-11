@@ -202,6 +202,7 @@ static void MainCB_credits_printTitleInit(void) {
 			&bitmapfont,
 			title_position,
 			(coord16_t) {1,1},
+			TEXTPRINTOVERFLOW_CLIP,
 			colors_header,
 			title);
 
@@ -334,6 +335,7 @@ static void MainCB_credits_resource(void) {
 						&bitmapfont,
 						(coord16_t) {8, view_model.print_y},
 						(coord16_t) {1,1},
+						TEXTPRINTOVERFLOW_WRAPAROUND,
 						colors_header,
 						view_model.resource.current->primary.title);
 
@@ -349,6 +351,7 @@ static void MainCB_credits_resource(void) {
 						&bitmapfont,
 						(coord16_t) {14, view_model.print_y},
 						(coord16_t) {0,0},
+						TEXTPRINTOVERFLOW_WRAPAROUND,
 						colors_url,
 						view_model.resource.current->primary.retrieved_from);
 
@@ -364,6 +367,7 @@ static void MainCB_credits_resource(void) {
 						&bitmapfont,
 						(coord16_t) {14, view_model.print_y},
 						(coord16_t) {0,0},
+						TEXTPRINTOVERFLOW_WRAPAROUND,
 						colors_normal,
 						"By: ");
 
@@ -378,6 +382,7 @@ static void MainCB_credits_resource(void) {
 						&bitmapfont,
 						(coord16_t) {32, view_model.print_y},
 						(coord16_t) {0,0},
+						TEXTPRINTOVERFLOW_WRAPAROUND,
 						colors_normal,
 						view_model.resource.current->primary.author);
 
@@ -393,6 +398,7 @@ static void MainCB_credits_resource(void) {
 						&bitmapfont,
 						(coord16_t) {32, view_model.print_y},
 						(coord16_t) {0,0},
+						TEXTPRINTOVERFLOW_WRAPAROUND,
 						colors_url,
 						view_model.resource.current->primary.author_url);
 
@@ -408,6 +414,7 @@ static void MainCB_credits_resource(void) {
 						&bitmapfont,
 						(coord16_t) {14, view_model.print_y},
 						(coord16_t) {0,0},
+						TEXTPRINTOVERFLOW_WRAPAROUND,
 						colors_normal,
 						view_model.resource.current->primary.licensed_under);
 
@@ -427,6 +434,7 @@ static void MainCB_credits_resource(void) {
 						&bitmapfont,
 						(coord16_t) {14, view_model.print_y},
 						(coord16_t) {0,0},
+						TEXTPRINTOVERFLOW_WRAPAROUND,
 						colors_normal,
 						"Derived From: ");
 
@@ -442,6 +450,7 @@ static void MainCB_credits_resource(void) {
 						&bitmapfont,
 						(coord16_t) {22, view_model.print_y},
 						(coord16_t) {1,1},
+						TEXTPRINTOVERFLOW_WRAPAROUND,
 						colors_header,
 						view_model.resource.current->derived_from.title);
 
@@ -457,6 +466,7 @@ static void MainCB_credits_resource(void) {
 						&bitmapfont,
 						(coord16_t) {28, view_model.print_y},
 						(coord16_t) {0,0},
+						TEXTPRINTOVERFLOW_WRAPAROUND,
 						colors_url,
 						view_model.resource.current->derived_from.retrieved_from);
 
@@ -472,6 +482,7 @@ static void MainCB_credits_resource(void) {
 						&bitmapfont,
 						(coord16_t) {28, view_model.print_y},
 						(coord16_t) {0,0},
+						TEXTPRINTOVERFLOW_WRAPAROUND,
 						colors_normal,
 						"By: ");
 
@@ -486,6 +497,7 @@ static void MainCB_credits_resource(void) {
 						&bitmapfont,
 						(coord16_t) {46, view_model.print_y},
 						(coord16_t) {0,0},
+						TEXTPRINTOVERFLOW_WRAPAROUND,
 						colors_normal,
 						view_model.resource.current->derived_from.author);
 
@@ -501,6 +513,7 @@ static void MainCB_credits_resource(void) {
 						&bitmapfont,
 						(coord16_t) {46, view_model.print_y},
 						(coord16_t) {0,0},
+						TEXTPRINTOVERFLOW_WRAPAROUND,
 						colors_url,
 						view_model.resource.current->derived_from.author_url);
 
@@ -516,6 +529,7 @@ static void MainCB_credits_resource(void) {
 						&bitmapfont,
 						(coord16_t) {28, view_model.print_y},
 						(coord16_t) {0,0},
+						TEXTPRINTOVERFLOW_WRAPAROUND,
 						colors_normal,
 						view_model.resource.current->derived_from.licensed_under);
 
