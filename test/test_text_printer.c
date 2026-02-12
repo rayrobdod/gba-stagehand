@@ -747,6 +747,89 @@ void test_stepped_scroll(void) {
 		text_print_step(&state));
 }
 
+void test_stepped_wordwrap_space_narrow(void) {
+	struct text_print_step_state state;
+
+	static const struct shadow_tiles_window_allocate window_16_2 = {
+		.bg = 0,
+		.palette = 0,
+		.x = 0,
+		.y = 0,
+		.width = 2,
+		.height = 16,
+	};
+
+	text_print_immediate(
+		buffer2,
+		&window_16_2,
+		&bitmapfont,
+		(coord16_t) {0, 0},
+		(coord16_t) {0, 0},
+		(font_colors_t) {4,1,2,3, true},
+		"ABC");
+	text_print_immediate(
+		buffer2,
+		&window_16_2,
+		&bitmapfont,
+		(coord16_t) {0, 12},
+		(coord16_t) {0, 0},
+		(font_colors_t) {4,1,2,3, true},
+		"DEF");
+
+	text_print_step_init(
+		&state,
+		buffer,
+		&window_16_2,
+		&bitmapfont,
+		(coord16_t) {0, 0},
+		(coord16_t) {0, 0},
+		(text_print_overflow_t) {TEXTPRINTOVERFLOWX_WORDWRAP, TEXTPRINTOVERFLOWY_CLIP},
+		(font_colors_t) {4,1,2,3, true},
+		"ABC DEF");
+
+	while (TEXT_PRINT_STEP_STOP != text_print_step(&state)) {}
+
+	for (int pixel_y = 0; pixel_y < 16 * 8; pixel_y++)
+	for (int pixel_x = 0; pixel_x < 16 * 8; pixel_x++) {
+		TEST_ASSERT_EQUAL_UNSIGNED(
+			get_pixel_at(buffer2, window_16_16.width, pixel_x, pixel_y),
+			get_pixel_at(buffer, window_16_16.width, pixel_x, pixel_y));
+	}
+}
+
+void test_stepped_wordwrap_space_wide(void) {
+	struct text_print_step_state state;
+
+	text_print_immediate(
+		buffer2,
+		&window_16_16,
+		&bitmapfont,
+		(coord16_t) {0, 0},
+		(coord16_t) {0, 0},
+		(font_colors_t) {4,1,2,3, true},
+		"ABC DEF");
+
+	text_print_step_init(
+		&state,
+		buffer,
+		&window_16_16,
+		&bitmapfont,
+		(coord16_t) {0, 0},
+		(coord16_t) {0, 0},
+		(text_print_overflow_t) {TEXTPRINTOVERFLOWX_WORDWRAP, TEXTPRINTOVERFLOWY_CLIP},
+		(font_colors_t) {4,1,2,3, true},
+		"ABC DEF");
+
+	while (TEXT_PRINT_STEP_STOP != text_print_step(&state)) {}
+
+	for (int pixel_y = 0; pixel_y < 16 * 8; pixel_y++)
+	for (int pixel_x = 0; pixel_x < 16 * 8; pixel_x++) {
+		TEST_ASSERT_EQUAL_UNSIGNED(
+			get_pixel_at(buffer2, window_16_16.width, pixel_x, pixel_y),
+			get_pixel_at(buffer, window_16_16.width, pixel_x, pixel_y));
+	}
+}
+
 
 __attribute__((noinline))
 void setUp(void){
@@ -777,6 +860,8 @@ int main() {
 	RUN_TEST(test_stepped_clip_down);
 	RUN_TEST(test_stepped_wraparound_down);
 	RUN_TEST(test_stepped_scroll);
+	RUN_TEST(test_stepped_wordwrap_space_narrow);
+	RUN_TEST(test_stepped_wordwrap_space_wide);
 
 
 

@@ -34,6 +34,7 @@ enum text_print_step_retval {
 enum text_print_overflow_x {
 	TEXTPRINTOVERFLOWX_CLIP = 0,
 	TEXTPRINTOVERFLOWX_WRAPAROUND,
+	TEXTPRINTOVERFLOWX_WORDWRAP,
 };
 
 enum text_print_overflow_y {

@@ -5,6 +5,11 @@
 #include "graphics_types.h"
 #include "mgba.h"
 
+static unsigned text_width_until_next_break_opportunity(
+	const struct font* font,
+	coord16_t kerning,
+	const char* message);
+
 _Static_assert(sizeof(uint32_t) == sizeof(font_colors_t));
 union font_colors_2_uint {
 	font_colors_t colors;
@@ -45,9 +50,9 @@ static inline int text_print_one_glyph(
 
 		if (0 > tile_y || tile_y >= window_args->height) {
 			if (overflow.y == TEXTPRINTOVERFLOWY_WRAPAROUND) {
-				tile_y %= window_args->width;
-				tile_y += window_args->width;
-				tile_y %= window_args->width;
+				tile_y %= window_args->height;
+				tile_y += window_args->height;
+				tile_y %= window_args->height;
 			} else {
 				input_data += divceil(glyph_width, 4);
 				continue;
@@ -132,6 +137,39 @@ static inline int text_print_one_glyph(
 	return x + glyph_width;
 }
 
+static inline enum text_print_step_retval text_print_step_newline(
+	struct text_print_step_state* state
+) {
+	enum text_print_step_retval retval;
+
+	if (state->overflow.y == TEXTPRINTOVERFLOWY_SCROLL) {
+		const unsigned window_bottom = TILE_PIXEL_SIDE * state->window_args->height;
+
+		state->current_point.x = state->start_point.x;
+		unsigned next_y = state->current_point.y + state->font->glyph_height + state->kerning.y;
+
+		if (next_y + state->font->glyph_height < window_bottom) {
+			state->current_point.y = next_y;
+		} else {
+			state->scroll_up = state->font->glyph_height + state->kerning.y;
+		}
+
+		state->height_since_last_wait += state->font->glyph_height + state->kerning.y;
+		if (state->height_since_last_wait < window_bottom) {
+			retval = TEXT_PRINT_STEP_CONTINUE;
+		} else {
+			state->height_since_last_wait = state->font->glyph_height;
+			retval = TEXT_PRINT_STEP_WAIT;
+		}
+	} else {
+		state->current_point.x = state->start_point.x;
+		state->current_point.y += state->font->glyph_height + state->kerning.y;
+		retval = TEXT_PRINT_STEP_CONTINUE;
+	}
+
+	return retval;
+}
+
 enum text_print_step_retval text_print_step(
 	struct text_print_step_state* state
 ) {
@@ -191,28 +229,41 @@ enum text_print_step_retval text_print_step(
 			retval = TEXT_PRINT_STEP_CONTINUE;
 		} else
 		if (c == '\n') {
-			if (state->overflow.y == TEXTPRINTOVERFLOWY_SCROLL) {
-				const unsigned window_bottom = TILE_PIXEL_SIDE * state->window_args->height;
-
-				state->current_point.x = state->start_point.x;
-				unsigned next_y = state->current_point.y + state->font->glyph_height + state->kerning.y;
-
-				if (next_y + state->font->glyph_height < window_bottom) {
-					state->current_point.y = next_y;
-				} else {
-					state->scroll_up = state->font->glyph_height + state->kerning.y;
-				}
-
-				state->height_since_last_wait += state->font->glyph_height + state->kerning.y;
-				if (state->height_since_last_wait < window_bottom) {
-					retval = TEXT_PRINT_STEP_CONTINUE;
-				} else {
-					state->height_since_last_wait = state->font->glyph_height;
-					retval = TEXT_PRINT_STEP_WAIT;
-				}
+			retval = text_print_step_newline(state);
+		} else
+		if (c == ' ' && state->overflow.x == TEXTPRINTOVERFLOWX_WORDWRAP) {
+			if (state->current_point.x + text_width_until_next_break_opportunity(state->font, state->kerning, state->message)
+					> state->window_args->width * 8) {
+				retval = text_print_step_newline(state);
 			} else {
-				state->current_point.x = state->start_point.x;
-				state->current_point.y += state->current_point.y + state->font->glyph_height + state->kerning.y;
+				state->current_point.x =
+					state->kerning.x +
+					text_print_one_glyph(
+						state->buffer,
+						state->current_point.x, state->current_point.y,
+						&state->font->glyphs[c - 32],
+						state->window_args,
+						state->font,
+						state->overflow,
+						state->colors);
+				retval = TEXT_PRINT_STEP_CONTINUE;
+			}
+		} else
+		if ((c == '-' || c == '/' || c == '\\') && state->overflow.x == TEXTPRINTOVERFLOWX_WORDWRAP) {
+			state->current_point.x =
+					state->kerning.x +
+					text_print_one_glyph(
+						state->buffer,
+						state->current_point.x, state->current_point.y,
+						&state->font->glyphs[c - 32],
+						state->window_args,
+						state->font,
+						state->overflow,
+						state->colors);
+			if (state->current_point.x + text_width_until_next_break_opportunity(state->font, state->kerning, state->message)
+					> state->window_args->width * 8) {
+				retval = text_print_step_newline(state);
+			} else {
 				retval = TEXT_PRINT_STEP_CONTINUE;
 			}
 		} else
@@ -350,6 +401,36 @@ void text_clear_immediate(
 	}
 }
 
+static unsigned text_width_until_next_break_opportunity(
+	const struct font* font,
+	coord16_t kerning,
+	const char* message) {
+
+	unsigned x = 0;
+	char c = *message;
+	if (c == '\0') { return 0; }
+
+	if (c >= 32 && (c - 32) < font->glyph_count) {
+		const int width = font->glyphs[c - 32].width;
+		x += width + kerning.x;
+	}
+
+	while (true) {
+		char prev_c = c;
+		message++;
+		c = *message;
+		if (c == '\0' || c == '\n' || c == ' ') {
+			return x;
+		} else
+		if (prev_c == '/' || prev_c == '\\' || prev_c == '-') {
+			return x;
+		} else
+		if (c >= 32 && (c - 32) < font->glyph_count) {
+			const int width = font->glyphs[c - 32].width;
+			x += width + kerning.x;
+		}
+	}
+}
 
 unsigned text_width(
 	const struct font* font,

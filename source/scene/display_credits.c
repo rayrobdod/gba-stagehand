@@ -80,7 +80,7 @@ static const struct shadow_tiles_window_allocate whole_screen_window = {
 	.palette = TEXT_PALETTE,
 	.x = 0,
 	.y = 0,
-	.width = 32,
+	.width = 30,
 	.height = 32,
 };
 
@@ -105,6 +105,11 @@ static const font_colors_t colors_url = {
 	ANSI_PALETTE_BLACK,
 	true
 };
+static const coord16_t kerning_normal = {-1, -1};
+static const coord16_t kerning_title = {1, -1};
+
+static const text_print_overflow_t overflow_wordwrapx_aroundy = {
+		TEXTPRINTOVERFLOWX_WORDWRAP, TEXTPRINTOVERFLOWY_WRAPAROUND};
 
 static union palette512 InitFadeIn_credits(void) {
 	view_model = (typeof(view_model)) {0};
@@ -146,8 +151,9 @@ static union palette512 InitFadeIn_credits(void) {
 
 	bg_tile_t* tilemap_buffer = malloc(32 * 32 * sizeof(bg_tile_t));
 	if (tilemap_buffer) {
-		for (unsigned i = 0; i < 32 * 32; i++) {
-			tilemap_buffer[i] = (bg_tile_t) {.tile = i, .hflip = false, .vflip = false, .palette = TEXT_PALETTE};
+		for (unsigned y = 0; y < 32; y++)
+		for (unsigned x = 0; x < 30; x++) {
+			tilemap_buffer[y * 32 + x] = (bg_tile_t) {.tile = y * 30 + x, .hflip = false, .vflip = false, .palette = TEXT_PALETTE};
 		}
 
 		vram_op_queue_enqueue(&(struct vram_op){
@@ -187,7 +193,7 @@ static void MainCB_credits_printTitleInit(void) {
 
 		unsigned title_width = text_width(
 			&bitmapfont,
-			(coord16_t) {1,1},
+			kerning_title,
 			title);
 
 		coord16_t title_position = {
@@ -201,7 +207,7 @@ static void MainCB_credits_printTitleInit(void) {
 			&whole_screen_window,
 			&bitmapfont,
 			title_position,
-			(coord16_t) {1,1},
+			kerning_title,
 			TEXTPRINTOVERFLOW_CLIP,
 			colors_header,
 			title);
@@ -248,7 +254,7 @@ static void MainCB_credits_resourceHeader(void) {
 
 		unsigned title_width = text_width(
 			&bitmapfont,
-			(coord16_t) {1,1},
+			kerning_title,
 			title);
 
 		coord16_t title_position = {
@@ -262,7 +268,7 @@ static void MainCB_credits_resourceHeader(void) {
 			&whole_screen_window,
 			&bitmapfont,
 			title_position,
-			(coord16_t) {1,1},
+			kerning_title,
 			colors_header,
 			title);
 
@@ -317,6 +323,7 @@ static void MainCB_credits_resource(void) {
 
 			if (TEXT_PRINT_STEP_STOP == progress) {
 				view_model.is_printing = false;
+				view_model.print_y = view_model.text_print_step_state.current_point.y + bitmapfont.glyph_height;
 			}
 
 		} else {
@@ -334,13 +341,12 @@ static void MainCB_credits_resource(void) {
 						&whole_screen_window,
 						&bitmapfont,
 						(coord16_t) {8, view_model.print_y},
-						(coord16_t) {1,1},
-						TEXTPRINTOVERFLOW_WRAPAROUND,
+						kerning_title,
+						overflow_wordwrapx_aroundy,
 						colors_header,
 						view_model.resource.current->primary.title);
 
 					view_model.is_printing = true;
-					view_model.print_y += bitmapfont.glyph_height;
 					view_model.resource.part += 1;
 					break;
 				case RESOURCEPART_RETRIEVEDFROM:
@@ -350,13 +356,12 @@ static void MainCB_credits_resource(void) {
 						&whole_screen_window,
 						&bitmapfont,
 						(coord16_t) {14, view_model.print_y},
-						(coord16_t) {0,0},
-						TEXTPRINTOVERFLOW_WRAPAROUND,
+						kerning_normal,
+						overflow_wordwrapx_aroundy,
 						colors_url,
 						view_model.resource.current->primary.retrieved_from);
 
 					view_model.is_printing = true;
-					view_model.print_y += bitmapfont.glyph_height;
 					view_model.resource.part += 1;
 					break;
 				case RESOURCEPART_By:
@@ -366,7 +371,7 @@ static void MainCB_credits_resource(void) {
 						&whole_screen_window,
 						&bitmapfont,
 						(coord16_t) {14, view_model.print_y},
-						(coord16_t) {0,0},
+						kerning_normal,
 						TEXTPRINTOVERFLOW_WRAPAROUND,
 						colors_normal,
 						"By: ");
@@ -375,19 +380,19 @@ static void MainCB_credits_resource(void) {
 					view_model.resource.part += 1;
 					break;
 				case RESOURCEPART_AUTHOR:
+					view_model.print_y -= bitmapfont.glyph_height;
 					text_print_step_init(
 						&view_model.text_print_step_state,
 						vram.bg_charblock[TEXT_CHARBLOCK],
 						&whole_screen_window,
 						&bitmapfont,
 						(coord16_t) {32, view_model.print_y},
-						(coord16_t) {0,0},
-						TEXTPRINTOVERFLOW_WRAPAROUND,
+						kerning_normal,
+						overflow_wordwrapx_aroundy,
 						colors_normal,
 						view_model.resource.current->primary.author);
 
 					view_model.is_printing = true;
-					view_model.print_y += bitmapfont.glyph_height;
 					view_model.resource.part += 1;
 					break;
 				case RESOURCEPART_AUTHORURL:
@@ -397,13 +402,12 @@ static void MainCB_credits_resource(void) {
 						&whole_screen_window,
 						&bitmapfont,
 						(coord16_t) {32, view_model.print_y},
-						(coord16_t) {0,0},
-						TEXTPRINTOVERFLOW_WRAPAROUND,
+						kerning_normal,
+						overflow_wordwrapx_aroundy,
 						colors_url,
 						view_model.resource.current->primary.author_url);
 
 					view_model.is_printing = true;
-					view_model.print_y += bitmapfont.glyph_height;
 					view_model.resource.part += 1;
 					break;
 				case RESOURCEPART_LICENSE:
@@ -413,13 +417,12 @@ static void MainCB_credits_resource(void) {
 						&whole_screen_window,
 						&bitmapfont,
 						(coord16_t) {14, view_model.print_y},
-						(coord16_t) {0,0},
-						TEXTPRINTOVERFLOW_WRAPAROUND,
+						kerning_normal,
+						overflow_wordwrapx_aroundy,
 						colors_normal,
 						view_model.resource.current->primary.licensed_under);
 
 					view_model.is_printing = true;
-					view_model.print_y += bitmapfont.glyph_height;
 					if (0 == view_model.resource.current->derived_from.title[0]) {
 						view_model.resource.part = RESOURCEPART_ADVANCE;
 					} else {
@@ -433,13 +436,12 @@ static void MainCB_credits_resource(void) {
 						&whole_screen_window,
 						&bitmapfont,
 						(coord16_t) {14, view_model.print_y},
-						(coord16_t) {0,0},
+						kerning_normal,
 						TEXTPRINTOVERFLOW_WRAPAROUND,
 						colors_normal,
 						"Derived From: ");
 
 					view_model.is_printing = true;
-					view_model.print_y += bitmapfont.glyph_height;
 					view_model.resource.part += 1;
 					break;
 				case RESOURCEPART_DERIVED_TITLE:
@@ -449,13 +451,12 @@ static void MainCB_credits_resource(void) {
 						&whole_screen_window,
 						&bitmapfont,
 						(coord16_t) {22, view_model.print_y},
-						(coord16_t) {1,1},
-						TEXTPRINTOVERFLOW_WRAPAROUND,
+						kerning_title,
+						overflow_wordwrapx_aroundy,
 						colors_header,
 						view_model.resource.current->derived_from.title);
 
 					view_model.is_printing = true;
-					view_model.print_y += bitmapfont.glyph_height;
 					view_model.resource.part += 1;
 					break;
 				case RESOURCEPART_DERIVED_RETRIEVEDFROM:
@@ -465,13 +466,12 @@ static void MainCB_credits_resource(void) {
 						&whole_screen_window,
 						&bitmapfont,
 						(coord16_t) {28, view_model.print_y},
-						(coord16_t) {0,0},
-						TEXTPRINTOVERFLOW_WRAPAROUND,
+						kerning_normal,
+						overflow_wordwrapx_aroundy,
 						colors_url,
 						view_model.resource.current->derived_from.retrieved_from);
 
 					view_model.is_printing = true;
-					view_model.print_y += bitmapfont.glyph_height;
 					view_model.resource.part += 1;
 					break;
 				case RESOURCEPART_DERIVED_By:
@@ -481,7 +481,7 @@ static void MainCB_credits_resource(void) {
 						&whole_screen_window,
 						&bitmapfont,
 						(coord16_t) {28, view_model.print_y},
-						(coord16_t) {0,0},
+						kerning_normal,
 						TEXTPRINTOVERFLOW_WRAPAROUND,
 						colors_normal,
 						"By: ");
@@ -490,19 +490,19 @@ static void MainCB_credits_resource(void) {
 					view_model.resource.part += 1;
 					break;
 				case RESOURCEPART_DERIVED_AUTHOR:
+					view_model.print_y -= bitmapfont.glyph_height;
 					text_print_step_init(
 						&view_model.text_print_step_state,
 						vram.bg_charblock[TEXT_CHARBLOCK],
 						&whole_screen_window,
 						&bitmapfont,
 						(coord16_t) {46, view_model.print_y},
-						(coord16_t) {0,0},
-						TEXTPRINTOVERFLOW_WRAPAROUND,
+						kerning_normal,
+						overflow_wordwrapx_aroundy,
 						colors_normal,
 						view_model.resource.current->derived_from.author);
 
 					view_model.is_printing = true;
-					view_model.print_y += bitmapfont.glyph_height;
 					view_model.resource.part += 1;
 					break;
 				case RESOURCEPART_DERIVED_AUTHORURL:
@@ -512,13 +512,12 @@ static void MainCB_credits_resource(void) {
 						&whole_screen_window,
 						&bitmapfont,
 						(coord16_t) {46, view_model.print_y},
-						(coord16_t) {0,0},
-						TEXTPRINTOVERFLOW_WRAPAROUND,
+						kerning_normal,
+						overflow_wordwrapx_aroundy,
 						colors_url,
 						view_model.resource.current->derived_from.author_url);
 
 					view_model.is_printing = true;
-					view_model.print_y += bitmapfont.glyph_height;
 					view_model.resource.part += 1;
 					break;
 				case RESOURCEPART_DERIVED_LICENSE:
@@ -528,13 +527,12 @@ static void MainCB_credits_resource(void) {
 						&whole_screen_window,
 						&bitmapfont,
 						(coord16_t) {28, view_model.print_y},
-						(coord16_t) {0,0},
-						TEXTPRINTOVERFLOW_WRAPAROUND,
+						kerning_normal,
+						overflow_wordwrapx_aroundy,
 						colors_normal,
 						view_model.resource.current->derived_from.licensed_under);
 
 					view_model.is_printing = true;
-					view_model.print_y += bitmapfont.glyph_height;
 					if (0 == view_model.resource.current->derived_from.title[0]) {
 						view_model.resource.part = RESOURCEPART_ADVANCE;
 					} else {
@@ -565,11 +563,12 @@ static void MainCB_credits_scrollUntilBlank(void) {
 		view_model.delay = SCROLL_FREQUENCY;
 		view_model.bgoffs_y += 1;
 
+		unsigned row_to_clear = (256 + view_model.bgoffs_y - 2) % 256;
 		text_clear_immediate(
 			vram.bg_charblock[TEXT_CHARBLOCK],
 			&whole_screen_window,
-			(coord16_t) {0, view_model.bgoffs_y - 2},
-			(coord16_t) {256, view_model.bgoffs_y - 1},
+			(coord16_t) {0, row_to_clear},
+			(coord16_t) {DISPLAY_WIDTH, row_to_clear + 1},
 			ANSI_PALETTE_BLACK);
 
 		vram_op_queue_enqueue(&(struct vram_op) {
