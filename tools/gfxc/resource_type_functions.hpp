@@ -6,6 +6,7 @@
 #include <set>
 #include <string>
 #include "input_data_variant.hpp"
+#include "object_x8664.hpp"
 #include "resource_type.hpp"
 
 struct palette_data_builder;
@@ -97,6 +98,7 @@ struct type_functions {
 		std::pair<std::string, tile16x3s_data> tile16x3s,
 		std::string var_name,
 		std::ostream& headerstream,
+		Object_x8664& hostelf,
 		Object& elf
 	);
 };

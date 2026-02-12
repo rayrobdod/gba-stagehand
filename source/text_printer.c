@@ -11,6 +11,16 @@ union font_colors_2_uint {
 	uint32_t uint;
 };
 
+static inline int divfloor(int numerator, int denominator) {
+	return ((numerator / denominator) - (numerator < 0 && numerator % denominator ? 1 : 0));
+}
+static inline int divceil(int numerator, int denominator) {
+	return ((numerator / denominator) + (numerator > 0 && numerator % denominator ? 1 : 0));
+}
+static inline int modfloor(int numerator, int denominator) {
+	return ((numerator % denominator) + denominator) % denominator;
+}
+
 __attribute__((always_inline))
 static inline int text_print_one_glyph(
 	volatile tile_4bpp_t* buffer,
@@ -30,8 +40,8 @@ static inline int text_print_one_glyph(
 
 	for (int dy = 0; dy < glyph_height; dy++) {
 		int pixel_y = y + dy;
-		int tile_y = pixel_y / 8;
-		int subtile_y = pixel_y % 8;
+		int tile_y = divfloor(pixel_y, 8);
+		int subtile_y = modfloor(pixel_y, 8);
 
 		if (0 > tile_y || tile_y >= window_args->height) {
 			if (overflow.y == TEXTPRINTOVERFLOWY_WRAPAROUND) {
@@ -39,14 +49,15 @@ static inline int text_print_one_glyph(
 				tile_y += window_args->width;
 				tile_y %= window_args->width;
 			} else {
+				input_data += divceil(glyph_width, 4);
 				continue;
 			}
 		}
 
 		for (int dx = 0; dx < glyph_width; dx += 4) {
 			int pixel_x = x + dx;
-			int tile_x = pixel_x / 8;
-			int subtile_x = pixel_x % 8;
+			int tile_x = divfloor(pixel_x, 8);
+			int subtile_x = modfloor(pixel_x, 8);
 
 			unsigned input_word = *input_data;
 			input_data++;
@@ -69,6 +80,8 @@ static inline int text_print_one_glyph(
 					tile_x %= window_args->width;
 				}
 			}
+
+			//MgbaPrintf(MGBA_LOG_INFO, "x: %d, %d, %d ; y: %d, %d, %d", pixel_x, tile_x, subtile_x, pixel_y, tile_y, subtile_y);
 
 			unsigned tileid = tile_y * tiles_width + tile_x;
 			unsigned subtileid = (subtile_y * 2 + subtile_x / 4);
@@ -288,12 +301,12 @@ void text_clear_immediate(
 	const unsigned output_paint = 0x1111 * color;
 
 	for (int pixel_y = start_point.y; pixel_y < end_point.y; pixel_y++) {
-		int tile_y = pixel_y / 8;
-		int subtile_y = pixel_y % 8;
+		int tile_y = divfloor(pixel_y, 8);
+		int subtile_y = modfloor(pixel_y, 8);
 
 		for (int pixel_x = start_point.x; pixel_x < end_point.x; pixel_x += 4) {
-			int tile_x = pixel_x / 8;
-			int subtile_x = pixel_x % 8;
+			int tile_x = divfloor(pixel_x, 8);
+			int subtile_x = modfloor(pixel_x, 8);
 
 			unsigned output_mask = 0xFFFF;
 

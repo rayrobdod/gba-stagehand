@@ -331,11 +331,12 @@ $(BUILDOBJDIR)/dmg_music/staff_position.c.o : $(BUILDSRCDIR)/dmg_music/staff_pos
 
 generated_headers: $(BUILDSRCDIR)/graphics.h
 OBJS += $(BUILDOBJDIR)/graphics.o
-$(BUILDOBJDIR)/graphics.o $(BUILDSRCDIR)/graphics.h &: $(GFXC) $(SOURCES_PNG) $(SOURCES_TILEDMAP) $(SOURCES_TILEDSET)
+TEST_OBJS += $(HOSTOBJDIR_HOST)/graphics.o
+$(BUILDOBJDIR)/graphics.o $(BUILDSRCDIR)/graphics.h $(HOSTOBJDIR_HOST)/graphics.o &: $(GFXC) $(SOURCES_PNG) $(SOURCES_TILEDMAP) $(SOURCES_TILEDSET)
 	@echo "  GFXC"
 	@$(MKDIR) -p $(BUILDOBJDIR)
 	@$(MKDIR) -p $(BUILDSRCDIR)
-	$(V)$(GFXC) $(GRAPHICSDIR) $(BUILDOBJDIR)/graphics.o $(BUILDSRCDIR)/graphics.h
+	$(V)$(GFXC) $(GRAPHICSDIR) $(BUILDOBJDIR)/graphics.o $(BUILDSRCDIR)/graphics.h $(HOSTOBJDIR_HOST)/graphics.o
 
 generated_headers: $(BUILDSRCDIR)/graphics_types.h
 $(BUILDSRCDIR)/graphics_types.h: $(GFXC)
@@ -364,8 +365,11 @@ $(ROM): $(ELF) $(GBAFIX)
 	@echo "  GBAFIX  $@"
 	$(V)$(GBAFIX) $@ -t$(GAME_TITLE) -c$(GAME_CODE)
 
+$(HOSTEXEDIR)/test_text_printer : $(HOSTOBJDIR_HOST)/graphics.o
+$(HOSTEXEDIR)/test_text_printer : $(HOSTOBJDIR_SRC)/text_printer.c.o
 $(HOSTEXEDIR)/test_vram_op_queue : $(HOSTOBJDIR_SRC)/management/vram_op_queue.c.o $(HOSTOBJDIR_SRC)/gba/palette.c.o $(HOSTOBJDIR_SRC)/gba/vram.c.o $(HOSTOBJDIR_SRC)/gba/oam.c.o $(HOSTOBJDIR_SRC)/gba/hw_reg.c.o
 $(HOSTEXEDIR)/test_walkaround : $(HOSTOBJDIR_HOST)/graphics.c.o
+$(HOSTEXEDIR)/test_walkaround : $(HOSTOBJDIR_HOST)/graphics.o
 $(HOSTEXEDIR)/test_walkaround : $(HOSTOBJDIR_SRC)/gba/hw_reg.c.o
 $(HOSTEXEDIR)/test_walkaround : $(HOSTOBJDIR_SRC)/gba/palette.c.o
 $(HOSTEXEDIR)/test_walkaround : $(HOSTOBJDIR_SRC)/management/shadow_oam.c.o
@@ -403,6 +407,7 @@ $(TESTEXEDIR)/bench_walkaround.elf : $(BUILDOBJDIR)/management/shadow_oam.c.o
 $(TESTEXEDIR)/bench_walkaround.elf : $(BUILDOBJDIR)/management/shadow_vram.c.o
 $(TESTEXEDIR)/bench_walkaround.elf : $(BUILDOBJDIR)/scene/walkaround.c.o
 $(TESTEXEDIR)/bench_walkaround.elf : $(BUILDOBJDIR)/transition/palette_fade.c.o
+$(TESTEXEDIR)/test_text_printer.elf : $(BUILDOBJDIR)/graphics.o
 $(TESTEXEDIR)/test_walkaround.elf : $(BUILDOBJDIR)/graphics.o
 $(TESTEXEDIR)/test_walkaround.elf : $(BUILDOBJDIR)/options.c.o
 $(TESTEXEDIR)/test_walkaround.elf : $(BUILDOBJDIR)/scene/walkaround.c.o

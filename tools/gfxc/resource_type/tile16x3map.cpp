@@ -157,6 +157,7 @@ static void tile16x3map_write_to_elf(
 	std::pair<std::string, tile16x3s_data> tile16x3s,
 	std::string var_name,
 	std::ostream& headerstream,
+	[[maybe_unused]] Object_x8664& hostelf,
 	Object& elf
 ) {
 	headerstream << "extern const struct tile16x3map " << var_name << ";" << std::endl;

@@ -16,13 +16,14 @@ struct font_glyph {
 	std::vector<uint16_t> data;
 };
 
-void font_write_to_elf(
+static void font_write_to_elf(
 	input_path_and_data input,
 	[[gnu::unused]] std::pair<std::string, palette_data> palettes,
 	[[gnu::unused]] std::pair<std::string, tiles_data> tiles,
 	[[maybe_unused]] std::pair<std::string, tile16x3s_data> tile16x3s,
 	std::string var_name,
 	std::ostream& headerstream,
+	Object_x8664& hostelf,
 	Object& elf
 ) {
 	uint8_t height = 0;
@@ -110,11 +111,16 @@ void font_write_to_elf(
 			pixel_data.push_back(b);
 		}
 	}
+	std::vector<uint16_t> metadata_x8664;
+	metadata_x8664.push_back(0);
+	metadata_x8664.push_back(0);
+	std::copy(metadata.begin(), metadata.end(), std::back_inserter(metadata_x8664));
 
 	std::string pixeldata_name("pixeldata.");
 	pixeldata_name += var_name;
 
 	elf.push_single_variable_rodata_sections({pixeldata_name, STB_LOCAL}, pixel_data);
+	hostelf.push_single_variable_rodata_sections({pixeldata_name, STB_LOCAL}, pixel_data);
 
 	std::initializer_list<relocation_template> relocs {
 		{
@@ -123,8 +129,16 @@ void font_write_to_elf(
 			.symbol_name = pixeldata_name,
 		}
 	};
+	std::initializer_list<relocation_template> relocs_x8664 {
+		{
+			.offset = 0,
+			.type = R_X86_64_64,
+			.symbol_name = pixeldata_name,
+		}
+	};
 
 	elf.push_single_variable_rodata_sections({var_name, STB_GLOBAL}, metadata, relocs);
+	hostelf.push_single_variable_rodata_sections({var_name, STB_GLOBAL}, metadata_x8664, relocs_x8664);
 }
 
 void font_write_struct(std::ostream& headerstream) {

@@ -9,6 +9,7 @@ typedef struct {
 	uint16_t g: 5;
 	uint16_t b: 5;
 } rgb_t;
+_Static_assert(2 == sizeof(rgb_t));
 
 __attribute__((const)) inline static rgb_t rgb(uint16_t r, uint16_t g, uint16_t b) {
 	rgb_t retval = {
@@ -49,6 +50,7 @@ typedef union {
 	};
 	uint16_t all;
 } interrupt_flag_t;
+_Static_assert(2 == sizeof(interrupt_flag_t));
 
 
 #endif
