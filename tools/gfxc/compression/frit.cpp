@@ -203,11 +203,14 @@ std::optional<std::vector<uint8_t>> compressFrit(const std::vector<WORD> src, ui
 		Run<WORD> run = *run_it;
 
 		unsigned runReg;
+	        // use a register that already has the correct start value
 		for (runReg = 0; runReg < NUM_REGS; runReg++) {
 			if (run.start == regs[runReg])
 				break;
 		}
 
+	        // Otherwise, if two registers have the same value,
+	        // use one of those two
 		if (runReg >= NUM_REGS) {
 			for (int i = 0; i < NUM_REGS; i++)
 			for (int j = i + 1; j < NUM_REGS; j++) {
@@ -217,6 +220,8 @@ std::optional<std::vector<uint8_t>> compressFrit(const std::vector<WORD> src, ui
 			}
 		}
 
+		// Otherwise, use the register whose value will be needed least soon,
+		// or whose value will not be needed at all
 		if (runReg >= NUM_REGS) {
 			auto runRegNextUse = run_it;
 
