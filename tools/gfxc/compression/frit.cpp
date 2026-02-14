@@ -168,7 +168,7 @@ std::optional<std::vector<uint8_t>> compressFrit(const std::vector<WORD> src, ui
 		if (runPos + 1 < runs.size() &&
 			0 == runs[runPos].delta &&
 			1 < runs[runPos].length &&
-			1 == runs[runPos + 1].delta &&
+			0 != runs[runPos + 1].delta &&
 			runs[runPos].start + runs[runPos + 1].delta == runs[runPos + 1].start &&
 			true)
 		{
@@ -178,7 +178,7 @@ std::optional<std::vector<uint8_t>> compressFrit(const std::vector<WORD> src, ui
 		}
 
 		if (runPos + 1 < runs.size() &&
-			1 == runs[runPos].delta &&
+			0 != runs[runPos].delta &&
 			1 < runs[runPos].length &&
 			0 == runs[runPos + 1].delta &&
 			runs[runPos].last() == runs[runPos + 1].start &&
