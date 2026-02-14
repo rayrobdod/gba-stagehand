@@ -122,20 +122,20 @@ std::optional<std::vector<uint8_t>> compressFrit(const std::vector<WORD> src, ui
 			WORD current = src[srcPos];
 
 			if (current - start == 0) {
-				while (length < LONGEST_RUN && srcPos < src.size() && src[srcPos] == start) {
+				while (srcPos < src.size() && src[srcPos] == start) {
 					++srcPos;
 					++length;
 				}
 			} else if (current - start == 1) {
 				delta = 1;
-				while (length < LONGEST_RUN && srcPos < src.size() && src[srcPos] == current) {
+				while (srcPos < src.size() && src[srcPos] == current) {
 					++srcPos;
 					++length;
 					++current;
 				}
 			} else if (current - start == -1) {
 				delta = -1;
-				while (length < LONGEST_RUN && srcPos < src.size() && src[srcPos] == current) {
+				while (srcPos < src.size() && src[srcPos] == current) {
 					++srcPos;
 					++length;
 					--current;
@@ -262,8 +262,16 @@ std::optional<std::vector<uint8_t>> compressFrit(const std::vector<WORD> src, ui
 		}
 
 		char opcode = (2 + run.delta) & 0x3;
+		unsigned length = run.length;
 
-		unsigned lengthSub1 = run.length - 1;
+		while (length > LONGEST_RUN)
+		{
+			retval.push_back((opcode << 6) | (runReg << 4) | 0xF);
+			retval.push_back(0xFF);
+			length -= LONGEST_RUN;
+		}
+
+		unsigned lengthSub1 = length - 1;
 
 		if (lengthSub1 < 15) {
 			retval.push_back((opcode << 6) | (runReg << 4) | lengthSub1);
