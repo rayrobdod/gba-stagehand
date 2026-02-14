@@ -24,10 +24,10 @@ std::vector<WORD> decompressFrit(const std::vector<uint8_t> src, bool disassembl
 
 	while (srcPos < src.size()) {
 		const unsigned initialSrcPos = srcPos;
-	        unsigned op = src[srcPos++];
-	        unsigned op_code = op >> 6;
+		unsigned op = src[srcPos++];
+		unsigned op_code = op >> 6;
 
-	        if (0 == op_code) {
+		if (0 == op_code) {
 			unsigned from = (op & 0x30) >> 4;
 			unsigned to = (op & 0xC) >> 2;
 			unsigned hi = (op & 0x2);
@@ -315,4 +315,3 @@ std::optional<std::vector<uint8_t>> compressFrit16(std::vector<uint8_t> src) {
 std::optional<std::vector<uint8_t>> compressFrit8(std::vector<uint8_t> src) {
 	return compressFrit<uint8_t>(src, 0x41);
 }
-
