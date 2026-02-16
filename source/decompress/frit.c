@@ -80,7 +80,6 @@ void Frit8UnCompVram(const struct CompressedData* srcV, volatile void* destV) {
 				}
 			} else {
 				signed delta = ((signed) op_code) - 2;
-				signed deltaSIMD = delta * 0x0202;
 
 				if (length > 0 && buffer_has_value) {
 					buffer |= regValue << 8;
@@ -89,24 +88,17 @@ void Frit8UnCompVram(const struct CompressedData* srcV, volatile void* destV) {
 					regValue += delta;
 				}
 
-				if (length > 1) {
-					buffer = regValue;
+				for (; length > 1; length -= 2) {
+					buffer = regValue & 0xFF;
 					regValue += delta;
 					buffer |= regValue << 8;
 					regValue += delta;
 					*(dest16++) = buffer;
-					length -= 2;
-
-					for (; length > 1; length -= 2) {
-						buffer += deltaSIMD;
-						regValue += delta * 2;
-						*(dest16++) = buffer;
-					}
 				}
 
 				buffer_has_value = length > 0;
 				if (buffer_has_value) {
-					buffer = regValue;
+					buffer = regValue & 0xFF;
 					regValue += delta;
 				}
 				regs[regId] = regValue;
