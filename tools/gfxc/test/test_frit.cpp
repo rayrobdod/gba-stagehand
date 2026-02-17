@@ -101,6 +101,29 @@ void test_frit8_sixteen_loop(void) {
 	}
 }
 
+void test_frit8_increment_into_very_long_run(void) {
+	std::vector<uint8_t> input(400, 2);
+	input[0] = 0;
+	input[1] = 1;
+	std::optional<std::vector<uint8_t>> result_opt = compressFrit8(input);
+
+	const std::vector<uint8_t> expected{
+		0x41, 0x90, 0x01, 0x0,
+		0xC1,
+		0x8F, 0xFF,
+		0x8F, 0x51,
+		0,0,0
+	};
+	if (result_opt) {
+		std::vector<uint8_t> result = *result_opt;
+		TEST_ASSERT_EQUAL_VECTOR_HEX8(expected, result);
+		std::vector<uint8_t> round = decompressFrit8(result, true);
+		TEST_ASSERT_EQUAL_VECTOR_HEX8(input, round);
+	} else {
+		TEST_FAIL("Compression failed");
+	}
+}
+
 int main() {
 	total = 0;
 	failed = 0;
@@ -111,6 +134,7 @@ int main() {
 	RUN_TEST(test_frit16_Zeros_60);
 	RUN_TEST(test_frit16_Zeros_62);
 	RUN_TEST(test_frit8_sixteen_loop);
+	RUN_TEST(test_frit8_increment_into_very_long_run);
 
 	printf("Total: %d; Failing: %d\n", total, failed);
 	return 0 != failed;

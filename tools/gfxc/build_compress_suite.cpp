@@ -167,6 +167,34 @@ int build_trivial_decompression_suite(std::filesystem::path objfile) {
 		count = "256";
 
 		suite_1(var + count, count + label, data, elf);
+
+		for (; i < 260; i++) {
+			data.push_back(i);
+		}
+		count = "260";
+
+		suite_1(var + count, count + label, data, elf);
+	}
+
+	{
+		unsigned i;
+		data.clear();
+		for (i = 0; i < 8; i++) {
+			data.push_back(260 - i);
+		}
+		std::string var("decrement8_wrap");
+		std::string label(" decrement8_wrap");
+		std::string count("even");
+
+		suite_1(var + count, count + label, data, elf);
+
+		data.clear();
+		for (i = 0; i < 8; i++) {
+			data.push_back(261 - i);
+		}
+		count = "odd";
+
+		suite_1(var + count, count + label, data, elf);
 	}
 
 	{
