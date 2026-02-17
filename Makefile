@@ -335,6 +335,7 @@ TEST_OBJS += $(HOSTOBJDIR_HOST)/graphics.o
 $(BUILDOBJDIR)/graphics.o $(BUILDSRCDIR)/graphics.h $(HOSTOBJDIR_HOST)/graphics.o &: $(GFXC) $(SOURCES_PNG) $(SOURCES_TILEDMAP) $(SOURCES_TILEDSET)
 	@echo "  GFXC"
 	@$(MKDIR) -p $(BUILDOBJDIR)
+	@$(MKDIR) -p $(HOSTOBJDIR_HOST)
 	@$(MKDIR) -p $(BUILDSRCDIR)
 	$(V)$(GFXC) $(GRAPHICSDIR) $(BUILDOBJDIR)/graphics.o $(BUILDSRCDIR)/graphics.h $(HOSTOBJDIR_HOST)/graphics.o
 

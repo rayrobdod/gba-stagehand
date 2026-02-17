@@ -1,0 +1,88 @@
+name: Check
+on: [push, pull_request]
+env:
+  MGBA_VERSION: 0.10.5
+jobs:
+  build-mgba:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/cache@v5
+      id: cache
+      with:
+        lookup-only: true
+        path: |
+          ~/.local/bin/mgba-rom-test
+          ~/.local/lib/libmgba.so*
+        key: mgba-${{ env.MGBA_VERSION }}
+    - uses: actions/checkout@v6
+      if: steps.cache.outputs.cache-hit != 'true'
+      with:
+        repository: 'mgba-emu/mgba'
+        ref: ${{ env.MGBA_VERSION }}
+    - name: Install
+      if: steps.cache.outputs.cache-hit != 'true'
+      run: |
+        sudo apt update
+        sudo apt install -y libelf-dev
+    - name: cmake
+      if: steps.cache.outputs.cache-hit != 'true'
+      run: |
+        mkdir build
+        cd build
+        cmake \
+            -DCMAKE_INSTALL_PREFIX:PATH=~/.local \
+            -DBUILD_ROM_TEST=ON \
+            -DBUILD_QT=OFF -DBUILD_SDL=OFF \
+            -DENABLE_SCRIPTING=OFF \
+            -DM_CORE_GB=OFF \
+            -DUSE_DISCORD_RPC=OFF \
+            -DUSE_GDB_STUB=OFF \
+            -DUSE_LZMA=OFF \
+            -DUSE_PNG=OFF \
+            -DUSE_SQLITE3=OFF \
+            ..
+    - name: make
+      if: steps.cache.outputs.cache-hit != 'true'
+      run: |
+        cd build
+        make -j${nproc}
+    - name: install
+      if: steps.cache.outputs.cache-hit != 'true'
+      run: |
+        cd build
+        make install
+  build:
+    runs-on: ubuntu-latest
+    env:
+      QT_QPA_PLATFORM: offscreen
+    needs: build-mgba
+    steps:
+    - uses: actions/checkout@v6
+    - uses: actions/cache/restore@v5
+      with:
+        fail-on-cache-miss: true
+        path: |
+          ~/.local/bin/mgba-rom-test
+          ~/.local/lib/libmgba.so*
+        key: mgba-${{ env.MGBA_VERSION }}
+    - name: Install
+      run: |
+        sudo apt update
+        sudo apt install -y \
+          gcc-arm-none-eabi \
+          libpng-dev \
+          libtiled-dev \
+          qtbase5-dev \
+
+        # build-essential and git are already installed
+    - name: build
+      run: make -j${nproc}
+    - name: upload credits txt
+      uses: actions/upload-artifact@v6
+      with:
+        name: credits_txt
+        path: build/main/CREDITS.md
+    - name: test (host)
+      run: make -j${nproc} check_host
+    - name: test
+      run: make -j${nproc} ROMTEST=mgba-rom-test check_all
