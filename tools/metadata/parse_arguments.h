@@ -6,6 +6,7 @@ struct Arguments {
 	const char** inPngFiles;
 	const char* outCreditsObject;
 	const char* outCreditsHeader;
+	const char* outTextFile;
 	const char* errorMsg;
 };
 

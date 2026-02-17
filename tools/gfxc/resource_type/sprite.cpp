@@ -137,6 +137,7 @@ static void sprite_write_to_elf(
 	[[maybe_unused]] std::pair<std::string, tile16x3s_data> tile16x3s,
 	std::string var_name,
 	std::ostream& headerstream,
+	Object_x8664& elf_x8664,
 	Object& elf
 ) {
 	headerstream << "extern const struct shadow_oam_template " << var_name << ";" << std::endl;
@@ -148,6 +149,14 @@ static void sprite_write_to_elf(
 	std::array<uint16_t, 8> serialized = {
 		0, 0,
 		0, 0,
+		palettes.second.tag,
+		tiles.second.tag,
+		my_size,
+		0,
+	};
+	std::array<uint16_t, 12> serialized_x8664 = {
+		0, 0, 0, 0,
+		0, 0, 0, 0,
 		palettes.second.tag,
 		tiles.second.tag,
 		my_size,
@@ -166,8 +175,21 @@ static void sprite_write_to_elf(
 			.symbol_name = tiles.first,
 		},
 	};
+	std::vector<relocation_template> relocs_x8664 {
+		{
+			.offset = 0,
+			.type = R_X86_64_64,
+			.symbol_name = palettes.first,
+		},
+		{
+			.offset = 8,
+			.type = R_X86_64_64,
+			.symbol_name = tiles.first,
+		},
+	};
 
 	elf.push_single_variable_rodata_sections({var_name, STB_GLOBAL}, serialized, relocs);
+	elf_x8664.push_single_variable_rodata_sections({var_name, STB_GLOBAL}, serialized_x8664, relocs_x8664);
 
 	for (auto alternate : palettes.second.alternates) {
 		std::string alternate_var_name;
@@ -184,8 +206,11 @@ static void sprite_write_to_elf(
 
 		serialized[4] = alternate.second.tag;
 		relocs[0].symbol_name = alternate_palette_name;
+		serialized_x8664[8] = alternate.second.tag;
+		relocs_x8664[0].symbol_name = alternate_palette_name;
 
 		elf.push_single_variable_rodata_sections({alternate_var_name, STB_GLOBAL}, serialized, relocs);
+		elf_x8664.push_single_variable_rodata_sections({alternate_var_name, STB_GLOBAL}, serialized_x8664, relocs_x8664);
 	}
 }
 

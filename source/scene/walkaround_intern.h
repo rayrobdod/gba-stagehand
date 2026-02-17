@@ -26,6 +26,8 @@ typedef struct { int16_t x; int16_t y; } mapoffs_t;
 typedef struct { int16_t x; int16_t y; } screenoffs_t;
 
 struct oam_animation;
+struct oam_animations;
+extern const struct oam_animations character_base_male;
 
 extern struct walkaround_model {
 	const struct tile16x3map* map;
@@ -52,9 +54,10 @@ extern struct walkaround_viewmodel {
 		mapoffs_t mapoffs;
 	} camera;
 	struct {
+		const struct oam_animations* anims;
+		const struct oam_animation* anim;
 		shadow_oam_id_t oam_id;
 		mapoffs_t mapoffs;
-		const struct oam_animation* anim;
 		uint8_t anim_frame;
 		uint8_t anim_delay;
 	} player;

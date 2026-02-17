@@ -89,7 +89,7 @@ int write_types_header(std::filesystem::path headerfile) {
 	return 0;
 }
 
-int compile_object(std::filesystem::path srcdir, std::filesystem::path objfile, std::filesystem::path headerfile) {
+int compile_object(std::filesystem::path srcdir, std::filesystem::path objfile, std::filesystem::path headerfile, std::filesystem::path hostobjfile) {
 	int fake_argc_that_qt_requires_to_be_mutable_for_no_comprehensible_reason = 1;
 	char* fake_argv0_that_qt_requires_to_be_mutable_for_no_comprehensible_reason = strdup("gfxc");
 	char** fake_argv_that_qt_requires_to_be_mutable_for_no_comprehensible_reason = static_cast<char**>(calloc(1, sizeof(char*)));
@@ -278,6 +278,7 @@ int compile_object(std::filesystem::path srcdir, std::filesystem::path objfile, 
 
 	Object elf(objfile);
 	std::ofstream headerstream(headerfile);
+	Object_x8664 hostelf(hostobjfile);
 
 	headerstream << "#include \"gba/shared.h\"" << std::endl << std::endl;
 
@@ -297,6 +298,7 @@ int compile_object(std::filesystem::path srcdir, std::filesystem::path objfile, 
 			}
 		}
 		elf.push_single_variable_rodata_sections({var_name, STB_LOCAL}, pal);
+		hostelf.push_single_variable_rodata_sections({var_name, STB_LOCAL}, pal);
 
 		for (auto alt : palette_data.second.alternates) {
 			std::string alt_var_name = var_name;
@@ -313,6 +315,7 @@ int compile_object(std::filesystem::path srcdir, std::filesystem::path objfile, 
 				}
 			}
 			elf.push_single_variable_rodata_sections({alt_var_name, STB_LOCAL}, alt_pal);
+			hostelf.push_single_variable_rodata_sections({alt_var_name, STB_LOCAL}, alt_pal);
 		}
 	}
 
@@ -329,6 +332,7 @@ int compile_object(std::filesystem::path srcdir, std::filesystem::path objfile, 
 		auto compressed = choose_compression(tileset_data.first, bytes);
 
 		elf.push_single_variable_rodata_sections({var_name, STB_LOCAL}, compressed.data);
+		hostelf.push_single_variable_rodata_sections({var_name, STB_LOCAL}, compressed.data);
 	}
 
 	for (auto const& tile16x3set_data : tile16x3s_datas) {
@@ -341,6 +345,7 @@ int compile_object(std::filesystem::path srcdir, std::filesystem::path objfile, 
 		}
 
 		elf.push_single_variable_rodata_sections({var_name, STB_LOCAL}, serialized_metatileset);
+		hostelf.push_single_variable_rodata_sections({var_name, STB_LOCAL}, serialized_metatileset);
 	}
 
 	{
@@ -397,6 +402,7 @@ int compile_object(std::filesystem::path srcdir, std::filesystem::path objfile, 
 							my_tile16x3s_data,
 							var_name,
 							headerstream,
+							hostelf,
 							elf
 						);
 					}
@@ -427,12 +433,13 @@ int main(int argc, char* argv[]) {
 			return build_decompression_suite(argv[2], argv[3]);
 		}
 	} else
-	if (argc == 4) {
+	if (argc == 5) {
 		std::filesystem::path srcdir = argv[1];
 		std::filesystem::path objfile = argv[2];
 		std::filesystem::path headerfile = argv[3];
+		std::filesystem::path hostobjfile = argv[4];
 
-		return compile_object(srcdir, objfile, headerfile);
+		return compile_object(srcdir, objfile, headerfile, hostobjfile);
 	} else
 	{
 		printf("TODO \n");

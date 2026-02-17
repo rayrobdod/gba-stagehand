@@ -31,6 +31,30 @@ enum text_print_step_retval {
 	TEXT_PRINT_STEP_WAIT,
 };
 
+enum text_print_overflow_x {
+	TEXTPRINTOVERFLOWX_CLIP = 0,
+	TEXTPRINTOVERFLOWX_WRAPAROUND,
+	TEXTPRINTOVERFLOWX_WORDWRAP,
+};
+
+enum text_print_overflow_y {
+	TEXTPRINTOVERFLOWY_CLIP = 0,
+	TEXTPRINTOVERFLOWY_WRAPAROUND,
+	TEXTPRINTOVERFLOWY_SCROLL,
+};
+
+typedef struct {
+	enum text_print_overflow_x x;
+	enum text_print_overflow_y y;
+} text_print_overflow_t;
+
+[[maybe_unused]]
+static const text_print_overflow_t TEXTPRINTOVERFLOW_CLIP = {
+		TEXTPRINTOVERFLOWX_CLIP, TEXTPRINTOVERFLOWY_CLIP};
+[[maybe_unused]]
+static const text_print_overflow_t TEXTPRINTOVERFLOW_WRAPAROUND = {
+		TEXTPRINTOVERFLOWX_WRAPAROUND, TEXTPRINTOVERFLOWY_WRAPAROUND};
+
 struct text_print_step_state {
 	coord16_t current_point;
 	uint8_t scroll_up;
@@ -42,6 +66,7 @@ struct text_print_step_state {
 	const struct font* font;
 	coord16_t start_point;
 	coord16_t kerning;
+	text_print_overflow_t overflow;
 	font_colors_t colors;
 };
 
@@ -57,6 +82,7 @@ void text_print_step_init(
 	const struct font* font,
 	coord16_t start_point,
 	coord16_t kerning,
+	text_print_overflow_t overflow,
 	font_colors_t colors,
 	const char* message);
 
@@ -73,7 +99,9 @@ void text_print_immediate(
 void text_clear_immediate(
 	volatile tile_4bpp_t* buffer,
 	const struct shadow_tiles_window_allocate* window_args,
+	// inclusive
 	coord16_t start_point,
+	// exclusive
 	coord16_t end_point,
 	uint8_t color);
 

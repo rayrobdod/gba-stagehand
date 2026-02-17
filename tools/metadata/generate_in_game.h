@@ -12,7 +12,7 @@ void generate_credits_header(
 void generate_credits_object(
 	const char* out_file_name,
 	size_t metadata_count,
-	const struct metadata* metadatas);
+	const struct metadata_and_filenames* metadatas);
 
 #ifdef __cplusplus
 }

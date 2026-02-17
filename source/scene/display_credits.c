@@ -6,297 +6,588 @@
 #include "gba/palette.h"
 #include "gba/screen.h"
 #include "management/keyinput.h"
-#include "management/shadow_vram.h"
 #include "management/vram_op_queue.h"
 #include "scene/main_menu.h"
 #include "transition/cut.h"
-#include "utils/one_transparent_tileset.h"
+#include "utils/ansi_text_palette.h"
 #include "graphics.h"
+#include "graphics_types.h"
 #include "resource_credits.h"
 #include "main.h"
 #include "mgba.h"
 #include "text_printer.h"
 
-static void MainCB_credits_clear(void);
-static void MainCB_credits_print(void);
-static void MainCB_credits_idle(void);
-static void MainCB_credits_clean(void);
+static union palette512 InitFadeIn_credits(void);
+static void MainCB_credits_printTitleInit(void);
+static void MainCB_credits_printTitle(void);
+static void MainCB_credits_hold(void);
+static void MainCB_credits_resourceHeader(void);
+static void MainCB_credits_resource(void);
+static void MainCB_credits_scrollUntilBlank(void);
+static void MainCB_credits_stall(void);
 
-enum {
-	TITLE_WINDOW_WIDTH = 26,
-	TITLE_WINDOW_HEIGHT = 2,
-	URL_WINDOW_WIDTH = 28,
-	URL_WINDOW_HEIGHT = 6,
-	AUTHOR_WINDOW_WIDTH = 26,
-	AUTHOR_WINDOW_HEIGHT = 2,
-	AUTHORURL_WINDOW_WIDTH = 28,
-	AUTHORURL_WINDOW_HEIGHT = 2,
-	LICENSE_WINDOW_WIDTH = 26,
-	LICENSE_WINDOW_HEIGHT = 2,
+static const struct transitionSourceCallbacks transitionSourceCbs_credits = {
+	.fadeOut = NULL,
+	.cleanup = NULL,
+};
+const struct transitionTargetCallbacks transitionTargetCbs_credits = {
+	.initFadeOut = NULL,
+	.fadeOut = NULL,
+	.initFadeIn = InitFadeIn_credits,
+	.fadeIn = NULL,
+	.target = MainCB_credits_printTitleInit,
 };
 
 enum {
-	TEXT_PAL = 2,
+	TEXT_LAYER = 1,
+	TEXT_PALETTE = 0,
+	TEXT_CHARBLOCK = 0,
+	TEXT_SCREENBLOCK = 31,
+
+	SCROLL_FREQUENCY = 2,
 };
 
 __attribute__((section(".sbss")))
 static struct {
-	const struct resource_credit* current;
-	bg_tile_t zero_tile_ref;
-	window_id_t title_window_id;
-	window_id_t url_window_id;
-	window_id_t author_window_id;
-	window_id_t authorurl_window_id;
-	window_id_t license_window_id;
+	struct text_print_step_state text_print_step_state;
+	bool is_printing;
+	uint8_t delay;
+	uint8_t bgoffs_y;
+	uint8_t print_y;
 	struct {
-		tile_4bpp_t title[TITLE_WINDOW_WIDTH * TITLE_WINDOW_HEIGHT] __attribute__((aligned(4)));
-		tile_4bpp_t url[URL_WINDOW_WIDTH * URL_WINDOW_HEIGHT] __attribute__((aligned(4)));
-		tile_4bpp_t author[AUTHOR_WINDOW_WIDTH * AUTHOR_WINDOW_HEIGHT] __attribute__((aligned(4)));
-		tile_4bpp_t authorurl[AUTHORURL_WINDOW_WIDTH * AUTHORURL_WINDOW_HEIGHT] __attribute__((aligned(4)));
-		tile_4bpp_t license[LICENSE_WINDOW_WIDTH * LICENSE_WINDOW_HEIGHT] __attribute__((aligned(4)));
-	} window_shadow_tiles;
-}* view_model = NULL;
+		const struct resource_credit* current;
+		enum {
+			RESOURCEPART_TITLE,
+			RESOURCEPART_RETRIEVEDFROM,
+			RESOURCEPART_By,
+			RESOURCEPART_AUTHOR,
+			RESOURCEPART_AUTHORURL,
+			RESOURCEPART_LICENSE,
+			RESOURCEPART_DerivedFrom,
+			RESOURCEPART_DERIVED_TITLE,
+			RESOURCEPART_DERIVED_RETRIEVEDFROM,
+			RESOURCEPART_DERIVED_By,
+			RESOURCEPART_DERIVED_AUTHOR,
+			RESOURCEPART_DERIVED_AUTHORURL,
+			RESOURCEPART_DERIVED_LICENSE,
+			RESOURCEPART_ADVANCE
+		} part;
+	} resource;
+} view_model = {0};
 
-static const palette16_t text_pal = {
-	{10, 10, 10},
-	{30, 10, 10},
-	{10, 30, 10},
-	{30, 30, 0},
-	{10, 10, 30},
-	{30, 10, 30},
-	{10, 30, 30},
-	{31, 31, 31},
-	{0, 0, 0},
-	{20, 0, 0},
-	{0, 20, 0},
-	{15, 15, 0},
-	{0, 0, 20},
-	{20, 0, 20},
-	{0, 20, 20},
-	{20, 20, 20},
+static const struct shadow_tiles_window_allocate whole_screen_window = {
+	.bg = TEXT_LAYER,
+	.palette = TEXT_PALETTE,
+	.x = 0,
+	.y = 0,
+	.width = 30,
+	.height = 32,
 };
 
-static const struct shadow_vram_init vram_init = (struct shadow_vram_init) {
-	.enable_bg = {false, false, false, true},
-	.enable_obj = false,
-	.bgcnt = {
-		[0] = {
-			.priority = 3,
-			.charblock = 0,
-			.screenblock = 31,
-		},
-		[3] = {
-			.priority = 0,
-			.charblock = 0,
-			.screenblock = 30,
-		}
-	}
+static const font_colors_t colors_header = {
+	ANSI_PALETTE_BLACK,
+	ANSI_PALETTE_WHITE,
+	ANSI_PALETTE_GREY,
+	ANSI_PALETTE_BLUE,
+	true
 };
+static const font_colors_t colors_normal = {
+	ANSI_PALETTE_BLACK,
+	ANSI_PALETTE_WHITE,
+	ANSI_PALETTE_GREY,
+	ANSI_PALETTE_BLACK,
+	true
+};
+static const font_colors_t colors_url = {
+	ANSI_PALETTE_BLACK,
+	ANSI_PALETTE_BRIGHT_BLUE,
+	ANSI_PALETTE_BLUE,
+	ANSI_PALETTE_BLACK,
+	true
+};
+static const coord16_t kerning_normal = {-1, -1};
+static const coord16_t kerning_title = {1, -1};
 
-static const struct shadow_tiles_window_allocate title_window_template = {
-	.bg = 3,
-	.palette = TEXT_PAL,
-	.x = 2,
-	.y = 2,
-	.width = TITLE_WINDOW_WIDTH,
-	.height = TITLE_WINDOW_HEIGHT,
-};
+static const text_print_overflow_t overflow_wordwrapx_aroundy = {
+		TEXTPRINTOVERFLOWX_WORDWRAP, TEXTPRINTOVERFLOWY_WRAPAROUND};
 
-static const struct shadow_tiles_window_allocate author_window_template = {
-	.bg = 3,
-	.palette = TEXT_PAL,
-	.x = 2,
-	.y = 5,
-	.width = AUTHOR_WINDOW_WIDTH,
-	.height = AUTHOR_WINDOW_HEIGHT,
-};
-static const struct shadow_tiles_window_allocate authorurl_window_template = {
-	.bg = 3,
-	.palette = TEXT_PAL,
-	.x = 1,
-	.y = 7,
-	.width = AUTHORURL_WINDOW_WIDTH,
-	.height = AUTHORURL_WINDOW_HEIGHT,
-};
-static const struct shadow_tiles_window_allocate url_window_template = {
-	.bg = 3,
-	.palette = TEXT_PAL,
-	.x = 1,
-	.y = 10,
-	.width = URL_WINDOW_WIDTH,
-	.height = URL_WINDOW_HEIGHT,
-};
-static const struct shadow_tiles_window_allocate license_window_template = {
-	.bg = 3,
-	.palette = TEXT_PAL,
-	.x = 2,
-	.y = 16,
-	.width = LICENSE_WINDOW_WIDTH,
-	.height = LICENSE_WINDOW_HEIGHT,
-};
+static union palette512 InitFadeIn_credits(void) {
+	view_model = (typeof(view_model)) {0};
+	view_model.resource.current = resource_credits;
 
-void MainCB_credits_init(void) {
-	view_model = calloc(sizeof(view_model[0]), 1);
-
-	shadow_vram_init(&vram_init);
-	hw_palette.background._4[0][0] = rgb(31,16,16);
-
-	view_model->current = resource_credits;
-	shadow_tiles_load_tileset_retval_t zero_tile_ids = shadow_tiles_load_tileset(&one_transparent_tileset, (shadow_tiles_load_tileset_args_t) {0});
-	view_model->zero_tile_ref = (bg_tile_t) {.tile = zero_tile_ids.tileid, .palette = zero_tile_ids.palid};
+	union palette512 retval = {0};
+	CpuFastCopy(ansi_text_palette, retval.background._4[TEXT_PALETTE], sizeof(palette16_t) / sizeof(uint32_t));
 
 	vram_op_queue_enqueue(&(struct vram_op) {
-		.type = VRAM_QUEUE_OP_BG_MAP_FILL,
-		.map_fill = {
-			.value = view_model->zero_tile_ref,
-			.to_block = vram_init.bgcnt[3].screenblock,
+		.type = VRAM_QUEUE_OP_DISABLE_ALL_OAM,
+	});
+	vram_op_queue_enqueue(&(struct vram_op) {
+		.type = VRAM_QUEUE_OP_HWREG_DISPCNT,
+		.dispcnt = {
+			.value = {
+				.mode = 0,
+				.obj_character_mapping = OBJ_CHAR_MAP_1D,
+				.enable_bg1 = true,
+			}
+		},
+	});
+	vram_op_queue_enqueue(&(struct vram_op) {
+		.type = VRAM_QUEUE_OP_HWREG_BGOFSS,
+		.bgofss = {
+			.value = {{0},{0},{0},{0},},
+		},
+	});
+	vram_op_queue_enqueue(&(struct vram_op) {
+		.type = VRAM_QUEUE_OP_HWREG_BGCNT,
+		.bgcnt = {
+			.value = (bgcnt_t) {
+				.priority = 0,
+				.charblock = TEXT_CHARBLOCK,
+				.screenblock = TEXT_SCREENBLOCK,
+			},
+			.to_index = TEXT_LAYER
+		}
+	});
+
+	bg_tile_t* tilemap_buffer = malloc(32 * 32 * sizeof(bg_tile_t));
+	if (tilemap_buffer) {
+		for (unsigned y = 0; y < 32; y++)
+		for (unsigned x = 0; x < 30; x++) {
+			tilemap_buffer[y * 32 + x] = (bg_tile_t) {.tile = y * 30 + x, .hflip = false, .vflip = false, .palette = TEXT_PALETTE};
+		}
+
+		vram_op_queue_enqueue(&(struct vram_op){
+			.type = VRAM_QUEUE_OP_BG_MAP_FREE,
+			.map_free = {
+				.from = tilemap_buffer,
+				.to_block = TEXT_SCREENBLOCK,
+				.to_tile = 0,
+				.count = 32 * 32,
+			}});
+	}
+
+	vram_op_queue_enqueue(&(struct vram_op){
+		.type = VRAM_QUEUE_OP_BG_TILES_FILL,
+		.tiles_fill = {
+			.value = ANSI_PALETTE_BLACK,
+			.to_block = TEXT_CHARBLOCK,
 			.to_tile = 0,
 			.count = 32 * 32,
-		},
-	});
+		}});
 
-	vram_op_queue_enqueue(&(struct vram_op) {
-		.type = VRAM_QUEUE_OP_BG_PALETTES,
-		.palettes = {
-			.from = &text_pal,
-			.to_palette = TEXT_PAL,
-			.count = 1,
-		},
-	});
-
-	view_model->title_window_id = shadow_tiles_window_allocate(&title_window_template);
-	shadow_tiles_window_queue_map(view_model->title_window_id);
-	view_model->author_window_id = shadow_tiles_window_allocate(&author_window_template);
-	shadow_tiles_window_queue_map(view_model->author_window_id);
-	view_model->authorurl_window_id = shadow_tiles_window_allocate(&authorurl_window_template);
-	shadow_tiles_window_queue_map(view_model->authorurl_window_id);
-	view_model->url_window_id = shadow_tiles_window_allocate(&url_window_template);
-	shadow_tiles_window_queue_map(view_model->url_window_id);
-	view_model->license_window_id = shadow_tiles_window_allocate(&license_window_template);
-	shadow_tiles_window_queue_map(view_model->license_window_id);
-
-	MainCB_credits_clear();
+	return retval;
 }
 
-static void MainCB_credits_clear(void) {
-	uint32_t z = 0;
-	_Static_assert(sizeof(view_model->window_shadow_tiles) % 32 == 0);
-
-	CpuFastSet(
-		&z,
-		&view_model->window_shadow_tiles,
-		(struct CpuFastSet){
-			.word_count = (sizeof(view_model->window_shadow_tiles) / sizeof(uint32_t)),
-			.mode = CPU_SET_FILL,
-		});
-
-	shadow_tiles_window_queue_tiles(view_model->title_window_id, view_model->window_shadow_tiles.title);
-	shadow_tiles_window_queue_tiles(view_model->author_window_id, view_model->window_shadow_tiles.author);
-	shadow_tiles_window_queue_tiles(view_model->authorurl_window_id, view_model->window_shadow_tiles.authorurl);
-	shadow_tiles_window_queue_tiles(view_model->url_window_id, view_model->window_shadow_tiles.url);
-	shadow_tiles_window_queue_tiles(view_model->license_window_id, view_model->window_shadow_tiles.license);
-
-	scene_onframe_callback = &MainCB_credits_print;
+static void exitCredits(void) {
+	StartTransition(
+		&transition_cut,
+		&transitionSourceCbs_credits,
+		&transitionTargetCbs_mainMenu);
 }
 
-static void MainCB_credits_print(void) {
-	text_print_immediate(
-		view_model->window_shadow_tiles.title,
-		&title_window_template,
-		&bitmapfont,
-		(coord16_t) {1, 1},
-		(coord16_t) {1, 1},
-		(font_colors_t) {0, 7, 15, 8, false},
-		view_model->current->title);
+static void MainCB_credits_printTitleInit(void) {
+	if (! keyinput_get_new().b) {
+		exitCredits();
+	} else {
+		const char* title = "TOTALLY COOL GAME";
 
-	text_print_immediate(
-		view_model->window_shadow_tiles.author,
-		&author_window_template,
-		&bitmapfont,
-		(coord16_t) {1, 1},
-		(coord16_t) {1, 1},
-		(font_colors_t) {0, 7, 15, 8, false},
-		view_model->current->author);
-
-	text_print_immediate(
-		view_model->window_shadow_tiles.authorurl,
-		&authorurl_window_template,
-		&bitmapfont,
-		(coord16_t) {1, 1},
-		(coord16_t) {-1, 0},
-		(font_colors_t) {0, 12, 15, 0, false},
-		view_model->current->author_url);
-
-	text_print_immediate(
-		view_model->window_shadow_tiles.license,
-		&license_window_template,
-		&bitmapfont,
-		(coord16_t) {1, 1},
-		(coord16_t) {1, 1},
-		(font_colors_t) {0, 7, 15, 8, false},
-		view_model->current->licensed_under);
-
-	{
-		struct text_print_step_state url_print_step_state;
-		enum text_print_step_retval url_print_step_retval = TEXT_PRINT_STEP_CONTINUE;
-		text_print_step_init(
-			&url_print_step_state,
-			view_model->window_shadow_tiles.url,
-			&url_window_template,
+		unsigned title_width = text_width(
 			&bitmapfont,
-			(coord16_t) {1, 1},
-			(coord16_t) {-1, 0},
-			(font_colors_t) {0, 12, 15, 0, false},
-			view_model->current->retrieved_from);
+			kerning_title,
+			title);
 
-		const int max_x = TILE_PIXEL_SIDE * URL_WINDOW_WIDTH - 1;
+		coord16_t title_position = {
+			.x = (DISPLAY_WIDTH - title_width) / 2,
+			.y = (DISPLAY_HEIGHT - bitmapfont.glyph_height) / 2,
+		};
 
-		while (TEXT_PRINT_STEP_STOP != url_print_step_retval) {
-			url_print_step_retval = text_print_step(&url_print_step_state);
+		text_print_step_init(
+			&view_model.text_print_step_state,
+			vram.bg_charblock[TEXT_CHARBLOCK],
+			&whole_screen_window,
+			&bitmapfont,
+			title_position,
+			kerning_title,
+			TEXTPRINTOVERFLOW_CLIP,
+			colors_header,
+			title);
 
-			char next_c = url_print_step_state.message[0];
-			if (' ' <= next_c && next_c < ' ' + url_print_step_state.font->glyph_count) {
-				uint16_t next_width = url_print_step_state.font->glyphs[next_c - ' '].width;
+		view_model.delay = 8;
+		scene_onframe_callback = &MainCB_credits_printTitle;
+	}
+}
 
-				if (url_print_step_state.current_point.x + next_width > max_x) {
-					url_print_step_state.current_point.x = url_print_step_state.start_point.x;
-					url_print_step_state.current_point.y += url_print_step_state.font->glyph_height + url_print_step_state.kerning.y;
+static void MainCB_credits_printTitle(void) {
+	if (! keyinput_get_new().b) {
+		exitCredits();
+	} else if (view_model.delay) {
+		view_model.delay--;
+	} else {
+		view_model.delay = 8;
+
+		enum text_print_step_retval progress = text_print_step(
+			&view_model.text_print_step_state);
+
+		if (TEXT_PRINT_STEP_STOP == progress) {
+			view_model.print_y = DISPLAY_HEIGHT + 16;
+			view_model.delay = 20;
+			scene_onframe_callback = &MainCB_credits_hold;
+		}
+	}
+}
+
+static void MainCB_credits_hold(void) {
+	if (! keyinput_get_new().b) {
+		exitCredits();
+	} else if (view_model.delay) {
+		view_model.delay--;
+	} else {
+		scene_onframe_callback = &MainCB_credits_resourceHeader;
+	}
+}
+
+static void MainCB_credits_resourceHeader(void) {
+	if (! keyinput_get_new().b) {
+		exitCredits();
+	} else {
+		const char* title = "RESOURCES";
+
+		unsigned title_width = text_width(
+			&bitmapfont,
+			kerning_title,
+			title);
+
+		coord16_t title_position = {
+			.x = (DISPLAY_WIDTH - title_width) / 2,
+			.y = view_model.print_y,
+		};
+		view_model.print_y += bitmapfont.glyph_height;
+
+		text_print_immediate(
+			vram.bg_charblock[TEXT_CHARBLOCK],
+			&whole_screen_window,
+			&bitmapfont,
+			title_position,
+			kerning_title,
+			colors_header,
+			title);
+
+		text_clear_immediate(
+			vram.bg_charblock[TEXT_CHARBLOCK],
+			&whole_screen_window,
+			(coord16_t) {title_position.x, view_model.print_y - 1},
+			(coord16_t) {title_position.x + title_width - 1, view_model.print_y},
+			ANSI_PALETTE_GREY);
+
+		view_model.print_y += 8;
+
+		scene_onframe_callback = &MainCB_credits_resource;
+	}
+}
+
+static void MainCB_credits_resource(void) {
+	if (! keyinput_get_new().b) {
+		exitCredits();
+	} else {
+		if (view_model.delay) {
+			view_model.delay--;
+		} else {
+			view_model.delay = SCROLL_FREQUENCY;
+			view_model.bgoffs_y += 1;
+
+			unsigned row_to_clear = (256 + view_model.bgoffs_y - 2) % 256;
+			text_clear_immediate(
+				vram.bg_charblock[TEXT_CHARBLOCK],
+				&whole_screen_window,
+				(coord16_t) {0, row_to_clear},
+				(coord16_t) {DISPLAY_WIDTH, row_to_clear + 1},
+				ANSI_PALETTE_BLACK);
+
+			vram_op_queue_enqueue(&(struct vram_op) {
+				.type = VRAM_QUEUE_OP_UINT16,
+				.uint16 = {
+					.value = view_model.bgoffs_y,
+					.to = &reg_lcd.BGOFS[TEXT_LAYER].v,
+				},
+			});
+		}
+
+		if (view_model.is_printing) {
+			int steps = 0;
+			enum text_print_step_retval progress = TEXT_PRINT_STEP_CONTINUE;
+			while (steps < 4 && progress != TEXT_PRINT_STEP_STOP) {
+				steps++;
+				progress = text_print_step(
+					&view_model.text_print_step_state);
+			}
+
+			if (TEXT_PRINT_STEP_STOP == progress) {
+				view_model.is_printing = false;
+				view_model.print_y = view_model.text_print_step_state.current_point.y + bitmapfont.glyph_height;
+			}
+
+		} else {
+			bool should_start_printing =
+				(view_model.print_y > view_model.bgoffs_y ? 0 : 256) +
+				view_model.print_y - view_model.bgoffs_y <
+				DISPLAY_HEIGHT + 16;
+
+			if (should_start_printing) {
+				switch (view_model.resource.part) {
+				case RESOURCEPART_TITLE:
+					text_print_step_init(
+						&view_model.text_print_step_state,
+						vram.bg_charblock[TEXT_CHARBLOCK],
+						&whole_screen_window,
+						&bitmapfont,
+						(coord16_t) {8, view_model.print_y},
+						kerning_title,
+						overflow_wordwrapx_aroundy,
+						colors_header,
+						view_model.resource.current->primary.title);
+
+					view_model.is_printing = true;
+					view_model.resource.part += 1;
+					break;
+				case RESOURCEPART_RETRIEVEDFROM:
+					text_print_step_init(
+						&view_model.text_print_step_state,
+						vram.bg_charblock[TEXT_CHARBLOCK],
+						&whole_screen_window,
+						&bitmapfont,
+						(coord16_t) {14, view_model.print_y},
+						kerning_normal,
+						overflow_wordwrapx_aroundy,
+						colors_url,
+						view_model.resource.current->primary.retrieved_from);
+
+					view_model.is_printing = true;
+					view_model.resource.part += 1;
+					break;
+				case RESOURCEPART_By:
+					text_print_step_init(
+						&view_model.text_print_step_state,
+						vram.bg_charblock[TEXT_CHARBLOCK],
+						&whole_screen_window,
+						&bitmapfont,
+						(coord16_t) {14, view_model.print_y},
+						kerning_normal,
+						TEXTPRINTOVERFLOW_WRAPAROUND,
+						colors_normal,
+						"By: ");
+
+					view_model.is_printing = true;
+					view_model.resource.part += 1;
+					break;
+				case RESOURCEPART_AUTHOR:
+					view_model.print_y -= bitmapfont.glyph_height;
+					text_print_step_init(
+						&view_model.text_print_step_state,
+						vram.bg_charblock[TEXT_CHARBLOCK],
+						&whole_screen_window,
+						&bitmapfont,
+						(coord16_t) {32, view_model.print_y},
+						kerning_normal,
+						overflow_wordwrapx_aroundy,
+						colors_normal,
+						view_model.resource.current->primary.author);
+
+					view_model.is_printing = true;
+					view_model.resource.part += 1;
+					break;
+				case RESOURCEPART_AUTHORURL:
+					text_print_step_init(
+						&view_model.text_print_step_state,
+						vram.bg_charblock[TEXT_CHARBLOCK],
+						&whole_screen_window,
+						&bitmapfont,
+						(coord16_t) {32, view_model.print_y},
+						kerning_normal,
+						overflow_wordwrapx_aroundy,
+						colors_url,
+						view_model.resource.current->primary.author_url);
+
+					view_model.is_printing = true;
+					view_model.resource.part += 1;
+					break;
+				case RESOURCEPART_LICENSE:
+					text_print_step_init(
+						&view_model.text_print_step_state,
+						vram.bg_charblock[TEXT_CHARBLOCK],
+						&whole_screen_window,
+						&bitmapfont,
+						(coord16_t) {14, view_model.print_y},
+						kerning_normal,
+						overflow_wordwrapx_aroundy,
+						colors_normal,
+						view_model.resource.current->primary.licensed_under);
+
+					view_model.is_printing = true;
+					if (0 == view_model.resource.current->derived_from.title[0]) {
+						view_model.resource.part = RESOURCEPART_ADVANCE;
+					} else {
+						view_model.resource.part += 1;
+					}
+					break;
+				case RESOURCEPART_DerivedFrom:
+					text_print_step_init(
+						&view_model.text_print_step_state,
+						vram.bg_charblock[TEXT_CHARBLOCK],
+						&whole_screen_window,
+						&bitmapfont,
+						(coord16_t) {14, view_model.print_y},
+						kerning_normal,
+						TEXTPRINTOVERFLOW_WRAPAROUND,
+						colors_normal,
+						"Derived From: ");
+
+					view_model.is_printing = true;
+					view_model.resource.part += 1;
+					break;
+				case RESOURCEPART_DERIVED_TITLE:
+					text_print_step_init(
+						&view_model.text_print_step_state,
+						vram.bg_charblock[TEXT_CHARBLOCK],
+						&whole_screen_window,
+						&bitmapfont,
+						(coord16_t) {22, view_model.print_y},
+						kerning_title,
+						overflow_wordwrapx_aroundy,
+						colors_header,
+						view_model.resource.current->derived_from.title);
+
+					view_model.is_printing = true;
+					view_model.resource.part += 1;
+					break;
+				case RESOURCEPART_DERIVED_RETRIEVEDFROM:
+					text_print_step_init(
+						&view_model.text_print_step_state,
+						vram.bg_charblock[TEXT_CHARBLOCK],
+						&whole_screen_window,
+						&bitmapfont,
+						(coord16_t) {28, view_model.print_y},
+						kerning_normal,
+						overflow_wordwrapx_aroundy,
+						colors_url,
+						view_model.resource.current->derived_from.retrieved_from);
+
+					view_model.is_printing = true;
+					view_model.resource.part += 1;
+					break;
+				case RESOURCEPART_DERIVED_By:
+					text_print_step_init(
+						&view_model.text_print_step_state,
+						vram.bg_charblock[TEXT_CHARBLOCK],
+						&whole_screen_window,
+						&bitmapfont,
+						(coord16_t) {28, view_model.print_y},
+						kerning_normal,
+						TEXTPRINTOVERFLOW_WRAPAROUND,
+						colors_normal,
+						"By: ");
+
+					view_model.is_printing = true;
+					view_model.resource.part += 1;
+					break;
+				case RESOURCEPART_DERIVED_AUTHOR:
+					view_model.print_y -= bitmapfont.glyph_height;
+					text_print_step_init(
+						&view_model.text_print_step_state,
+						vram.bg_charblock[TEXT_CHARBLOCK],
+						&whole_screen_window,
+						&bitmapfont,
+						(coord16_t) {46, view_model.print_y},
+						kerning_normal,
+						overflow_wordwrapx_aroundy,
+						colors_normal,
+						view_model.resource.current->derived_from.author);
+
+					view_model.is_printing = true;
+					view_model.resource.part += 1;
+					break;
+				case RESOURCEPART_DERIVED_AUTHORURL:
+					text_print_step_init(
+						&view_model.text_print_step_state,
+						vram.bg_charblock[TEXT_CHARBLOCK],
+						&whole_screen_window,
+						&bitmapfont,
+						(coord16_t) {46, view_model.print_y},
+						kerning_normal,
+						overflow_wordwrapx_aroundy,
+						colors_url,
+						view_model.resource.current->derived_from.author_url);
+
+					view_model.is_printing = true;
+					view_model.resource.part += 1;
+					break;
+				case RESOURCEPART_DERIVED_LICENSE:
+					text_print_step_init(
+						&view_model.text_print_step_state,
+						vram.bg_charblock[TEXT_CHARBLOCK],
+						&whole_screen_window,
+						&bitmapfont,
+						(coord16_t) {28, view_model.print_y},
+						kerning_normal,
+						overflow_wordwrapx_aroundy,
+						colors_normal,
+						view_model.resource.current->derived_from.licensed_under);
+
+					view_model.is_printing = true;
+					if (0 == view_model.resource.current->derived_from.title[0]) {
+						view_model.resource.part = RESOURCEPART_ADVANCE;
+					} else {
+						view_model.resource.part += 1;
+					}
+					break;
+				case RESOURCEPART_ADVANCE:
+					view_model.resource.current += 1;
+					view_model.print_y += bitmapfont.glyph_height;
+					if (view_model.resource.current == resource_credits_end) {
+						scene_onframe_callback = &MainCB_credits_scrollUntilBlank;
+					} else {
+						view_model.resource.part = RESOURCEPART_TITLE;
+					}
+					break;
 				}
 			}
 		}
 	}
-
-	shadow_tiles_window_queue_tiles(view_model->title_window_id, view_model->window_shadow_tiles.title);
-	shadow_tiles_window_queue_tiles(view_model->author_window_id, view_model->window_shadow_tiles.author);
-	shadow_tiles_window_queue_tiles(view_model->authorurl_window_id, view_model->window_shadow_tiles.authorurl);
-	shadow_tiles_window_queue_tiles(view_model->url_window_id, view_model->window_shadow_tiles.url);
-	shadow_tiles_window_queue_tiles(view_model->license_window_id, view_model->window_shadow_tiles.license);
-
-	scene_onframe_callback = &MainCB_credits_idle;
 }
 
-static void MainCB_credits_idle(void) {
+static void MainCB_credits_scrollUntilBlank(void) {
 	if (! keyinput_get_new().b) {
-		scene_onframe_callback = &MainCB_credits_clean;
-	}
-	if (! keyinput_get_new().left && (view_model->current > resource_credits)) {
-		view_model->current--;
-		MainCB_credits_clear();
-	}
-	if (! keyinput_get_new().right && ((view_model->current + 1) < resource_credits_end)) {
-		view_model->current++;
-		MainCB_credits_clear();
+		exitCredits();
+	} else if (view_model.delay) {
+		view_model.delay--;
+	} else {
+		view_model.delay = SCROLL_FREQUENCY;
+		view_model.bgoffs_y += 1;
+
+		unsigned row_to_clear = (256 + view_model.bgoffs_y - 2) % 256;
+		text_clear_immediate(
+			vram.bg_charblock[TEXT_CHARBLOCK],
+			&whole_screen_window,
+			(coord16_t) {0, row_to_clear},
+			(coord16_t) {DISPLAY_WIDTH, row_to_clear + 1},
+			ANSI_PALETTE_BLACK);
+
+		vram_op_queue_enqueue(&(struct vram_op) {
+			.type = VRAM_QUEUE_OP_UINT16,
+			.uint16 = {
+				.value = view_model.bgoffs_y,
+				.to = &reg_lcd.BGOFS[TEXT_LAYER].v,
+			},
+		});
+
+		if (view_model.print_y == view_model.bgoffs_y) {
+			scene_onframe_callback = &MainCB_credits_stall;
+		}
 	}
 }
 
-static void MainCB_credits_clean(void) {
-	if (view_model) {
-		free(view_model);
-		view_model = NULL;
+[[maybe_unused]]
+static void MainCB_credits_stall(void) {
+	if (! keyinput_get_new().b) {
+		exitCredits();
 	}
-
-	StartTransition(
-		&transition_cut,
-		&(struct transitionSourceCallbacks) {0},
-		&transitionTargetCbs_mainMenu);
 }

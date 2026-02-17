@@ -168,6 +168,7 @@ void test_walkaround__move_down(void) {
 			.mapoffs = {-6*16, -4*16},
 		},
 		.player = {
+			.anims = &character_base_male,
 			.oam_id = shadow_id_invalid,
 			.mapoffs = {1*16+8, 1*16+14},
 		},
@@ -244,6 +245,7 @@ void test_walkaround__turn_down(void) {
 			.mapoffs = {-6*16, -4*16},
 		},
 		.player = {
+			.anims = &character_base_male,
 			.oam_id = shadow_id_invalid,
 			.mapoffs = {1*16+8, 1*16+14},
 		},
@@ -296,6 +298,7 @@ void test_walkaround__cannot_walk_down_into_impassable_space(void) {
 			.mapoffs = {-6*16, -4*16},
 		},
 		.player = {
+			.anims = &character_base_male,
 			.oam_id = shadow_id_invalid,
 			.mapoffs = {1*16+8, 1*16+14},
 		},
@@ -348,6 +351,7 @@ void test_walkaround__cannot_walk_down_when_current_is_impassable_south(void) {
 			.mapoffs = {-6*16, -4*16},
 		},
 		.player = {
+			.anims = &character_base_male,
 			.oam_id = shadow_id_invalid,
 			.mapoffs = {1*16+8, 1*16+14},
 		},
@@ -389,6 +393,7 @@ void test_walkaround__start_opens_menu(void) {
 			.mapoffs = {-6*16, -4*16},
 		},
 		.player = {
+			.anims = &character_base_male,
 			.oam_id = shadow_id_invalid,
 			.mapoffs = {1*16+8, 1*16+14},
 		},

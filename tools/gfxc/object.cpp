@@ -26,7 +26,7 @@ Elf32_Word StringTableBuilder::find(std::string_view value) const {
 
 Elf32_Word StringTableBuilder::find_or_push(std::string_view value) {
 	Elf32_Word retval = find(value);
-	if (0 == retval) {
+	if (0 == retval && value.length() != 0) {
 		retval = push(value);
 	}
 	return retval;
