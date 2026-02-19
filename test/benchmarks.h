@@ -15,16 +15,19 @@ void benchmark_start(void);
 uint32_t benchmark_stop(void);
 void run_benchmark(void (*fn)(void), bool (*check)(void), const char* name);
 
-enum run_transition_benchmark_verbosity {
-	RTBV_SUMMARY_ONLY = 0,
-	RTBV_ALL_FRAMES = 1,
-};
+typedef struct {
+	bool all_frames : 1;
+	bool vram_ops : 1;
+} run_transition_benchmark_verbosity_t;
+
+[[maybe_unused]] static const run_transition_benchmark_verbosity_t RTBV_SUMMARY_ONLY = {0};
+[[maybe_unused]] static const run_transition_benchmark_verbosity_t RTBV_ALL_FRAMES = {.all_frames = true};
 
 void run_transition_benchmark(
 	const struct transition*,
 	const struct transitionSourceCallbacks*,
 	const struct transitionTargetCallbacks*,
 	const char* name,
-	enum run_transition_benchmark_verbosity);
+	run_transition_benchmark_verbosity_t);
 
 #define RUN_BENCHMARK(func, check) run_benchmark(func, check, #func);

@@ -57,7 +57,7 @@ void run_transition_benchmark(
 		const struct transitionSourceCallbacks* source,
 		const struct transitionTargetCallbacks* target,
 		const char* name,
-		enum run_transition_benchmark_verbosity verbosity) {
+		run_transition_benchmark_verbosity_t verbosity) {
 	uint32_t frameNo = 0;
 	MgbaPrintf(MGBA_LOG_INFO, "%s: \033[44mBENCH\033[0m", name);
 
@@ -73,9 +73,17 @@ void run_transition_benchmark(
 	while (target->target != scene_onframe_callback) {
 		VBlankIntrWait();
 
-		benchmark_start();
-		vram_op_queue_execute();
-		uint32_t opsqueue_time = benchmark_stop();
+		uint32_t opsqueue_time;
+		if (verbosity.vram_ops) {
+			if (verbosity.all_frames) {
+				MgbaPrintf(MGBA_LOG_INFO, "    [%3ld]", frameNo);
+			}
+			opsqueue_time = vram_op_queue_execute_verbose(10);
+		} else {
+			benchmark_start();
+			vram_op_queue_execute();
+			opsqueue_time = benchmark_stop();
+		}
 
 		benchmark_start();
 		scene_onframe_callback();
@@ -96,10 +104,15 @@ void run_transition_benchmark(
 			total_maxframe = frameNo;
 		}
 
-		if (verbosity & RTBV_ALL_FRAMES) {
+		if (verbosity.all_frames) {
 			const char* opsqueue_color = (opsqueue_time > CYCLES_PER_VBLANK ? "\033[43m" : "\033[0m");
-			MgbaPrintf(MGBA_LOG_INFO, "    [%3ld] vram_ops: %s%8ld cycles = %2ld.%03ld frames\033[0m",
-				frameNo, opsqueue_color, opsqueue_time, opsqueue_time / CYCLES_PER_FRAME, (opsqueue_time * 1000 / CYCLES_PER_FRAME) % 1000);
+			if (verbosity.vram_ops) {
+				MgbaPrintf(MGBA_LOG_INFO, "          vram_ops: %s%8ld cycles = %2ld.%03ld frames\033[0m",
+					opsqueue_color, opsqueue_time, opsqueue_time / CYCLES_PER_FRAME, (opsqueue_time * 1000 / CYCLES_PER_FRAME) % 1000);
+			} else {
+				MgbaPrintf(MGBA_LOG_INFO, "    [%3ld] vram_ops: %s%8ld cycles = %2ld.%03ld frames\033[0m",
+					frameNo, opsqueue_color, opsqueue_time, opsqueue_time / CYCLES_PER_FRAME, (opsqueue_time * 1000 / CYCLES_PER_FRAME) % 1000);
+			}
 
 			const char* scene_color = ((scene_time + opsqueue_time) > (CYCLES_PER_FRAME) ? "\033[43m" : "\033[0m");
 			MgbaPrintf(MGBA_LOG_INFO, "             scene: %s%8ld cycles = %2ld.%03ld frames\033[0m",

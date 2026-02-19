@@ -83,7 +83,7 @@ int main() {
 		&(struct transitionSourceCallbacks) {0},
 		&transitionTargetCbs_walkaround_newgame,
 		"walkaround init",
-		RTBV_ALL_FRAMES);
+		(run_transition_benchmark_verbosity_t) {.all_frames = true, .vram_ops = true});
 
 	run_walkaround_idle_benchmark();
 

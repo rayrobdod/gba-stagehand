@@ -239,3 +239,69 @@ void vram_op_queue_enqueue(const struct vram_op* const new_op) {
 		MgbaPrintf(MGBA_LOG_ERROR, "VRAM Queue exhausted");
 	}
 }
+
+void benchmark_start();
+uint32_t benchmark_stop();
+static const unsigned CYCLES_PER_FRAME = 280896;
+
+static const char * const op_names[] = {
+	[VRAM_QUEUE_OP_NOOP] = "NOOP",
+	[VRAM_QUEUE_OP_DISABLE_ALL_OAM] = "DISABLE_ALL_OAM",
+	[VRAM_QUEUE_OP_BG_PALETTES] = "BG_PALETTES",
+	[VRAM_QUEUE_OP_BG_PALETTES_FREE] = "BG_PALETTES_FREE",
+	[VRAM_QUEUE_OP_BG_TILES] = "BG_TILES",
+	[VRAM_QUEUE_OP_BG_TILES_FREE] = "BG_TILES_FREE",
+	[VRAM_QUEUE_OP_BG_TILES_COMPRESSED] = "BG_TILES_COMPRESSED",
+	[VRAM_QUEUE_OP_BG_TILES_FILL] = "BG_TILES_FILL",
+	[VRAM_QUEUE_OP_BG_TILES_BITUNPACK] = "BG_TILES_BITUNPACK",
+	[VRAM_QUEUE_OP_BG_MAP] = "BG_MAP",
+	[VRAM_QUEUE_OP_BG_MAP_FREE] = "BG_MAP_FREE",
+	[VRAM_QUEUE_OP_BG_MAP_COMPRESSED] = "BG_MAP_COMPRESSED",
+	[VRAM_QUEUE_OP_BG_MAP_COLUMN] = "BG_MAP_COLUMN",
+	[VRAM_QUEUE_OP_BG_MAP_COLUMN_FREE] = "BG_MAP_COLUMN_FREE",
+	[VRAM_QUEUE_OP_BG_MAP_FILL] = "BG_MAP_FILL",
+	[VRAM_QUEUE_OP_OAM_PALETTES] = "OAM_PALETTES",
+	[VRAM_QUEUE_OP_OAM_TILES] = "OAM_TILES",
+	[VRAM_QUEUE_OP_OAM_TILES_FREE] = "OAM_TILES_FREE",
+	[VRAM_QUEUE_OP_OAM_TILES_COMPRESSED] = "OAM_TILES_COMPRESSED",
+	[VRAM_QUEUE_OP_OAM_ENTRY] = "OAM_ENTRY",
+	[VRAM_QUEUE_OP_HWREG_DISPCNT] = "HWREG_DISPCNT",
+	[VRAM_QUEUE_OP_HWREG_BGCNT] = "HWREG_BGCNT",
+	[VRAM_QUEUE_OP_HWREG_BGOFSS] = "HWREG_BGOFSS",
+	[VRAM_QUEUE_OP_HWREG_WIN] = "HWREG_WIN",
+	[VRAM_QUEUE_OP_HWREG_WINHV] = "HWREG_WINHV",
+	[VRAM_QUEUE_OP_ENABLE_WIN0] = "ENABLE_WIN0",
+	[VRAM_QUEUE_OP_UINT16] = "UINT16",
+};
+
+uint32_t vram_op_queue_execute_verbose(unsigned indent) {
+	uint32_t total_time = 0;
+	MgbaPrintf(MGBA_LOG_INFO, "%*svram_op_queue_count = %d",
+		indent, "",
+		vram_op_queue_count);
+	for (unsigned i = 0; i < vram_op_queue_count; i++) {
+		struct vram_op* entry = vram_op_queue + i;
+
+		benchmark_start();
+		vram_op_queue_execute_1(entry);
+		uint32_t time = benchmark_stop();
+		total_time += time;
+
+		MgbaPrintf(MGBA_LOG_INFO, "%*s[%3d] %20s: %8ld cycles = %2ld.%03ld frames",
+			indent, "",
+			i,
+			(op_names[entry->type] ? op_names[entry->type] : "???"),
+			(long unsigned int) (time),
+			(long unsigned int) (time / CYCLES_PER_FRAME),
+			(long unsigned int) ((time * 1000 / CYCLES_PER_FRAME) % 1000));
+	}
+	if (false) {
+		MgbaPrintf(MGBA_LOG_INFO, "%*stotal_time = %8ld cycles = %2ld.%03ld frames",
+			indent, "",
+			(long unsigned int) (total_time),
+			(long unsigned int) (total_time / CYCLES_PER_FRAME),
+			(long unsigned int) ((total_time * 1000 / CYCLES_PER_FRAME) % 1000));
+	}
+	vram_op_queue_count = 0;
+	return total_time;
+}

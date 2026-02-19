@@ -161,4 +161,7 @@ struct vram_op {
 void vram_op_queue_execute(void);
 void vram_op_queue_enqueue(const struct vram_op* new_op);
 
+/// For test benchmarking
+uint32_t vram_op_queue_execute_verbose(unsigned indent);
+
 #endif //  #ifndef VRAM_OP_QUEUE_H
