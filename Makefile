@@ -366,6 +366,7 @@ $(ROM): $(ELF) $(GBAFIX)
 	@echo "  GBAFIX  $@"
 	$(V)$(GBAFIX) $@ -t$(GAME_TITLE) -c$(GAME_CODE)
 
+$(HOSTEXEDIR)/test_memcpy_sram : $(HOSTOBJDIR_HOST)/memcpy_sram.c.o
 $(HOSTEXEDIR)/test_text_printer : $(HOSTOBJDIR_HOST)/graphics.o
 $(HOSTEXEDIR)/test_text_printer : $(HOSTOBJDIR_SRC)/text_printer.c.o
 $(HOSTEXEDIR)/test_vram_op_queue : $(HOSTOBJDIR_SRC)/management/vram_op_queue.c.o $(HOSTOBJDIR_SRC)/gba/palette.c.o $(HOSTOBJDIR_SRC)/gba/vram.c.o $(HOSTOBJDIR_SRC)/gba/oam.c.o $(HOSTOBJDIR_SRC)/gba/hw_reg.c.o

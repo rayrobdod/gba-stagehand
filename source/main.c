@@ -11,6 +11,7 @@
 #include "management/shadow_oam.h"
 #include "management/vram_op_queue.h"
 #include "mgba.h"
+#include "options.h"
 
 MainCallback scene_onframe_callback;
 
@@ -23,6 +24,7 @@ int main() {
 	shadow_oam_init();
 
 	MgbaOpen();
+	options_load_from_save();
 
 	scene_onframe_callback = initial_scene_onframe_callback;
 

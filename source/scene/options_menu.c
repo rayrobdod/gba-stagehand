@@ -399,8 +399,11 @@ static void options_process_input(void) {
 		case OPTIONS_ROW_FRAME:
 			break;
 		case OPTIONS_ROW_EXIT:
-			if (options_viewmodel.exit_selection == OPTIONS_EXIT_COMMIT)
+			if (options_viewmodel.exit_selection == OPTIONS_EXIT_COMMIT &&
+					0 != memcmp(&options, &options_viewmodel.values, sizeof(options))) {
 				options = options_viewmodel.values;
+				options_commit_to_save();
+			}
 
 			StartTransition(
 				&transition_paletteFade_black,
@@ -416,7 +419,10 @@ static void options_process_input(void) {
 			&returnCbs);
 	}
 	else if (! new_inputs.start) {
-		options = options_viewmodel.values;
+		if (0 != memcmp(&options, &options_viewmodel.values, sizeof(options))) {
+			options = options_viewmodel.values;
+			options_commit_to_save();
+		}
 		StartTransition(
 			&transition_paletteFade_black,
 			&transitionSourceCbs_options,

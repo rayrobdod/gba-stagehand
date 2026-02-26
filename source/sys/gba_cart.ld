@@ -20,13 +20,14 @@ OUTPUT_ARCH(arm)
 ENTRY(entrypoint)
 
 MEMORY {
+    IWRAM   : ORIGIN = 0x03000000, LENGTH = 32K
+    EWRAM   : ORIGIN = 0x02000000, LENGTH = 256K
     ROM     : ORIGIN = 0x08000000, LENGTH = 32M
+    SRAM    : ORIGIN = 0x0E000000, LENGTH = 64K
     HWREG   : ORIGIN = 0x04000000, LENGTH = 0x800
     PALETTE : ORIGIN = 0x05000000, LENGTH = 0x400
     VRAM    : ORIGIN = 0x06000000, LENGTH = 96K
     OAM     : ORIGIN = 0x07000000, LENGTH = 0x400
-    IWRAM   : ORIGIN = 0x03000000, LENGTH = 32K
-    EWRAM   : ORIGIN = 0x02000000, LENGTH = 256K
 }
 
 /* Set stack pointers the same way as the BIOS */
@@ -65,6 +66,8 @@ SECTIONS
 
     .text : ALIGN(4)
     {
+        KEEP (*(.rodata.sram_version))
+
         *(.text)
         *(.text*)
         *(.gnu.linkonce.t.*) /* Used for vague linking */
@@ -253,25 +256,36 @@ SECTIONS
 
     /* */
 
-    .palette (NOLOAD) : ALIGN(4)
+    .sram (NOLOAD) : ALIGN(4)
+    {
+        *(.sram.options)
+        /* . = 0x100; */
+        *(.sram)
+        *(.sram*)
+        . = ALIGN(4);
+    } > SRAM
+
+    /* */
+
+    .palette 0x05000000 (NOLOAD) : ALIGN(4)
     {
         *(.palette)
         . = ALIGN(4);
     } > PALETTE
 
-    .vram (NOLOAD) : ALIGN(4)
+    .vram 0x06000000 (NOLOAD) : ALIGN(4)
     {
         *(.vram)
         . = ALIGN(4);
     } > VRAM
 
-    .oam (NOLOAD) : ALIGN(4)
+    .oam 0x07000000 (NOLOAD) : ALIGN(4)
     {
         *(.oam)
         . = ALIGN(4);
     } > OAM
 
-    .hw_reg (NOLOAD) : ALIGN(4)
+    .hw_reg 0x04000000 (NOLOAD) : ALIGN(4)
     {
         *(.hw_reg.lcd)
         . = 0x60;
