@@ -148,11 +148,16 @@ HOSTCFLAGS += -O3
 HOSTCFLAGS += -ffunction-sections
 HOSTCFLAGS += -fdata-sections
 HOSTCFLAGS += -fanalyzer
+HOSTCFLAGS += -fPIE
 HOSTCFLAGS += -ggdb -DDEBUG
 
-HOSTLDFLAGS	+= $(LIBDIRSFLAGS) \
-                  -Wl,--gc-sections \
-                  -Wl,--start-group -lm $(LIBS) -Wl,--end-group \
+HOSTLDFLAGS += $(LIBDIRSFLAGS)
+HOSTLDFLAGS += -Wl,--gc-sections
+HOSTLDFLAGS += -Wl,--start-group
+HOSTLDFLAGS += -lm
+HOSTLDFLAGS += $(LIBS)
+HOSTLDFLAGS += -Wl,--end-group
+HOSTLDFLAGS += -fPIE
 
 TESTLDFLAGS		:= -mthumb -mthumb-interwork $(LIBDIRSFLAGS) \
 		   -Wl,--gc-sections \
@@ -367,10 +372,35 @@ $(ROM): $(ELF) $(GBAFIX)
 	$(V)$(GBAFIX) $@ -t$(GAME_TITLE) -c$(GAME_CODE)
 
 $(HOSTEXEDIR)/test_memcpy_sram : $(HOSTOBJDIR_HOST)/memcpy_sram.c.o
+$(HOSTEXEDIR)/test_shadow_vram : $(HOSTOBJDIR_HOST)/bios.c.o
+$(HOSTEXEDIR)/test_shadow_vram : $(HOSTOBJDIR_HOST)/graphics.o
+$(HOSTEXEDIR)/test_shadow_vram : $(HOSTOBJDIR_HOST)/identity.c.o
+$(HOSTEXEDIR)/test_shadow_vram : $(HOSTOBJDIR_HOST)/rlzero.c.o
+$(HOSTEXEDIR)/test_shadow_vram : $(HOSTOBJDIR_SRC)/decompress/by_header.c.o
+$(HOSTEXEDIR)/test_shadow_vram : $(HOSTOBJDIR_SRC)/decompress/common.c.o
+$(HOSTEXEDIR)/test_shadow_vram : $(HOSTOBJDIR_SRC)/decompress/frit.c.o
+$(HOSTEXEDIR)/test_shadow_vram : $(HOSTOBJDIR_SRC)/decompress/lz11.c.o
+$(HOSTEXEDIR)/test_shadow_vram : $(HOSTOBJDIR_SRC)/decompress/rlzero.c.o
+$(HOSTEXEDIR)/test_shadow_vram : $(HOSTOBJDIR_SRC)/gba/hw_reg.c.o
+$(HOSTEXEDIR)/test_shadow_vram : $(HOSTOBJDIR_SRC)/gba/oam.c.o
+$(HOSTEXEDIR)/test_shadow_vram : $(HOSTOBJDIR_SRC)/gba/palette.c.o
+$(HOSTEXEDIR)/test_shadow_vram : $(HOSTOBJDIR_SRC)/gba/vram.c.o
+$(HOSTEXEDIR)/test_shadow_vram : $(HOSTOBJDIR_SRC)/management/shadow_vram.c.o
+$(HOSTEXEDIR)/test_shadow_vram : $(HOSTOBJDIR_SRC)/management/vram_op_queue.c.o
 $(HOSTEXEDIR)/test_text_printer : $(HOSTOBJDIR_HOST)/graphics.o
 $(HOSTEXEDIR)/test_text_printer : $(HOSTOBJDIR_SRC)/text_printer.c.o
-$(HOSTEXEDIR)/test_vram_op_queue : $(HOSTOBJDIR_SRC)/management/vram_op_queue.c.o $(HOSTOBJDIR_SRC)/gba/palette.c.o $(HOSTOBJDIR_SRC)/gba/vram.c.o $(HOSTOBJDIR_SRC)/gba/oam.c.o $(HOSTOBJDIR_SRC)/gba/hw_reg.c.o
-$(HOSTEXEDIR)/test_walkaround : $(HOSTOBJDIR_HOST)/graphics.c.o
+$(HOSTEXEDIR)/test_vram_op_queue : $(HOSTOBJDIR_SRC)/management/vram_op_queue.c.o
+$(HOSTEXEDIR)/test_vram_op_queue : $(HOSTOBJDIR_HOST)/identity.c.o
+$(HOSTEXEDIR)/test_vram_op_queue : $(HOSTOBJDIR_HOST)/rlzero.c.o
+$(HOSTEXEDIR)/test_vram_op_queue : $(HOSTOBJDIR_SRC)/decompress/by_header.c.o
+$(HOSTEXEDIR)/test_vram_op_queue : $(HOSTOBJDIR_SRC)/decompress/common.c.o
+$(HOSTEXEDIR)/test_vram_op_queue : $(HOSTOBJDIR_SRC)/decompress/frit.c.o
+$(HOSTEXEDIR)/test_vram_op_queue : $(HOSTOBJDIR_SRC)/decompress/lz11.c.o
+$(HOSTEXEDIR)/test_vram_op_queue : $(HOSTOBJDIR_SRC)/decompress/rlzero.c.o
+$(HOSTEXEDIR)/test_vram_op_queue : $(HOSTOBJDIR_SRC)/gba/palette.c.o
+$(HOSTEXEDIR)/test_vram_op_queue : $(HOSTOBJDIR_SRC)/gba/vram.c.o
+$(HOSTEXEDIR)/test_vram_op_queue : $(HOSTOBJDIR_SRC)/gba/oam.c.o
+$(HOSTEXEDIR)/test_vram_op_queue : $(HOSTOBJDIR_SRC)/gba/hw_reg.c.o
 $(HOSTEXEDIR)/test_walkaround : $(HOSTOBJDIR_HOST)/graphics.o
 $(HOSTEXEDIR)/test_walkaround : $(HOSTOBJDIR_SRC)/gba/hw_reg.c.o
 $(HOSTEXEDIR)/test_walkaround : $(HOSTOBJDIR_SRC)/gba/palette.c.o
@@ -409,6 +439,7 @@ $(TESTEXEDIR)/bench_walkaround.elf : $(BUILDOBJDIR)/management/shadow_oam.c.o
 $(TESTEXEDIR)/bench_walkaround.elf : $(BUILDOBJDIR)/management/shadow_vram.c.o
 $(TESTEXEDIR)/bench_walkaround.elf : $(BUILDOBJDIR)/scene/walkaround.c.o
 $(TESTEXEDIR)/bench_walkaround.elf : $(BUILDOBJDIR)/transition/palette_fade.c.o
+$(TESTEXEDIR)/test_shadow_vram.elf : $(BUILDOBJDIR)/graphics.o
 $(TESTEXEDIR)/test_text_printer.elf : $(BUILDOBJDIR)/graphics.o
 $(TESTEXEDIR)/test_walkaround.elf : $(BUILDOBJDIR)/graphics.o
 $(TESTEXEDIR)/test_walkaround.elf : $(BUILDOBJDIR)/options.c.o

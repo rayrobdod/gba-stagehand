@@ -161,7 +161,7 @@ static void background_write_to_elf(
 	[[maybe_unused]] std::pair<std::string, tile16x3s_data> tile16x3s,
 	std::string var_name,
 	std::ostream& headerstream,
-	[[maybe_unused]] Object_x8664& hostelf,
+	Object_x8664& hostelf,
 	Object& elf
 ) {
 	headerstream << "extern const struct background " << var_name << ";" << std::endl;
@@ -175,16 +175,26 @@ static void background_write_to_elf(
 
 	std::array<uint16_t, 12> serialized = {0};
 	std::array<relocation_template, 3> relocs = {0};
+	std::array<uint16_t, 24> serialized_x8664 = {0};
+	std::array<relocation_template_x8664, 3> relocs_x8664 = {0};
 
 	tileset_serialized(
 		std::span<uint16_t, 8>(serialized.begin(), 8),
 		std::span<relocation_template, 2>(relocs.begin(), 2),
+		std::span<uint16_t, 16>(serialized_x8664.begin(), 16),
+		std::span<relocation_template_x8664, 2>(relocs_x8664.begin(), 2),
 		palettes,
 		tiles_pair);
 	serialized[10] = static_cast<uint16_t>(tilemap.size());
 	relocs[2] = {
 		.offset = 16,
 		.type = R_ARM_ABS32,
+		.symbol_name = tilemap_name,
+	};
+	serialized_x8664[20] = static_cast<uint16_t>(tilemap.size());
+	relocs_x8664[2] = {
+		.offset = 32,
+		.type = R_X86_64_64,
 		.symbol_name = tilemap_name,
 	};
 
@@ -198,6 +208,9 @@ static void background_write_to_elf(
 
 	elf.push_single_variable_rodata_sections({tilemap_name, STB_LOCAL}, tilemap_comp.data);
 	elf.push_single_variable_rodata_sections({var_name, STB_GLOBAL}, serialized, relocs);
+
+	hostelf.push_single_variable_rodata_sections({tilemap_name, STB_LOCAL}, tilemap_comp.data);
+	hostelf.push_single_variable_rodata_sections({var_name, STB_GLOBAL}, serialized_x8664, relocs_x8664);
 }
 
 const type_functions background_type_functions(

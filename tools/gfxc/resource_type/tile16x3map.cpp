@@ -157,7 +157,7 @@ static void tile16x3map_write_to_elf(
 	std::pair<std::string, tile16x3s_data> tile16x3s,
 	std::string var_name,
 	std::ostream& headerstream,
-	[[maybe_unused]] Object_x8664& hostelf,
+	Object_x8664& hostelf,
 	Object& elf
 ) {
 	headerstream << "extern const struct tile16x3map " << var_name << ";" << std::endl;
@@ -198,14 +198,32 @@ static void tile16x3map_write_to_elf(
 		.symbol_name = tile16x3s.first,
 	};
 
+	std::vector<uint16_t> serialized_x8664 = {
+		0, 0, 0, 0, 0, 0, 0, 0,
+		0, 0, 0, 0, 0, 0, 0, 0,
+		0, 0, 0, 0,
+		static_cast<uint16_t>(mapimage.width()),
+		static_cast<uint16_t>(mapimage.height()),
+	};
+	std::copy(metatilemap.begin(), metatilemap.end(), std::back_inserter(serialized_x8664));
+
+	std::array<relocation_template_x8664, 3> relocs_x8664;
+	relocs_x8664[2] = {
+		.offset = 32,
+		.type = R_X86_64_64,
+		.symbol_name = tile16x3s.first,
+	};
+
 	tileset_serialized(
 		std::span<uint16_t, 8>(serialized.begin(), 8),
 		std::span<relocation_template, 2>(relocs.begin(), 2),
+		std::span<uint16_t, 16>(serialized_x8664.begin(), 16),
+		std::span<relocation_template_x8664, 2>(relocs_x8664.begin(), 2),
 		palettes,
 		tiles);
 
-
 	elf.push_single_variable_rodata_sections({var_name, STB_GLOBAL}, serialized, relocs);
+	hostelf.push_single_variable_rodata_sections({var_name, STB_GLOBAL}, serialized_x8664, relocs_x8664);
 }
 
 static void tile16x3map_write_struct(std::ostream& headerstream) {
