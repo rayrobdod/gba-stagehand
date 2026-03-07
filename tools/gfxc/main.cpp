@@ -89,18 +89,13 @@ int write_types_header(std::filesystem::path headerfile) {
 	return 0;
 }
 
-int compile_object(std::filesystem::path srcdir, std::filesystem::path objfile, std::filesystem::path headerfile, std::filesystem::path hostobjfile) {
-	int fake_argc_that_qt_requires_to_be_mutable_for_no_comprehensible_reason = 1;
-	char* fake_argv0_that_qt_requires_to_be_mutable_for_no_comprehensible_reason = strdup("gfxc");
-	char** fake_argv_that_qt_requires_to_be_mutable_for_no_comprehensible_reason = static_cast<char**>(calloc(1, sizeof(char*)));
-	fake_argv_that_qt_requires_to_be_mutable_for_no_comprehensible_reason[0] =
-			fake_argv0_that_qt_requires_to_be_mutable_for_no_comprehensible_reason;
-	QGuiApplication app(
-		fake_argc_that_qt_requires_to_be_mutable_for_no_comprehensible_reason,
-		fake_argv_that_qt_requires_to_be_mutable_for_no_comprehensible_reason);
-	/* Need a QGuiApplication for libtiled to be willing to render tiles */
+template <class E>
+struct path_name_data_map_pair {
+	std::map<const std::filesystem::path, const std::string> file_to_name;
+	std::map<const std::string, const E> datas;
+};
 
-
+static std::map<type, std::map<std::filesystem::path, input_data>> sort_inputs(std::filesystem::path srcdir) {
 	std::map<type, std::map<std::filesystem::path, input_data>> sorted_inputs;
 
 	for (auto const& dir_entry : std::filesystem::recursive_directory_iterator{srcdir}) {
@@ -134,146 +129,179 @@ int compile_object(std::filesystem::path srcdir, std::filesystem::path objfile, 
 		}
 	}
 
-	std::map<const std::filesystem::path, const std::string> file_to_palette_name;
-	std::map<const std::string, const palette_data> palette_datas;
-	{
-		std::map<const std::string, palette_data_builder> palette_data_builders;
-		for (auto images : sorted_inputs) {
-			const type typ = images.first;
-			auto fns_ptr = type_functionss.find(typ);
-			if (fns_ptr != type_functionss.end()) {
-				type_functions fns = fns_ptr->second;
+	return sorted_inputs;
+}
 
-				if (fns.extract_palettes) {
-					for (auto image : images.second) {
-						std::string palette_name = palette_name_for_image(image);
-						file_to_palette_name.emplace(image.first, palette_name);
+static path_name_data_map_pair<palette_data> gen_palette_datas(std::map<type, std::map<std::filesystem::path, input_data>> sorted_inputs) {
+	path_name_data_map_pair<palette_data> retval;
 
-						auto out = palette_data_builders.try_emplace(palette_name).first;
-						palette_data_builder new_data = fns.extract_palettes(image);
+	std::map<const std::string, palette_data_builder> palette_data_builders;
+	for (auto images : sorted_inputs) {
+		const type typ = images.first;
+		auto fns_ptr = type_functionss.find(typ);
+		if (fns_ptr != type_functionss.end()) {
+			type_functions fns = fns_ptr->second;
 
-						out->second.merge(new_data, palette_name);
-					}
+			if (fns.extract_palettes) {
+				for (auto image : images.second) {
+					std::string palette_name = palette_name_for_image(image);
+					retval.file_to_name.emplace(image.first, palette_name);
+
+					auto out = palette_data_builders.try_emplace(palette_name).first;
+					palette_data_builder new_data = fns.extract_palettes(image);
+
+					out->second.merge(new_data, palette_name);
 				}
 			}
 		}
-
-		for (auto builders_i = palette_data_builders.begin(); builders_i != palette_data_builders.end(); builders_i++) {
-			builders_i->second.condense_colors();
-		}
-
-		uint16_t next_paltag = FIRST_TAG;
-		for (auto builder_pair : palette_data_builders) {
-			std::string palname = builder_pair.first;
-			palette_data_builder builder = builder_pair.second;
-
-			std::map<const std::string, alt_palette_data> alternates;
-			for (auto alternate : builder.alternates) {
-				alternates.try_emplace(alternate.first, next_paltag++, alternate.second);
-			}
-
-			std::vector<std::vector<rgba16_t>> colorss;
-			for (auto colors : builder.colorss) {
-				colorss.emplace_back(colors.begin(), colors.end());
-			}
-
-			palette_datas.try_emplace(palname, next_paltag++, colorss, alternates);
-		}
 	}
 
-	std::map<const std::filesystem::path, const std::string> file_to_tiles_name;
-	std::map<const std::string, const tiles_data> tiles_datas;
-	{
-		std::map<const std::string, std::vector<gbatile_4bpp>> tileset_data_builders;
-		for (auto images : sorted_inputs) {
-			const type typ = images.first;
-			auto fns_ptr = type_functionss.find(typ);
-			if (fns_ptr != type_functionss.end()) {
-				type_functions fns = fns_ptr->second;
+	for (auto builders_i = palette_data_builders.begin(); builders_i != palette_data_builders.end(); builders_i++) {
+		builders_i->second.condense_colors();
+	}
 
-				if (fns.extract_tiles) {
-					for (auto image : images.second) {
-						const std::string tileset_name = tileset_name_for_image(image);
-						file_to_tiles_name.emplace(image.first, tileset_name);
+	uint16_t next_paltag = FIRST_TAG;
+	for (auto builder_pair : palette_data_builders) {
+		std::string palname = builder_pair.first;
+		palette_data_builder builder = builder_pair.second;
 
-						const std::string palette_name = file_to_palette_name.at(image.first);
-						palette_data palette = palette_datas.at(palette_name);
+		std::map<const std::string, alt_palette_data> alternates;
+		for (auto alternate : builder.alternates) {
+			alternates.try_emplace(alternate.first, next_paltag++, alternate.second);
+		}
 
-						auto out = tileset_data_builders.try_emplace(tileset_name).first;
-						std::vector<gbatile_4bpp> new_data = fns.extract_tiles(image, palette);
+		std::vector<std::vector<rgba16_t>> colorss;
+		for (auto colors : builder.colorss) {
+			colorss.emplace_back(colors.begin(), colors.end());
+		}
 
-						size_t old_data_size = out->second.size();
+		retval.datas.try_emplace(palname, next_paltag++, colorss, alternates);
+	}
 
-						// If a single tileset has duplicate tiles, include both.
-						// However, if multiple shared tilesets have the same tile, deduplicate
-						for (gbatile_4bpp tile : new_data) {
-							auto old_data_begin = out->second.begin();
-							auto old_data_end = old_data_begin + old_data_size;
+	return retval;
+}
 
-							if (old_data_end == std::find(old_data_begin, old_data_end, tile)) {
-								out->second.push_back(tile);
-							}
+static path_name_data_map_pair<tiles_data> gen_tiles_datas(
+		std::map<type, std::map<std::filesystem::path, input_data>> sorted_inputs,
+		path_name_data_map_pair<palette_data> palettes) {
+	path_name_data_map_pair<tiles_data> retval;
+
+	std::map<const std::string, std::vector<gbatile_4bpp>> tileset_data_builders;
+	for (auto images : sorted_inputs) {
+		const type typ = images.first;
+		auto fns_ptr = type_functionss.find(typ);
+		if (fns_ptr != type_functionss.end()) {
+			type_functions fns = fns_ptr->second;
+
+			if (fns.extract_tiles) {
+				for (auto image : images.second) {
+					const std::string tileset_name = tileset_name_for_image(image);
+					retval.file_to_name.emplace(image.first, tileset_name);
+
+					const std::string palette_name = palettes.file_to_name.at(image.first);
+					palette_data palette = palettes.datas.at(palette_name);
+
+					auto out = tileset_data_builders.try_emplace(tileset_name).first;
+					std::vector<gbatile_4bpp> new_data = fns.extract_tiles(image, palette);
+
+					size_t old_data_size = out->second.size();
+
+					// If a single tileset has duplicate tiles, include both.
+					// However, if multiple shared tilesets have the same tile, deduplicate
+					for (gbatile_4bpp tile : new_data) {
+						auto old_data_begin = out->second.begin();
+						auto old_data_end = old_data_begin + old_data_size;
+
+						if (old_data_end == std::find(old_data_begin, old_data_end, tile)) {
+							out->second.push_back(tile);
 						}
 					}
 				}
 			}
 		}
-
-		uint16_t next_tiletag = FIRST_TAG;
-		for (auto builder_pair : tileset_data_builders) {
-			std::string tilesname = builder_pair.first;
-			std::vector<gbatile_4bpp> builder = builder_pair.second;
-
-			tiles_datas.try_emplace(tilesname, next_tiletag++, builder);
-		}
 	}
 
-	std::map<const std::filesystem::path, const std::string> file_to_tile16x3s_name;
-	std::map<const std::string, const tile16x3s_data> tile16x3s_datas;
-	{
-		std::map<const std::string, std::vector<tile16x3>> tile16x3set_data_builders;
-		for (auto images : sorted_inputs) {
-			const type typ = images.first;
-			auto fns_ptr = type_functionss.find(typ);
-			if (fns_ptr != type_functionss.end()) {
-				type_functions fns = fns_ptr->second;
+	uint16_t next_tiletag = FIRST_TAG;
+	for (auto builder_pair : tileset_data_builders) {
+		std::string tilesname = builder_pair.first;
+		std::vector<gbatile_4bpp> builder = builder_pair.second;
 
-				if (fns.extract_tile16x3s) {
-					for (auto image : images.second) {
-						const std::string tile16x3set_name = tile16x3set_name_for_image(image);
-						file_to_tile16x3s_name.emplace(image.first, tile16x3set_name);
+		retval.datas.try_emplace(tilesname, next_tiletag++, builder);
+	}
 
-						const std::string palette_name = file_to_palette_name.at(image.first);
-						palette_data palette = palette_datas.at(palette_name);
+	return retval;
+}
 
-						const std::string tiles_name = file_to_tiles_name.at(image.first);
-						tiles_data tiles = tiles_datas.at(tiles_name);
+static path_name_data_map_pair<tile16x3s_data> gen_tile16x3s_datas(
+		std::map<type, std::map<std::filesystem::path, input_data>> sorted_inputs,
+		path_name_data_map_pair<palette_data> palettes,
+		path_name_data_map_pair<tiles_data> tiles) {
+	path_name_data_map_pair<tile16x3s_data> retval;
 
-						auto out = tile16x3set_data_builders.try_emplace(tile16x3set_name).first;
-						std::vector<tile16x3> new_data = fns.extract_tile16x3s(image, palette, tiles);
+	std::map<const std::string, std::vector<tile16x3>> tile16x3set_data_builders;
+	for (auto images : sorted_inputs) {
+		const type typ = images.first;
+		auto fns_ptr = type_functionss.find(typ);
+		if (fns_ptr != type_functionss.end()) {
+			type_functions fns = fns_ptr->second;
 
-						size_t old_data_size = out->second.size();
+			if (fns.extract_tile16x3s) {
+				for (auto image : images.second) {
+					const std::string tile16x3set_name = tile16x3set_name_for_image(image);
+					retval.file_to_name.emplace(image.first, tile16x3set_name);
 
-						for (tile16x3 tile : new_data) {
-							auto old_data_begin = out->second.begin();
-							auto old_data_end = old_data_begin + old_data_size;
+					const std::string palette_name = palettes.file_to_name.at(image.first);
+					palette_data palette = palettes.datas.at(palette_name);
 
-							if (old_data_end == std::find(old_data_begin, old_data_end, tile)) {
-								out->second.push_back(tile);
-							}
+					const std::string tiles_name = tiles.file_to_name.at(image.first);
+					tiles_data tiles_data = tiles.datas.at(tiles_name);
+
+					auto out = tile16x3set_data_builders.try_emplace(tile16x3set_name).first;
+					std::vector<tile16x3> new_data = fns.extract_tile16x3s(image, palette, tiles_data);
+
+					size_t old_data_size = out->second.size();
+
+					for (tile16x3 tile : new_data) {
+						auto old_data_begin = out->second.begin();
+						auto old_data_end = old_data_begin + old_data_size;
+
+						if (old_data_end == std::find(old_data_begin, old_data_end, tile)) {
+							out->second.push_back(tile);
 						}
 					}
 				}
 			}
 		}
-
-		for (auto builder_pair : tile16x3set_data_builders) {
-			std::string tilesname = builder_pair.first;
-			std::vector<tile16x3> builder = builder_pair.second;
-
-			tile16x3s_datas.try_emplace(tilesname, builder);
-		}
 	}
+
+	for (auto builder_pair : tile16x3set_data_builders) {
+		std::string tilesname = builder_pair.first;
+		std::vector<tile16x3> builder = builder_pair.second;
+
+		retval.datas.try_emplace(tilesname, builder);
+	}
+
+	return retval;
+}
+
+int compile_object(std::filesystem::path srcdir, std::filesystem::path objfile, std::filesystem::path headerfile, std::filesystem::path hostobjfile) {
+	int fake_argc_that_qt_requires_to_be_mutable_for_no_comprehensible_reason = 1;
+	char* fake_argv0_that_qt_requires_to_be_mutable_for_no_comprehensible_reason = strdup("gfxc");
+	char** fake_argv_that_qt_requires_to_be_mutable_for_no_comprehensible_reason = static_cast<char**>(calloc(1, sizeof(char*)));
+	fake_argv_that_qt_requires_to_be_mutable_for_no_comprehensible_reason[0] =
+			fake_argv0_that_qt_requires_to_be_mutable_for_no_comprehensible_reason;
+	QGuiApplication app(
+		fake_argc_that_qt_requires_to_be_mutable_for_no_comprehensible_reason,
+		fake_argv_that_qt_requires_to_be_mutable_for_no_comprehensible_reason);
+	/* Need a QGuiApplication for libtiled to be willing to render tiles */
+
+	const std::map<type, std::map<std::filesystem::path, input_data>> sorted_inputs = sort_inputs(srcdir);
+
+	const path_name_data_map_pair<palette_data> palettes = gen_palette_datas(sorted_inputs);
+
+	const path_name_data_map_pair<tiles_data> tiles = gen_tiles_datas(sorted_inputs, palettes);
+
+	const path_name_data_map_pair<tile16x3s_data> tile16x3s = gen_tile16x3s_datas(sorted_inputs, palettes, tiles);
 
 
 	Object elf(objfile);
@@ -282,7 +310,7 @@ int compile_object(std::filesystem::path srcdir, std::filesystem::path objfile, 
 
 	headerstream << "#include \"gba/shared.h\"" << std::endl << std::endl;
 
-	for (auto const& palette_data : palette_datas) {
+	for (auto const& palette_data : palettes.datas) {
 		std::string var_name = palette_data.first;
 
 		std::vector<rgba16_t> pala;
@@ -319,7 +347,7 @@ int compile_object(std::filesystem::path srcdir, std::filesystem::path objfile, 
 		}
 	}
 
-	for (auto const& tileset_data : tiles_datas) {
+	for (auto const& tileset_data : tiles.datas) {
 		std::string var_name = tileset_data.first;
 
 		std::vector<uint8_t> bytes;
@@ -335,7 +363,7 @@ int compile_object(std::filesystem::path srcdir, std::filesystem::path objfile, 
 		hostelf.push_single_variable_rodata_sections({var_name, STB_LOCAL}, compressed.data);
 	}
 
-	for (auto const& tile16x3set_data : tile16x3s_datas) {
+	for (auto const& tile16x3set_data : tile16x3s.datas) {
 		std::string var_name = tile16x3set_data.first;
 
 		std::vector<uint16_t> serialized_metatileset;
@@ -361,11 +389,11 @@ int compile_object(std::filesystem::path srcdir, std::filesystem::path objfile, 
 
 						std::pair<std::string, palette_data> my_palette_data;
 						{
-							auto palette_name_ptr = file_to_palette_name.find(image.first);
-							if (palette_name_ptr != file_to_palette_name.end()) {
+							auto palette_name_ptr = palettes.file_to_name.find(image.first);
+							if (palette_name_ptr != palettes.file_to_name.end()) {
 								std::string palette_name = palette_name_ptr->second;
-								auto palette_ptr = palette_datas.find(palette_name);
-								if (palette_ptr != palette_datas.end()) {
+								auto palette_ptr = palettes.datas.find(palette_name);
+								if (palette_ptr != palettes.datas.end()) {
 									my_palette_data = *palette_ptr;
 								}
 							}
@@ -373,11 +401,11 @@ int compile_object(std::filesystem::path srcdir, std::filesystem::path objfile, 
 
 						std::pair<std::string, tiles_data> my_tiles_data;
 						{
-							auto tiles_name_ptr = file_to_tiles_name.find(image.first);
-							if (tiles_name_ptr != file_to_tiles_name.end()) {
+							auto tiles_name_ptr = tiles.file_to_name.find(image.first);
+							if (tiles_name_ptr != tiles.file_to_name.end()) {
 								std::string tiles_name = tiles_name_ptr->second;
-								auto tiles_ptr = tiles_datas.find(tiles_name);
-								if (tiles_ptr != tiles_datas.end()) {
+								auto tiles_ptr = tiles.datas.find(tiles_name);
+								if (tiles_ptr != tiles.datas.end()) {
 									my_tiles_data = *tiles_ptr;
 								}
 							}
@@ -385,11 +413,11 @@ int compile_object(std::filesystem::path srcdir, std::filesystem::path objfile, 
 
 						std::pair<std::string, tile16x3s_data> my_tile16x3s_data;
 						{
-							auto tile16x3s_name_ptr = file_to_tile16x3s_name.find(image.first);
-							if (tile16x3s_name_ptr != file_to_tile16x3s_name.end()) {
+							auto tile16x3s_name_ptr = tile16x3s.file_to_name.find(image.first);
+							if (tile16x3s_name_ptr != tile16x3s.file_to_name.end()) {
 								std::string tile16x3s_name = tile16x3s_name_ptr->second;
-								auto tile16x3s_ptr = tile16x3s_datas.find(tile16x3s_name);
-								if (tile16x3s_ptr != tile16x3s_datas.end()) {
+								auto tile16x3s_ptr = tile16x3s.datas.find(tile16x3s_name);
+								if (tile16x3s_ptr != tile16x3s.datas.end()) {
 									my_tile16x3s_data = *tile16x3s_ptr;
 								}
 							}
