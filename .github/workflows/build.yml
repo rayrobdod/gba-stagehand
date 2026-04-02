@@ -23,7 +23,9 @@ jobs:
       if: steps.cache.outputs.cache-hit != 'true'
       run: |
         sudo apt update
-        sudo apt install -y libelf-dev
+        sudo apt install -y \
+          --no-install-recommends \
+          libelf-dev
     - name: cmake
       if: steps.cache.outputs.cache-hit != 'true'
       run: |
@@ -69,7 +71,9 @@ jobs:
       run: |
         sudo apt update
         sudo apt install -y \
+          --no-install-recommends \
           gcc-arm-none-eabi \
+          libnewlib-arm-none-eabi \
           libpng-dev \
           libtiled-dev \
           qtbase5-dev \
