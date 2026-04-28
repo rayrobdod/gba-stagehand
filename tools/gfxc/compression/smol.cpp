@@ -772,8 +772,8 @@ public:
 static std::vector<SmolCopyInstruction> calculate_instructions(
 		const std::vector<uint8_t> src,
 		const std::vector<unsigned char>::size_type min_length) {
-	static const unsigned max_offset = 0x3FFF;
-	static const std::vector<unsigned char>::size_type max_length = 0x3FFF;
+	static const unsigned max_offset = 0x7FFF;
+	static const std::vector<unsigned char>::size_type max_length = 0x7FFF;
 
 	std::vector<uint16_t> src16;
 	for (size_t i = 0; i < src.size(); i += 2) {
