@@ -133,20 +133,18 @@ public:
 	unsigned operator*() const {
 		unsigned retval = 0;
 		std::vector<uint8_t>::const_iterator backing = this->_backing;
-		unsigned shift = 0;
 
 		retval = (*backing & DATA_MASK);
-		while (*backing & CONTINUE_MASK) {
+		if (*backing & CONTINUE_MASK) {
 			++backing;
-			shift += DATA_SHIFT;
-			retval |= (*backing & DATA_MASK) << shift;
+			retval |= *backing << DATA_SHIFT;
 		}
 
 		return retval;
 	}
 
 	varint_input_iterator& operator++() {
-		while (*this->_backing & CONTINUE_MASK) {
+		if (*this->_backing & CONTINUE_MASK) {
 			++this->_backing;
 		}
 		++this->_backing;
@@ -155,7 +153,7 @@ public:
 
 	varint_input_iterator operator++(int) {
 		varint_input_iterator retval = *this;
-		while (*this->_backing & CONTINUE_MASK) {
+		if (*this->_backing & CONTINUE_MASK) {
 			++this->_backing;
 		}
 		++this->_backing;

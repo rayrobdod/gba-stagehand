@@ -173,6 +173,31 @@ void test_decompSmol1_withMultipleLengthOffsets(void) {
 	}
 }
 
+void test_decompSmol1_veryLongOffset(void) {
+	const std::vector<uint8_t> input{
+		0x00, 0x00, 0x00, 0x00,
+		0x01, 0x60, 0x0e, 0x00, 0x00, 0x00, 0x40, 0x00,
+		0x01, 0x01, 0x00, 0x00, 0x02, 0x02,
+		0x1f, 0x01, 0xbf, 0x97, 0x01, 0x1f, 0xe0, 0x97, 0x00, 0x00
+	};
+	std::optional<std::vector<uint8_t>> result_opt = decompressSmol1(input, false);
+
+	std::vector<uint8_t> expected(0x9800);
+	for (int i = 0; i < 0x40; i++)
+		expected[i] = 1;
+	expected[0x97c0] = 2;
+	expected[0x97c1] = 2;
+	for (int i = 0x97c2; i < 0x9800; i++)
+		expected[i] = 1;
+
+	if (result_opt) {
+		std::vector<uint8_t> result = *result_opt;
+		TEST_ASSERT_EQUAL_VECTOR_HEX8(expected, result);
+	} else {
+		TEST_FAIL("Decompression failed");
+	}
+}
+
 void test_decompSmol8_Increment8ThenZeros(void) {
 	const std::vector<uint8_t> input{
 		0x00, 0x00, 0x00, 0x00,
@@ -492,6 +517,7 @@ int main() {
 	RUN_TEST(test_decompSmol1_Zeros_1024);
 	RUN_TEST(test_decompSmol1_withMultipleLengthOffsets);
 	RUN_TEST(test_decompSmol1_dialogBox);
+	RUN_TEST(test_decompSmol1_veryLongOffset);
 	RUN_TEST(test_decompSmol2_Zeros_1024);
 	RUN_TEST(test_decompSmol2_dialogBox);
 	RUN_TEST(test_decompSmol3_inc4);
