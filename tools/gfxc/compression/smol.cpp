@@ -118,6 +118,7 @@ class varint_input_iterator {
 private:
 	std::vector<uint8_t>::const_iterator _backing;
 
+public:
 	static const unsigned CONTINUE_MASK = 0x80;
 	static const unsigned DATA_MASK = 0x7F;
 	static const unsigned DATA_SHIFT = 7;
@@ -375,11 +376,11 @@ public:
 		++backing;
 		symbol |= *backing << 4;
 		++backing;
-		if (symbol & 0x80) {
-			symbol &= 0x7F;
-			symbol |= *backing << 7;
+		if (symbol & varint_input_iterator::CONTINUE_MASK) {
+			symbol &= varint_input_iterator::DATA_MASK;
+			symbol |= *backing << varint_input_iterator::DATA_SHIFT;
 			++backing;
-			symbol |= *backing << 11;
+			symbol |= *backing << (varint_input_iterator::DATA_SHIFT + 4);
 			++backing;
 		}
 		return symbol;
@@ -755,14 +756,14 @@ public:
 		if (this->length < 0x80) {
 			retval.push_back(this->length);
 		} else {
-			retval.push_back((this->length & 0x7F) | 0x80);
-			retval.push_back(this->length >> 7);
+			retval.push_back((this->length & varint_input_iterator::DATA_MASK) | varint_input_iterator::CONTINUE_MASK);
+			retval.push_back(this->length >> varint_input_iterator::DATA_SHIFT);
 		}
 		if (this->offset < 0x80) {
 			retval.push_back(this->offset);
 		} else {
-			retval.push_back((this->offset & 0x7F) | 0x80);
-			retval.push_back(this->offset >> 7);
+			retval.push_back((this->offset & varint_input_iterator::DATA_MASK) | varint_input_iterator::CONTINUE_MASK);
+			retval.push_back(this->offset >> varint_input_iterator::DATA_SHIFT);
 		}
 		return retval;
 	}
