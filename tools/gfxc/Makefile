@@ -117,10 +117,15 @@ $(TEST_REPORT_DIR)/%.txt : $(TEST_RUNNER_DIR)/%
 .PHONY: all check clean
 
 all: $(NAME)
+all: standalone_smol
 
-$(NAME): $(OBJS)
+$(NAME): $(filter-out $(BUILDOBJDIR)/standalone_smol.cpp.o, $(OBJS))
 	@echo "  HOSTLD  $@"
-	$(V)$(CXX) -o $@ $(OBJS) $(LDFLAGS)
+	$(V)$(CXX) -o $@ $^ $(LDFLAGS)
+
+standalone_smol: $(BUILDOBJDIR)/standalone_smol.cpp.o $(BUILDOBJDIR)/compression/smol.cpp.o $(BUILDOBJDIR)/ints.cpp.o $(BUILDOBJDIR)/compare_mismatch_error_message.cpp.o
+	@echo "  HOSTLD  $@"
+	$(V)$(CXX) -o $@ $^ $(LDFLAGS)
 
 $(TEST_RUNNER_DIR)/test_huff: $(BUILDOBJDIR)/ints.cpp.o
 $(TEST_RUNNER_DIR)/test_subword_output_iterator: $(BUILDOBJDIR)/ints.cpp.o
@@ -134,6 +139,7 @@ check: $(TEST_REPORTS)
 clean:
 	@echo "  CLEAN"
 	$(V)$(RM) $(NAME)
+	$(V)$(RM) standalone_smol
 	$(V)$(RM) $(BUILDDIR)
 
 # Include dependency files if they exist
