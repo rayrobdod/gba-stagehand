@@ -4,7 +4,7 @@
 
 void TEST_ASSERT_EQUAL_VECTOR_HEX8(std::vector<uint8_t> expected, std::vector<uint8_t> actual);
 void TEST_ASSERT_EQUAL_UNSIGNED(unsigned expected, unsigned actual);
-void TEST_FAIL(std::string reason);
+void TEST_FAIL(std::string_view reason);
 
 extern unsigned total;
 extern unsigned failed;
