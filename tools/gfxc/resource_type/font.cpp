@@ -99,19 +99,26 @@ static void font_write_to_elf(
 	headerstream << "extern const struct font " << var_name << ";" << std::endl;
 
 	std::vector<uint16_t> pixel_data;
+	std::vector<uint16_t> glyph_data;
 	std::vector<uint16_t> metadata;
+	metadata.push_back(0);
+	metadata.push_back(0);
 	metadata.push_back(0);
 	metadata.push_back(0);
 	metadata.push_back(height);
 	metadata.push_back(glyphs.size());
+
 	for (font_glyph glyph : glyphs) {
-		metadata.push_back(glyph.width);
-		metadata.push_back(pixel_data.size());
+		glyph_data.push_back(glyph.width);
+		glyph_data.push_back(pixel_data.size());
 		for (uint16_t b : glyph.data) {
 			pixel_data.push_back(b);
 		}
 	}
+
 	std::vector<uint16_t> metadata_x8664;
+	metadata_x8664.push_back(0);
+	metadata_x8664.push_back(0);
 	metadata_x8664.push_back(0);
 	metadata_x8664.push_back(0);
 	std::copy(metadata.begin(), metadata.end(), std::back_inserter(metadata_x8664));
@@ -119,22 +126,38 @@ static void font_write_to_elf(
 	std::string pixeldata_name("pixeldata.");
 	pixeldata_name += var_name;
 
+	std::string glyphdata_name("glyphdata.");
+	glyphdata_name += var_name;
+
 	elf.push_single_variable_rodata_sections({pixeldata_name, STB_LOCAL}, pixel_data);
 	hostelf.push_single_variable_rodata_sections({pixeldata_name, STB_LOCAL}, pixel_data);
+
+	elf.push_single_variable_rodata_sections({glyphdata_name, STB_LOCAL}, glyph_data);
+	hostelf.push_single_variable_rodata_sections({glyphdata_name, STB_LOCAL}, glyph_data);
 
 	std::initializer_list<relocation_template> relocs {
 		{
 			.offset = 0,
 			.type = R_ARM_ABS32,
 			.symbol_name = pixeldata_name,
-		}
+		},
+		{
+			.offset = 4,
+			.type = R_ARM_ABS32,
+			.symbol_name = glyphdata_name,
+		},
 	};
 	std::initializer_list<relocation_template> relocs_x8664 {
 		{
 			.offset = 0,
 			.type = R_X86_64_64,
 			.symbol_name = pixeldata_name,
-		}
+		},
+		{
+			.offset = 8,
+			.type = R_X86_64_64,
+			.symbol_name = glyphdata_name,
+		},
 	};
 
 	elf.push_single_variable_rodata_sections({var_name, STB_GLOBAL}, metadata, relocs);
@@ -143,14 +166,15 @@ static void font_write_to_elf(
 
 void font_write_struct(std::ostream& headerstream) {
 	headerstream << std::endl
+		<< "struct font_glyph {" << std::endl
+		<< "	uint16_t width;" << std::endl
+		<< "	uint16_t pixel_data_start_index;" << std::endl
+		<< "};" << std::endl
 		<< "struct font {" << std::endl
 		<< "	const uint16_t* pixel_data;" << std::endl
+		<< "	const struct font_glyph* glyphs;" << std::endl
 		<< "	uint16_t glyph_height;" << std::endl
 		<< "	uint16_t glyph_count;" << std::endl
-		<< "	struct font_glyph {" << std::endl
-		<< "		uint16_t width;" << std::endl
-		<< "		uint16_t pixel_data_start_index;" << std::endl
-		<< "	} glyphs[];" << std::endl
 		<< "};" << std::endl;
 }
 
