@@ -34,6 +34,36 @@ static void print_tile(const tile_4bpp_t* tile) {
 	}
 }
 
+[[maybe_unused]]
+static void print_PixelBuffer(
+	const tile_4bpp_t* tiles,
+	const struct shadow_tiles_window_allocate* window
+) {
+	char* text = malloc(window->width * 6 + 6);
+	if (text != NULL) {
+		text[window->width * 6 + 0] = '\e';
+		text[window->width * 6 + 1] = '[';
+		text[window->width * 6 + 2] = '0';
+		text[window->width * 6 + 3] = 'm';
+		text[window->width * 6 + 4] = '\0';
+
+		for (int pixel_y = 0; pixel_y < 8 * window->height; pixel_y++) {
+			for (int pixel_x = 0; pixel_x < 8 * window->width; pixel_x++) {
+				text[pixel_x * 6 + 0] = '\e';
+				text[pixel_x * 6 + 1] = '[';
+				text[pixel_x * 6 + 2] = '4';
+				text[pixel_x * 6 + 3] = '0' + get_pixel_at(tiles, window->width, pixel_x, pixel_y);
+				text[pixel_x * 6 + 4] = 'm';
+				text[pixel_x * 6 + 5] = '0' + get_pixel_at(tiles, window->width, pixel_x, pixel_y);
+			}
+			MgbaPrintf(MGBA_LOG_INFO, "%s", text);
+		}
+		MgbaPrintf(MGBA_LOG_INFO, " ");
+
+		free(text);
+	}
+}
+
 static const struct shadow_tiles_window_allocate window_16_16 = {
 	.bg = 0,
 	.palette = 0,
@@ -747,6 +777,113 @@ void test_stepped_scroll(void) {
 		text_print_step(&state));
 }
 
+void test_stepped_scrollAndWrap_usesFullHeight(void) {
+	struct text_print_step_state state;
+
+	static const struct shadow_tiles_window_allocate window = {
+		.bg = 0,
+		.palette = 0,
+		.x = 0,
+		.y = 0,
+		.width = 4,
+		.height = 4,
+	};
+
+	const coord16_t start_point = {0, 2 * (16 - bitmapfont.glyph_height)};
+	static const coord16_t kerning = {0, 0};
+
+	text_print_step_init(
+		&state,
+		buffer,
+		&window,
+		&bitmapfont,
+		start_point,
+		kerning,
+		(text_print_overflow_t) {TEXTPRINTOVERFLOWX_WORDWRAP, TEXTPRINTOVERFLOWY_SCROLL},
+		(font_colors_t) {4,1,2,3, true},
+		"ABC DEF GHI");
+
+	for (int pixel_y = 0; pixel_y < 8 * window.height; pixel_y++)
+	for (int pixel_x = 0; pixel_x < 8 * window.width; pixel_x++) {
+		TEST_ASSERT_EQUAL_UNSIGNED(
+			get_pixel_at(buffer2, window.width, pixel_x, pixel_y),
+			get_pixel_at(buffer, window.width, pixel_x, pixel_y));
+	}
+
+	for (int i = 0; i < 4; ++i) {
+		TEST_ASSERT_EQUAL_UNSIGNED(
+			TEXT_PRINT_STEP_CONTINUE,
+			text_print_step(&state));
+	}
+
+	text_print_immediate(
+		buffer2,
+		&window,
+		&bitmapfont,
+		start_point,
+		kerning,
+		(font_colors_t) {4,1,2,3, true},
+		"ABC");
+
+	for (int pixel_y = 0; pixel_y < 8 * window.height; pixel_y++)
+	for (int pixel_x = 0; pixel_x < 8 * window.width; pixel_x++) {
+		TEST_ASSERT_EQUAL_UNSIGNED(
+			get_pixel_at(buffer2, window.width, pixel_x, pixel_y),
+			get_pixel_at(buffer, window.width, pixel_x, pixel_y));
+	}
+
+	for (int i = 0; i < 3; ++i) {
+		TEST_ASSERT_EQUAL_UNSIGNED(
+			TEXT_PRINT_STEP_CONTINUE,
+			text_print_step(&state));
+	}
+	TEST_ASSERT_EQUAL_UNSIGNED(
+		TEXT_PRINT_STEP_WAIT,
+		text_print_step(&state));
+
+	text_print_immediate(
+		buffer2,
+		&window,
+		&bitmapfont,
+		start_point,
+		kerning,
+		(font_colors_t) {4,1,2,3, true},
+		"ABC\nDEF");
+
+	for (int pixel_y = 0; pixel_y < 8 * window.height; pixel_y++)
+	for (int pixel_x = 0; pixel_x < 8 * window.width; pixel_x++) {
+		TEST_ASSERT_EQUAL_UNSIGNED(
+			get_pixel_at(buffer2, window.width, pixel_x, pixel_y),
+			get_pixel_at(buffer, window.width, pixel_x, pixel_y));
+	}
+
+	for (int i = 0; i < 3 + bitmapfont.glyph_height; ++i) {
+		TEST_ASSERT_EQUAL_UNSIGNED(
+			TEXT_PRINT_STEP_CONTINUE,
+			text_print_step(&state));
+	}
+	TEST_ASSERT_EQUAL_UNSIGNED(
+		TEXT_PRINT_STEP_STOP,
+		text_print_step(&state));
+
+	memset(buffer2, 0, sizeof(buffer2));
+	text_print_immediate(
+		buffer2,
+		&window,
+		&bitmapfont,
+		start_point,
+		kerning,
+		(font_colors_t) {4,1,2,3, true},
+		"DEF\nGHI");
+
+	for (int pixel_y = 0; pixel_y < 8 * window.height; pixel_y++)
+	for (int pixel_x = 0; pixel_x < 8 * window.width; pixel_x++) {
+		TEST_ASSERT_EQUAL_UNSIGNED(
+			get_pixel_at(buffer2, window.width, pixel_x, pixel_y),
+			get_pixel_at(buffer, window.width, pixel_x, pixel_y));
+	}
+}
+
 void test_stepped_wordwrap_space_narrow(void) {
 	struct text_print_step_state state;
 
@@ -860,6 +997,7 @@ int main() {
 	RUN_TEST(test_stepped_clip_down);
 	RUN_TEST(test_stepped_wraparound_down);
 	RUN_TEST(test_stepped_scroll);
+	RUN_TEST(test_stepped_scrollAndWrap_usesFullHeight);
 	RUN_TEST(test_stepped_wordwrap_space_narrow);
 	RUN_TEST(test_stepped_wordwrap_space_wide);
 

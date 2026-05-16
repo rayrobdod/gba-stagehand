@@ -148,7 +148,7 @@ static inline enum text_print_step_retval text_print_step_newline(
 		state->current_point.x = state->start_point.x;
 		unsigned next_y = state->current_point.y + state->font->glyph_height + state->kerning.y;
 
-		if (next_y + state->font->glyph_height < window_bottom) {
+		if (next_y + state->font->glyph_height <= window_bottom) {
 			state->current_point.y = next_y;
 		} else {
 			state->scroll_up = state->font->glyph_height + state->kerning.y;
