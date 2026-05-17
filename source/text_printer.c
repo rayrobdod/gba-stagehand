@@ -137,6 +137,51 @@ static inline int text_print_one_glyph(
 	return x + glyph_width;
 }
 
+typedef struct {
+	bool success;
+	uint8_t bytes_read;
+	uint16_t glyph_index;
+} next_glyph_retval_t;
+
+static const next_glyph_retval_t next_glyph_retval_failure = {false, 0, 0};
+
+static inline next_glyph_retval_t next_glyph_0(const char* message, const struct font* font, unsigned cmap_index) {
+	uint8_t c = (uint8_t) *message;
+	const struct font_byte_to_glyph_trie* cmap_entry = &(font->byte_to_glyph_trie[cmap_index]);
+
+	if (c < cmap_entry->start) {
+		return next_glyph_retval_failure;
+	}
+	else if (c <= cmap_entry->end) {
+		if (cmap_entry->byte_to_glyph_index) {
+			next_glyph_retval_t retval = next_glyph_0(message + 1, font, cmap_entry->byte_to_glyph_index + (c - cmap_entry->start));
+			if (retval.success) {
+				retval.bytes_read += 1;
+				return retval;
+			}
+		}
+
+		if (0xFFFF == cmap_entry->glyphs_start_index) {
+			return next_glyph_retval_failure;
+		}
+		else {
+			next_glyph_retval_t retval = {
+				true,
+				1,
+				cmap_entry->glyphs_start_index + (c - cmap_entry->start)
+			};
+			return retval;
+		}
+	}
+	else {
+		return next_glyph_0(message, font, cmap_index + 1);
+	}
+}
+
+static inline next_glyph_retval_t next_glyph(const char* message, const struct font* font) {
+	return next_glyph_0(message, font, 0);
+}
+
 static inline enum text_print_step_retval text_print_step_newline(
 	struct text_print_step_state* state
 ) {
@@ -209,11 +254,10 @@ enum text_print_step_retval text_print_step(
 
 		return TEXT_PRINT_STEP_CONTINUE;
 	} else {
-		char c = *((state->message)++);
+		char c = *(state->message);
 		enum text_print_step_retval retval = TEXT_PRINT_STEP_STOP;
 
 		if (c == '\0') {
-			(state->message)--;
 			retval = TEXT_PRINT_STEP_STOP;
 		} else
 		if (c == '\f') {
@@ -222,44 +266,60 @@ enum text_print_step_retval text_print_step(
 				state->current_point = state->start_point;
 				state->height_since_last_wait = state->font->glyph_height;
 			}
+			++(state->message);
 			retval = TEXT_PRINT_STEP_WAIT;
 		} else
 		if (c == '\r') {
 			state->current_point.x = state->start_point.x;
+			++(state->message);
 			retval = TEXT_PRINT_STEP_CONTINUE;
 		} else
 		if (c == '\n') {
+			++(state->message);
 			retval = text_print_step_newline(state);
 		} else
 		if (c == ' ' && state->overflow.x == TEXTPRINTOVERFLOWX_WORDWRAP) {
 			if (state->current_point.x + text_width_until_next_break_opportunity(state->font, state->kerning, state->message)
 					> state->window_args->width * 8) {
+				++(state->message);
 				retval = text_print_step_newline(state);
 			} else {
-				state->current_point.x =
-					state->kerning.x +
-					text_print_one_glyph(
-						state->buffer,
-						state->current_point.x, state->current_point.y,
-						&state->font->glyphs[c - 32],
-						state->window_args,
-						state->font,
-						state->overflow,
-						state->colors);
-				retval = TEXT_PRINT_STEP_CONTINUE;
+				next_glyph_retval_t next = next_glyph(state->message, state->font);
+
+				if (next.success) {
+					state->current_point.x =
+						state->kerning.x +
+						text_print_one_glyph(
+							state->buffer,
+							state->current_point.x, state->current_point.y,
+							&state->font->glyphs[next.glyph_index],
+							state->window_args,
+							state->font,
+							state->overflow,
+							state->colors);
+					state->message += next.bytes_read;
+					retval = TEXT_PRINT_STEP_CONTINUE;
+				}
 			}
 		} else
 		if ((c == '-' || c == '/' || c == '\\') && state->overflow.x == TEXTPRINTOVERFLOWX_WORDWRAP) {
-			state->current_point.x =
-					state->kerning.x +
-					text_print_one_glyph(
-						state->buffer,
-						state->current_point.x, state->current_point.y,
-						&state->font->glyphs[c - 32],
-						state->window_args,
-						state->font,
-						state->overflow,
-						state->colors);
+			next_glyph_retval_t next = next_glyph(state->message, state->font);
+
+			if (next.success) {
+				state->current_point.x =
+						state->kerning.x +
+						text_print_one_glyph(
+							state->buffer,
+							state->current_point.x, state->current_point.y,
+							&state->font->glyphs[c - 32],
+							state->window_args,
+							state->font,
+							state->overflow,
+							state->colors);
+				state->message += next.bytes_read;
+			} else {
+				state->message += 1;
+			}
 			if (state->current_point.x + text_width_until_next_break_opportunity(state->font, state->kerning, state->message)
 					> state->window_args->width * 8) {
 				retval = text_print_step_newline(state);
@@ -267,18 +327,23 @@ enum text_print_step_retval text_print_step(
 				retval = TEXT_PRINT_STEP_CONTINUE;
 			}
 		} else
-		if (c >= 32 && (c - 32) < state->font->glyph_count) {
-			state->current_point.x =
-				state->kerning.x +
-				text_print_one_glyph(
-					state->buffer,
-					state->current_point.x, state->current_point.y,
-					&state->font->glyphs[c - 32],
-					state->window_args,
-					state->font,
-					state->overflow,
-					state->colors);
-			retval = TEXT_PRINT_STEP_CONTINUE;
+		{
+			next_glyph_retval_t next = next_glyph(state->message, state->font);
+
+			if (next.success) {
+				state->current_point.x =
+					state->kerning.x +
+					text_print_one_glyph(
+						state->buffer,
+						state->current_point.x, state->current_point.y,
+						&state->font->glyphs[next.glyph_index],
+						state->window_args,
+						state->font,
+						state->overflow,
+						state->colors);
+				state->message += next.bytes_read;
+				retval = TEXT_PRINT_STEP_CONTINUE;
+			}
 		}
 
 		return retval;
@@ -328,15 +393,20 @@ void text_print_immediate(
 			x = start_point.x;
 			y += glyph_height + kerning.y;
 		} else
-		if (c >= 32 && (c - 32) < font->glyph_count) {
-			x = kerning.x + text_print_one_glyph(
-				buffer,
-				x, y,
-				&font->glyphs[c - 32],
-				window_args,
-				font,
-				TEXTPRINTOVERFLOW_CLIP,
-				colors);
+		{
+			next_glyph_retval_t next = next_glyph(message, font);
+
+			if (next.success) {
+				x = kerning.x + text_print_one_glyph(
+					buffer,
+					x, y,
+					&font->glyphs[next.glyph_index],
+					window_args,
+					font,
+					TEXTPRINTOVERFLOW_CLIP,
+					colors);
+				message += next.bytes_read - 1;
+			}
 		}
 	}
 }
@@ -410,14 +480,20 @@ static unsigned text_width_until_next_break_opportunity(
 	char c = *message;
 	if (c == '\0') { return 0; }
 
-	if (c >= 32 && (c - 32) < font->glyph_count) {
-		const int width = font->glyphs[c - 32].width;
-		x += width + kerning.x;
+	{
+		next_glyph_retval_t next = next_glyph(message, font);
+		if (next.success) {
+			const int width = font->glyphs[next.glyph_index].width;
+			x += width + kerning.x;
+			message += next.bytes_read;
+		}
+		else {
+			message += 1;
+		}
 	}
 
 	while (true) {
 		char prev_c = c;
-		message++;
 		c = *message;
 		if (c == '\0' || c == '\n' || c == ' ') {
 			return x;
@@ -425,9 +501,16 @@ static unsigned text_width_until_next_break_opportunity(
 		if (prev_c == '/' || prev_c == '\\' || prev_c == '-') {
 			return x;
 		} else
-		if (c >= 32 && (c - 32) < font->glyph_count) {
-			const int width = font->glyphs[c - 32].width;
-			x += width + kerning.x;
+		{
+			next_glyph_retval_t next = next_glyph(message, font);
+			if (next.success) {
+				const int width = font->glyphs[next.glyph_index].width;
+				x += width + kerning.x;
+				message += next.bytes_read;
+			}
+			else {
+				message += 1;
+			}
 		}
 	}
 }
@@ -444,11 +527,15 @@ unsigned text_width(
 		if (c == '\n') {
 			x = 0;
 		} else
-		if (c >= 32 && (c - 32) < font->glyph_count) {
-			const int width = font->glyphs[c - 32].width;
+		{
+			next_glyph_retval_t next = next_glyph(message, font);
 
-			x += width + kerning.x;
-			max_x = max(max_x, x);
+			if (next.success) {
+				const int width = font->glyphs[next.glyph_index].width;
+				x += width + kerning.x;
+				max_x = max(max_x, x);
+				message += next.bytes_read - 1;
+			}
 		}
 	}
 
