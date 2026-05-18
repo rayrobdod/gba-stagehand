@@ -132,6 +132,7 @@ bufferedimage png_deserialize(
 	}
 
 	png_set_keep_unknown_chunks(png_ptr, PNG_HANDLE_CHUNK_ALWAYS, (png_byte*)"apLT", 1);
+	png_set_keep_unknown_chunks(png_ptr, PNG_HANDLE_CHUNK_ALWAYS, (png_byte*)"cmAP", 1);
 
 	png_infop info_ptr = png_create_info_struct(png_ptr);
 	if (! info_ptr) {
@@ -172,57 +173,84 @@ bufferedimage png_deserialize(
 	}
 
 	std::map<std::string, std::map<rgba16_t, rgba16_t>> alt_palettes;
+	std::vector<std::pair<uint32_t, uint16_t>> cmap;
+
 	png_unknown_chunk* unknowns;
 	unsigned num_unknowns = png_get_unknown_chunks(png_ptr, info_ptr, &unknowns);
 
 	for (unsigned i = 0; i < num_unknowns; i++) {
-		if (strncmp("apLT", (char*)unknowns[i].name, 4))
-			continue;
-
-		std::vector<rgba16_t> palette = png_get_palette(png_ptr, info_ptr);
-		if (0 == palette.size()) {
-			std::cerr << "apLT without PLTE\n";
-			continue;
-		}
-
-		unsigned size = unknowns[i].size;
-		png_byte* data = unknowns[i].data;
-
-		unsigned name_len = strnlen((char*)data, size);
-		std::string name((char*)data);
-		if (name_len + 2 >= size) {
-			std::cerr << "Invalid apLT chunk: name too long\n";
-			continue;
-		}
-		unsigned depth = data[name_len + 1];
-
-		if (16 == depth || 8 == depth) {
-			const struct bitfuncs* bitfuncs = (depth == 8 ? &bit8 : &bit16);
-			unsigned entry_width = (depth == 8 ? 6 : 10);
-
-			if ((size - (name_len + 2)) % entry_width != 0) {
-				std::cerr << "Invalid apLT chunk: partial pal entries\n";
+		if (0 == strncmp("apLT", (char*)unknowns[i].name, 4)) {
+			std::vector<rgba16_t> palette = png_get_palette(png_ptr, info_ptr);
+			if (0 == palette.size()) {
+				std::cerr << "apLT without PLTE\n";
 				continue;
 			}
 
-			std::map<rgba16_t, rgba16_t> mapping;
-			unsigned count = std::min((size_t)(size - (name_len + 2)) / entry_width, palette.size());
-			png_byte* entry_start = data + name_len + 2;
+			unsigned size = unknowns[i].size;
+			png_byte* data = unknowns[i].data;
 
-			for (unsigned i = 0; i < count; i++, entry_start += entry_width) {
-				rgba16_t new_color = {
-					.r = bitfuncs->scale_to_5bit(bitfuncs->read_sample(entry_start, 0)),
-					.g = bitfuncs->scale_to_5bit(bitfuncs->read_sample(entry_start, 1)),
-					.b = bitfuncs->scale_to_5bit(bitfuncs->read_sample(entry_start, 2)),
-					.a = bitfuncs->mask == bitfuncs->read_sample(entry_start, 3),
-				};
-				mapping[palette[i]] = new_color;
+			unsigned name_len = strnlen((char*)data, size);
+			std::string name((char*)data);
+			if (name_len + 2 >= size) {
+				std::cerr << "Invalid apLT chunk: name too long\n";
+				continue;
 			}
+			unsigned depth = data[name_len + 1];
 
-			alt_palettes[name] = mapping;
-		} else {
-			std::cerr << "Invalid apLT chunk: depth neither 8 nor 16\n";
-			continue;
+			if (16 == depth || 8 == depth) {
+				const struct bitfuncs* bitfuncs = (depth == 8 ? &bit8 : &bit16);
+				unsigned entry_width = (depth == 8 ? 6 : 10);
+
+				if ((size - (name_len + 2)) % entry_width != 0) {
+					std::cerr << "Invalid apLT chunk: partial pal entries\n";
+					continue;
+				}
+
+				std::map<rgba16_t, rgba16_t> mapping;
+				unsigned count = std::min((size_t)(size - (name_len + 2)) / entry_width, palette.size());
+				png_byte* entry_start = data + name_len + 2;
+
+				for (unsigned i = 0; i < count; i++, entry_start += entry_width) {
+					rgba16_t new_color = {
+						.r = bitfuncs->scale_to_5bit(bitfuncs->read_sample(entry_start, 0)),
+						.g = bitfuncs->scale_to_5bit(bitfuncs->read_sample(entry_start, 1)),
+						.b = bitfuncs->scale_to_5bit(bitfuncs->read_sample(entry_start, 2)),
+						.a = bitfuncs->mask == bitfuncs->read_sample(entry_start, 3),
+					};
+					mapping[palette[i]] = new_color;
+				}
+
+				alt_palettes[name] = mapping;
+			} else {
+				std::cerr << "Invalid apLT chunk: depth neither 8 nor 16\n";
+				continue;
+			}
+		}
+		else if (0 == strncmp("cmAP", (char*)unknowns[i].name, 4)) {
+			unsigned size1 = unknowns[i].size;
+			unsigned size4 = size1 / 4;
+			png_byte* data1 = unknowns[i].data;
+			uint32_t* data4 = reinterpret_cast<uint32_t*>(data1);
+
+			if (0 == data4[0]) {
+				for (unsigned i = 1; i < size4 - 2; i += 3) {
+					uint32_t current_char = data4[i];
+					uint32_t end_char = data4[i+1];
+					uint32_t current_glyph = data4[i+2];
+
+					while (current_char <= end_char) {
+						cmap.emplace_back(current_char, static_cast<uint16_t>(current_glyph));
+						++current_char;
+						++current_glyph;
+					}
+				}
+			}
+			else {
+				std::cerr << "Unknown cmAP first word" << std::endl;
+			}
+		}
+		else {
+			std::cerr << "Unknown unknown chunk: " << (char*)unknowns[i].name << std::endl;
 		}
 	}
 
@@ -409,5 +437,5 @@ bufferedimage png_deserialize(
 
 	png_destroy_read_struct(&png_ptr, &info_ptr, NULL);
 	fclose(fp);
-	return bufferedimage(width, height, pixels, text, background, alt_palettes);
+	return bufferedimage(width, height, pixels, text, background, alt_palettes, cmap);
 }

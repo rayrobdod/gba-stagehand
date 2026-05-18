@@ -268,6 +268,44 @@ void test_immediate_newline(void) {
 	}
 }
 
+void test_immediate_multibytechar(void) {
+	text_print_immediate(
+		buffer,
+		&window_16_16,
+		&lepidos,
+		(coord16_t) {0, 0},
+		(coord16_t) {0, 0},
+		(font_colors_t) {4,1,2,3, true},
+		"§");
+
+	static const tile_4bpp_t zero = {0};
+	static const tile_4bpp_t expect_0 = {
+		0x4334, 0x0000,
+		0x2243, 0x0000,
+		0x4433, 0x0000,
+		0x4323, 0x0000,
+		0x2334, 0x0000,
+		0x2344, 0x0000,
+		0x2433, 0x0000,
+		0x4224, 0x0000,
+	};
+	static const tile_4bpp_t expect_2 = {
+		0x4444, 0x0000,
+		0x4444, 0x0000,
+		0x0000, 0x0000,
+		0x0000, 0x0000,
+		0x0000, 0x0000,
+		0x0000, 0x0000,
+		0x0000, 0x0000,
+		0x0000, 0x0000,
+	};
+
+	TEST_ASSERT_EQUAL_UINT16_ARRAY(expect_0, buffer[0], 16);
+	for (unsigned i = 1; i < 16; i++) TEST_ASSERT_EQUAL_UINT16_ARRAY(zero, buffer[i], 16);
+	TEST_ASSERT_EQUAL_UINT16_ARRAY(expect_2, buffer[16], 16);
+	for (unsigned i = 17; i < 256; i++) TEST_ASSERT_EQUAL_UINT16_ARRAY(zero, buffer[i], 16);
+}
+
 void test_stepped_happy(void) {
 	struct text_print_step_state state;
 
@@ -850,6 +888,7 @@ int main() {
 	RUN_TEST(test_immediate_clip_right);
 	RUN_TEST(test_immediate_clip_down);
 	RUN_TEST(test_immediate_newline);
+	RUN_TEST(test_immediate_multibytechar);
 	RUN_TEST(test_stepped_happy);
 	RUN_TEST(test_stepped_clip_left);
 	RUN_TEST(test_stepped_wraparound_left);

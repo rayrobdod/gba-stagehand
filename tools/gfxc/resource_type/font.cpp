@@ -235,7 +235,12 @@ static void font_write_to_elf(
 	}
 
 	byte_to_glyph_trie byte_map_wide;
-	{
+	if (! image.char_to_glyph_map().empty()) {
+		for (auto [chara, glyph] : image.char_to_glyph_map()) {
+			const std::vector<uint8_t> bytes = utf8(chara);
+			byte_map_wide.emplace(bytes, glyph);
+		}
+	} else {
 		size_t glyph_i = 0;
 		size_t char_i = ' ';
 
