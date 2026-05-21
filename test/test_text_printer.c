@@ -306,6 +306,75 @@ void test_immediate_multibytechar(void) {
 	for (unsigned i = 17; i < 256; i++) TEST_ASSERT_EQUAL_UINT16_ARRAY(zero, buffer[i], 16);
 }
 
+static const struct font ligature_font = {
+	.pixel_data = (uint16_t[]) {
+		0x0022, 0x0022, 0x0022, 0x0022, 0x0022,
+		0x2242, 0x2242, 0x2242, 0x2222, 0x2242,
+		0x2222, 0x4444, 0x2222, 0x4444, 0x2222,
+		0x2222, 0x0024, 0x4444, 0x0044, 0x4422, 0x0022, 0x4444, 0x0044, 0x2242, 0x0022,
+	},
+	.glyphs = (struct font_glyph[]) {
+		{2, 0}, {2, 0}, {4, 5}, {4, 10}, {6, 15},
+	},
+	.byte_to_glyph_trie = (struct font_byte_to_glyph_trie[]) {
+		{' ', ' ', 1, 0},
+		{'!', '!', 2, 4},
+		{'=', '=', 3, 0},
+		{0xFF, 0xFF, 0xFFFF, 0},
+		{'=', '=', 4, 0},
+		{0xFF, 0xFF, 0xFFFF, 0},
+	},
+	.glyph_height = 5,
+};
+
+void test_immediate_ligature(void) {
+	text_print_immediate(
+		buffer,
+		&window_16_16,
+		&ligature_font,
+		(coord16_t) {0, 0},
+		(coord16_t) {1, 0},
+		(font_colors_t) {8,1,2,4, true},
+		"! = !=");
+
+	static const tile_4bpp_t zero = {0};
+	static const tile_4bpp_t expect_0 = {
+		0x2242, 0x0220,
+		0x2242, 0x0220,
+		0x2242, 0x0220,
+		0x2222, 0x0220,
+		0x2242, 0x0220,
+		0x0000, 0x0000,
+		0x0000, 0x0000,
+		0x0000, 0x0000,
+	};
+	static const tile_4bpp_t expect_1 = {
+		0x2222, 0x0220,
+		0x4444, 0x0220,
+		0x2222, 0x0220,
+		0x4444, 0x0220,
+		0x2222, 0x0220,
+		0x0000, 0x0000,
+		0x0000, 0x0000,
+		0x0000, 0x0000,
+	};
+	static const tile_4bpp_t expect_2 = {
+		0x2222, 0x0024,
+		0x4444, 0x0044,
+		0x4422, 0x0022,
+		0x4444, 0x0044,
+		0x2242, 0x0022,
+		0x0000, 0x0000,
+		0x0000, 0x0000,
+		0x0000, 0x0000,
+	};
+
+	TEST_ASSERT_EQUAL_UINT16_ARRAY(expect_0, buffer[0], 16);
+	TEST_ASSERT_EQUAL_UINT16_ARRAY(expect_1, buffer[1], 16);
+	TEST_ASSERT_EQUAL_UINT16_ARRAY(expect_2, buffer[2], 16);
+	for (unsigned i = 3; i < 256; i++) TEST_ASSERT_EQUAL_UINT16_ARRAY(zero, buffer[i], 16);
+}
+
 void test_stepped_happy(void) {
 	struct text_print_step_state state;
 
@@ -889,6 +958,7 @@ int main() {
 	RUN_TEST(test_immediate_clip_down);
 	RUN_TEST(test_immediate_newline);
 	RUN_TEST(test_immediate_multibytechar);
+	RUN_TEST(test_immediate_ligature);
 	RUN_TEST(test_stepped_happy);
 	RUN_TEST(test_stepped_clip_left);
 	RUN_TEST(test_stepped_wraparound_left);
