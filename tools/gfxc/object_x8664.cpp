@@ -40,7 +40,7 @@ Object_x8664::Object_x8664(std::filesystem::path out_file_name) :
 	this->private_symbols.emplace_back();
 	this->sections.emplace_back();
 
-	std::array<const std::byte, 0> empty;
+	std::ranges::empty_view<const std::byte> empty;
 	this->push_bytes_section(
 		{
 			.sh_name = ".note.GNU-stack",

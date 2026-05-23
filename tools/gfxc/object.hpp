@@ -67,7 +67,7 @@ public:
 
 template<std::ranges::contiguous_range DATAS>
 static Elf32_Word size_in_bytes(DATAS data) {
-	return sizeof(typename DATAS::value_type) * std::ranges::size(data);
+	return sizeof(std::ranges::range_value_t<DATAS>) * std::ranges::size(data);
 }
 
 class Object {
@@ -98,7 +98,7 @@ public:
 	void push_bytes_section(
 			const Elf32_Shdr_Template header,
 			DATAS data) {
-		std::span<typename DATAS::value_type, std::dynamic_extent> a(data);
+		std::span<const std::ranges::range_value_t<DATAS>, std::dynamic_extent> a(data);
 		std::span<const std::byte> b = std::as_bytes(a);
 		this->push_bytes_section(header, b);
 	}
@@ -109,7 +109,7 @@ public:
 			const DATAS data) {
 
 		Elf32_Off offset = (Elf32_Off) ftell(this->f);
-		fwrite(std::ranges::data(data), sizeof(typename DATAS::value_type), std::ranges::size(data), f);
+		fwrite(std::ranges::data(data), sizeof(std::ranges::range_value_t<DATAS>), std::ranges::size(data), f);
 		sections.push_back({
 			.sh_name = this->section_strings.find_or_push(header.sh_name),
 			.sh_type = header.sh_type,
@@ -120,7 +120,7 @@ public:
 			.sh_link = header.sh_link,
 			.sh_info = header.sh_info,
 			.sh_addralign = header.sh_addralign,
-			.sh_entsize = sizeof(typename DATAS::value_type),
+			.sh_entsize = sizeof(std::ranges::range_value_t<DATAS>),
 		});
 	}
 
@@ -154,7 +154,7 @@ public:
 	void push_single_variable_rodata_sections(
 			variable_template variable,
 			DATAS data) {
-		std::array<relocation_template, 0> rels;
+		std::ranges::empty_view<relocation_template> rels;
 		this->push_single_variable_rodata_sections(
 			variable,
 			data,
