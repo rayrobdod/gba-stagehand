@@ -25,7 +25,7 @@ static palette_data_builder tile16x3map_extract_palettes(
 	for (input_tile16x3 tile : mapimage.tiles()) {
 		for (std::vector<rgba16_t> pixels : tile.pixelss) {
 			if (pixels.size()) {
-				bufferedimage image(16, 16, pixels, {}, rgb15_t::BLACK, {});
+				bufferedimage image(16, 16, pixels, {}, rgb15_t::BLACK, {}, {});
 				for (subimage subimg : image.subs(8, 8)) {
 					retval.colorss.insert(subimg.palette());
 				}
@@ -49,7 +49,7 @@ static std::vector<gbatile_4bpp> tile16x3map_extract_tiles(
 	for (input_tile16x3 tile : mapimage.tiles()) {
 		for (std::vector<rgba16_t> pixels : tile.pixelss) {
 			if (pixels.size()) {
-				bufferedimage image(16, 16, pixels, {}, rgb15_t::BLACK, {});
+				bufferedimage image(16, 16, pixels, {}, rgb15_t::BLACK, {}, {});
 				for (subimage subimg : image.subs(8, 8)) {
 					uint16_t pal_i = find_palette_superset<std::vector<std::vector<rgba16_t>>>(palettes.colorss, subimg.palette());
 					const std::vector<rgba16_t> used_pal = palettes.colorss[pal_i];
@@ -85,7 +85,7 @@ static std::vector<tile16x3> tile16x3map_convert_to_metatiles(
 			if (pixels.size()) {
 				std::map<std::string, std::string> text;
 				std::map<std::string, std::map<rgba16_t, rgba16_t>> alt_palettes;
-				bufferedimage image(16, 16, pixels, text, rgb15_t::BLACK, alt_palettes);
+				bufferedimage image(16, 16, pixels, text, rgb15_t::BLACK, alt_palettes, {});
 				for (unsigned suby = 0; suby < 2; ++suby)
 				for (unsigned subx = 0; subx < 2; ++subx) {
 					subimage subimg = image.sub(subx * 8, suby * 8, 8, 8);

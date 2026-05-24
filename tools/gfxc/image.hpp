@@ -176,6 +176,7 @@ private:
 	const std::map<std::string, std::string> _properties;
 	const rgb15_t _background;
 	const std::map<std::string, std::map<rgba16_t, rgba16_t>> _alt_palettes;
+	const std::vector<std::pair<uint32_t, uint16_t>> _cmap;
 
 public:
 	bufferedimage(
@@ -184,7 +185,8 @@ public:
 		std::vector<rgba16_t> pixels,
 		std::map<std::string, std::string> properties,
 		rgb15_t background,
-		std::map<std::string, std::map<rgba16_t, rgba16_t>> alt_palettes);
+		std::map<std::string, std::map<rgba16_t, rgba16_t>> alt_palettes,
+		std::vector<std::pair<uint32_t, uint16_t>> cmap);
 
 	unsigned width() const override;
 	unsigned height() const override;
@@ -195,6 +197,8 @@ public:
 
 	std::map<std::string, std::vector<rgba16_t>> alt_palettes(std::vector<rgba16_t> palette) const;
 	std::map<std::string, std::map<rgba16_t, rgba16_t>> alt_palettes() const;
+
+	std::vector<std::pair<uint32_t, uint16_t>> char_to_glyph_map() const;
 };
 
 #include <algorithm>
