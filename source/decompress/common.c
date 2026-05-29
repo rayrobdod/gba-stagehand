@@ -21,6 +21,9 @@ void IdentityUnCompSuspendableInit(struct suspended_decompression* state, const 
 void LZ11UnCompSuspendableInit(struct suspended_decompression* state, const struct CompressedData* src, volatile void* dest);
 
 [[gnu::alias("CommonUnCompSuspendableInit")]]
+void LZ16UnCompSuspendableInit(struct suspended_decompression* state, const struct CompressedData* src, volatile void* dest);
+
+[[gnu::alias("CommonUnCompSuspendableInit")]]
 void LZ77UnCompSuspendableInit(struct suspended_decompression* state, const struct CompressedData* src, volatile void* dest);
 
 [[gnu::alias("CommonUnCompSuspendableInit")]]

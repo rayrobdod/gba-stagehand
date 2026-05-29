@@ -380,6 +380,7 @@ $(HOSTEXEDIR)/test_shadow_vram : $(HOSTOBJDIR_SRC)/decompress/by_header.c.o
 $(HOSTEXEDIR)/test_shadow_vram : $(HOSTOBJDIR_SRC)/decompress/common.c.o
 $(HOSTEXEDIR)/test_shadow_vram : $(HOSTOBJDIR_SRC)/decompress/frit.c.o
 $(HOSTEXEDIR)/test_shadow_vram : $(HOSTOBJDIR_SRC)/decompress/lz11.c.o
+$(HOSTEXEDIR)/test_shadow_vram : $(HOSTOBJDIR_SRC)/decompress/lz16.c.o
 $(HOSTEXEDIR)/test_shadow_vram : $(HOSTOBJDIR_SRC)/decompress/rlzero.c.o
 $(HOSTEXEDIR)/test_shadow_vram : $(HOSTOBJDIR_SRC)/gba/hw_reg.c.o
 $(HOSTEXEDIR)/test_shadow_vram : $(HOSTOBJDIR_SRC)/gba/oam.c.o
@@ -396,6 +397,7 @@ $(HOSTEXEDIR)/test_vram_op_queue : $(HOSTOBJDIR_SRC)/decompress/by_header.c.o
 $(HOSTEXEDIR)/test_vram_op_queue : $(HOSTOBJDIR_SRC)/decompress/common.c.o
 $(HOSTEXEDIR)/test_vram_op_queue : $(HOSTOBJDIR_SRC)/decompress/frit.c.o
 $(HOSTEXEDIR)/test_vram_op_queue : $(HOSTOBJDIR_SRC)/decompress/lz11.c.o
+$(HOSTEXEDIR)/test_vram_op_queue : $(HOSTOBJDIR_SRC)/decompress/lz16.c.o
 $(HOSTEXEDIR)/test_vram_op_queue : $(HOSTOBJDIR_SRC)/decompress/rlzero.c.o
 $(HOSTEXEDIR)/test_vram_op_queue : $(HOSTOBJDIR_SRC)/gba/palette.c.o
 $(HOSTEXEDIR)/test_vram_op_queue : $(HOSTOBJDIR_SRC)/gba/vram.c.o

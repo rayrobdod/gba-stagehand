@@ -7,6 +7,7 @@
 #include "decompress/identity.h"
 #include "decompress/lz.h"
 #include "decompress/lz11.h"
+#include "decompress/lz16.h"
 #include "decompress/rl.h"
 #include "decompress/rlzero.h"
 #include "decompress/type.h"
@@ -42,6 +43,8 @@ static UnCompSuspendableFn MagicToUnCompSuspendable(unsigned magic) {
 		return &LZ77UnCompSuspendable;
 	case 0x11:
 		return &LZ11UnCompSuspendable;
+	case 0x16:
+		return &LZ16UnCompSuspendable;
 	case 0x24:
 	case 0x28:
 		return &HuffUnCompSuspendable;
@@ -78,6 +81,8 @@ static UnCompSuspendableInitFn MagicToUnCompSuspendableInit(unsigned magic) {
 		return &LZ77UnCompSuspendableInit;
 	case 0x11:
 		return &LZ11UnCompSuspendableInit;
+	case 0x16:
+		return &LZ16UnCompSuspendableInit;
 	case 0x24:
 	case 0x28:
 		return &HuffUnCompSuspendableInit;

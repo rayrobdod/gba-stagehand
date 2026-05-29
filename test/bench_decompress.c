@@ -66,6 +66,8 @@ static const char* UnCompFnName(unsigned magic) {
 		return "LZ";
 	case 0x11:
 		return "LZ11";
+	case 0x16:
+		return "LZ16";
 	case 0x24:
 		return "Huff4";
 	case 0x28:

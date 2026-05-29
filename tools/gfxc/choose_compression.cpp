@@ -16,6 +16,7 @@ using namespace std::string_view_literals;
 const std::initializer_list<choosable_compression> compression_algs = {
 	{"LZ"sv,	&compressLz,	&decompressLz,},
 	{"LZ11"sv,	&compressLz11,	&decompressLz11,},
+	{"LZ16"sv,	&compressLz16,	&decompressLz16,},
 	{"RL"sv,	&compressRl,	&decompressRl,},
 	{"RLZero"sv,	&compressRlZero,	&decompressRlZero,},
 	{"FRIT16"sv,	&compressFrit16,	&decompressFrit16,},
