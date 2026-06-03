@@ -1,6 +1,7 @@
 #include "scene/text_print_step.h"
 
 #include <stdlib.h>
+#include <string.h>
 #include "management/keyinput.h"
 #include "management/shadow_vram.h"
 #include "management/vram_op_queue.h"
@@ -25,7 +26,7 @@ union bg_tile_2_uint {
 	uint16_t uint;
 };
 
-__attribute__((section(".sbss")))
+__attribute__((section(".sbss.view_model.text_print_step")))
 static struct {
 	bg_tile_t zero_tile_ref;
 	shadow_tiles_load_tileset_retval_t border_tile_ids;
@@ -33,7 +34,7 @@ static struct {
 	struct text_print_step_state printer_state;
 	enum text_print_step_retval printer_retval;
 	tile_4bpp_t* dialog_window_shadow_tiles;
-}* view_model = NULL;
+} view_model = {0};
 
 static const char lorem_ipsum[] =
 	"Lorem ipsum dolor sit amet,\n"
@@ -96,7 +97,7 @@ const struct transitionTargetCallbacks transitionTargetCbs_textPrintStep = {
 
 
 static void gen_window_border(void) {
-	union bg_tile_2_uint convert = {.tile = view_model->zero_tile_ref};
+	union bg_tile_2_uint convert = {.tile = view_model.zero_tile_ref};
 	uint32_t zero_tile_ref_pair = convert.uint << 16 | convert.uint;
 
 	bg_tile_t* map = malloc(sizeof(bg_tile_t) * TILEMAP_BUFFER_COUNT);
@@ -110,7 +111,7 @@ static void gen_window_border(void) {
 	const unsigned left = dialog_window_template.x;
 	const unsigned right = left + dialog_window_template.width;
 
-	#define TILE(index) ((bg_tile_t) {.tile = view_model->border_tile_ids.tileid + index, .palette = view_model->border_tile_ids.palid})
+	#define TILE(index) ((bg_tile_t) {.tile = view_model.border_tile_ids.tileid + index, .palette = view_model.border_tile_ids.palid})
 
 	map[(left - 1) + 32 * (top - 1)] = TILE(0);
 	map[(right) + 32 * (top - 1)] = TILE(2);
@@ -144,24 +145,21 @@ static void gen_window_border(void) {
 
 static union palette512 InitFadeIn_mainMenu(void) {
 	union palette512 palette = {0};
-	view_model = calloc(sizeof(view_model[0]), 1);
-	if (false) {
-		MgbaPrintf(MGBA_LOG_DEBUG, "  view_model: %p, %d", view_model, sizeof(view_model[0]));
-	}
+	memset(&view_model, 0, sizeof(view_model));
 	shadow_vram_init(&text_print_shadow_vram_init);
 
 	const struct tileset* frame = options_frame_get();
 
-	view_model->zero_tile_ref = (bg_tile_t) {.tile = shadow_tiles_load_tileset(&one_transparent_tileset, (shadow_tiles_load_tileset_args_t) {0}).tileid};
-	view_model->border_tile_ids = shadow_tiles_load_tileset_no_palette_vram_op(&palette, frame, (shadow_tiles_load_tileset_args_t) {0});
-	view_model->dialog_window_id = shadow_tiles_window_allocate(&dialog_window_template);
+	view_model.zero_tile_ref = (bg_tile_t) {.tile = shadow_tiles_load_tileset(&one_transparent_tileset, (shadow_tiles_load_tileset_args_t) {0}).tileid};
+	view_model.border_tile_ids = shadow_tiles_load_tileset_no_palette_vram_op(&palette, frame, (shadow_tiles_load_tileset_args_t) {0});
+	view_model.dialog_window_id = shadow_tiles_window_allocate(&dialog_window_template);
 
 	gen_window_border();
 
 	vram_op_queue_enqueue(&(struct vram_op) {
 		.type = VRAM_QUEUE_OP_BG_MAP_FILL,
 		.map_fill = {
-			.value = view_model->zero_tile_ref,
+			.value = view_model.zero_tile_ref,
 			.to_block = 30,
 			.to_tile = 0,
 			.count = TILEMAP_BUFFER_COUNT,
@@ -170,11 +168,11 @@ static union palette512 InitFadeIn_mainMenu(void) {
 
 	CpuFastCopy(ansi_text_palette, palette.background._4[TEXT_PALETTE_NO], sizeof(palette16_t) / sizeof(uint32_t));
 
-	view_model->dialog_window_shadow_tiles = calloc(sizeof(tile_4bpp_t), dialog_window_template.width * dialog_window_template.height);
+	view_model.dialog_window_shadow_tiles = calloc(sizeof(tile_4bpp_t), dialog_window_template.width * dialog_window_template.height);
 
 	text_print_step_init(
-		&view_model->printer_state,
-		view_model->dialog_window_shadow_tiles,
+		&view_model.printer_state,
+		view_model.dialog_window_shadow_tiles,
 		&dialog_window_template,
 		&bitmapfont,
 		(coord16_t) {2,3},
@@ -183,10 +181,10 @@ static union palette512 InitFadeIn_mainMenu(void) {
 		(font_colors_t) {0, 7, 15, 8, false},
 		lorem_ipsum);
 
-	view_model->printer_retval = TEXT_PRINT_STEP_CONTINUE;
+	view_model.printer_retval = TEXT_PRINT_STEP_CONTINUE;
 
-	shadow_tiles_window_queue_tiles(view_model->dialog_window_id, view_model->dialog_window_shadow_tiles);
-	shadow_tiles_window_queue_map(view_model->dialog_window_id);
+	shadow_tiles_window_queue_tiles(view_model.dialog_window_id, view_model.dialog_window_shadow_tiles);
+	shadow_tiles_window_queue_map(view_model.dialog_window_id);
 
 	palette.background._4[0][0] = rgb(4, 18, 31);
 
@@ -194,16 +192,16 @@ static union palette512 InitFadeIn_mainMenu(void) {
 }
 
 static void MainCB_textPrintStep(void) {
-	switch (view_model->printer_retval) {
+	switch (view_model.printer_retval) {
 	case TEXT_PRINT_STEP_CONTINUE:
 		{
-			view_model->printer_retval = text_print_step(&view_model->printer_state);
-			shadow_tiles_window_queue_tiles(view_model->dialog_window_id, view_model->dialog_window_shadow_tiles);
+			view_model.printer_retval = text_print_step(&view_model.printer_state);
+			shadow_tiles_window_queue_tiles(view_model.dialog_window_id, view_model.dialog_window_shadow_tiles);
 		}
 		break;
 	case TEXT_PRINT_STEP_WAIT:
 		if (! keyinput_get_new().a || ! keyinput_get_down().r) {
-			view_model->printer_retval = TEXT_PRINT_STEP_CONTINUE;
+			view_model.printer_retval = TEXT_PRINT_STEP_CONTINUE;
 			MainCB_textPrintStep();
 		}
 		break;
@@ -226,12 +224,8 @@ static void MainCB_textPrintStep(void) {
 }
 
 static void CleanupCB_textPrintStep(void) {
-	if (view_model->dialog_window_shadow_tiles) {
-		free(view_model->dialog_window_shadow_tiles);
-		view_model->dialog_window_shadow_tiles = NULL;
-	}
-	if (view_model) {
-		free(view_model);
-		view_model = NULL;
+	if (view_model.dialog_window_shadow_tiles) {
+		free(view_model.dialog_window_shadow_tiles);
+		view_model.dialog_window_shadow_tiles = NULL;
 	}
 }
