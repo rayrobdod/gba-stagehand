@@ -10,6 +10,7 @@
 #include "utils/ansi_text_palette.h"
 #include "utils/arraycount.h"
 #include "utils/one_transparent_tileset.h"
+#include "utils/saturating_add.h"
 #include "graphics.h"
 #include "main.h"
 #include "mgba.h"
@@ -17,6 +18,7 @@
 #include "text_printer.h"
 
 static void MainCB_textPrintStep(void);
+static void MainCB_textPrintStep_reset(void);
 static union palette512 InitFadeIn_mainMenu(void);
 static void CleanupCB_textPrintStep(void);
 
@@ -31,6 +33,7 @@ static struct {
 	bg_tile_t zero_tile_ref;
 	shadow_tiles_load_tileset_retval_t border_tile_ids;
 	window_id_t dialog_window_id;
+	uint16_t text_index;
 	struct text_print_step_state printer_state;
 	enum text_print_step_retval printer_retval;
 	tile_4bpp_t* dialog_window_shadow_tiles;
@@ -52,6 +55,32 @@ static const char lorem_ipsum[] =
 	"cupidatat non proident, sunt\n"
 	"in culpa qui officia deserunt\n"
 	"mollit anim id est laborum.";
+
+static const struct {
+	const struct font* font;
+	coord16_t start_point;
+	coord16_t kerning;
+	text_print_overflow_t overflow;
+	font_colors_t colors;
+	const char* message;
+} texts[] = {
+	{
+		.font = &bitmapfont,
+		.start_point = (coord16_t) {2,3},
+		.kerning = (coord16_t) {1,2},
+		.overflow = (text_print_overflow_t) {TEXTPRINTOVERFLOWX_CLIP, TEXTPRINTOVERFLOWY_SCROLL},
+		.colors = (font_colors_t) {0, 7, 15, 8, false},
+		.message = lorem_ipsum,
+	},
+	{
+		.font = &lepidos,
+		.start_point = (coord16_t) {2,2},
+		.kerning = (coord16_t) {0,0},
+		.overflow = (text_print_overflow_t) {TEXTPRINTOVERFLOWX_CLIP, TEXTPRINTOVERFLOWY_SCROLL},
+		.colors = (font_colors_t) {0, 0, 0, 8, false},
+		.message = lorem_ipsum,
+	},
+};
 
 static const struct shadow_vram_init text_print_shadow_vram_init = {
 	.enable_bg = {true, false, false, true},
@@ -174,12 +203,12 @@ static union palette512 InitFadeIn_mainMenu(void) {
 		&view_model.printer_state,
 		view_model.dialog_window_shadow_tiles,
 		&dialog_window_template,
-		&bitmapfont,
-		(coord16_t) {2,3},
-		(coord16_t) {1,2},
-		(text_print_overflow_t) {TEXTPRINTOVERFLOWX_CLIP, TEXTPRINTOVERFLOWY_SCROLL},
-		(font_colors_t) {0, 7, 15, 8, false},
-		lorem_ipsum);
+		texts[0].font,
+		texts[0].start_point,
+		texts[0].kerning,
+		texts[0].overflow,
+		texts[0].colors,
+		texts[0].message);
 
 	view_model.printer_retval = TEXT_PRINT_STEP_CONTINUE;
 
@@ -215,11 +244,46 @@ static void MainCB_textPrintStep(void) {
 		break;
 	}
 
+	const int text_delta = keyinput_horizontal_pressed();
+	if (0 != text_delta) {
+		view_model.text_index = saturating_add(view_model.text_index, 0, arraycount(texts) - 1, text_delta);
+		view_model.printer_retval = TEXT_PRINT_STEP_CONTINUE;
+		view_model.printer_state.current_point.y = 32;
+		view_model.printer_state.message = "\f";
+		scene_onframe_callback = MainCB_textPrintStep_reset;
+	}
+
 	if (! keyinput_get_new().b) {
 		StartTransition(
 			&transition_paletteFade_dodgerblue,
 			&transitionSourceCbs_textPrintStep,
 			&transitionTargetCbs_mainMenu);
+	}
+}
+
+static void MainCB_textPrintStep_reset(void) {
+	switch (view_model.printer_retval) {
+	case TEXT_PRINT_STEP_CONTINUE:
+	case TEXT_PRINT_STEP_WAIT:
+		{
+			view_model.printer_retval = text_print_step(&view_model.printer_state);
+			shadow_tiles_window_queue_tiles(view_model.dialog_window_id, view_model.dialog_window_shadow_tiles);
+		}
+		break;
+	case TEXT_PRINT_STEP_STOP:
+		text_print_step_init(
+			&view_model.printer_state,
+			view_model.dialog_window_shadow_tiles,
+			&dialog_window_template,
+			texts[view_model.text_index].font,
+			texts[view_model.text_index].start_point,
+			texts[view_model.text_index].kerning,
+			texts[view_model.text_index].overflow,
+			texts[view_model.text_index].colors,
+			texts[view_model.text_index].message);
+		view_model.printer_retval = TEXT_PRINT_STEP_CONTINUE;
+		scene_onframe_callback = MainCB_textPrintStep;
+		break;
 	}
 }
 
