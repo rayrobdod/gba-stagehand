@@ -1,0 +1,59 @@
+{
+    "automappingRulesFile": "",
+    "commands": [
+    ],
+    "compatibilityVersion": 1100,
+    "extensionsPath": "extensions",
+    "folders": [
+        "."
+    ],
+    "properties": [
+    ],
+    "propertyTypes": [
+        {
+            "color": "#ffa0a0a4",
+            "drawFill": true,
+            "id": 1,
+            "members": [
+                {
+                    "name": "Palette Tag",
+                    "type": "string",
+                    "value": ""
+                },
+                {
+                    "name": "Tile16x3set Tag",
+                    "type": "string",
+                    "value": ""
+                },
+                {
+                    "name": "Tileset Tag",
+                    "type": "string",
+                    "value": ""
+                },
+                {
+                    "name": "Type",
+                    "propertyType": "MapType",
+                    "type": "string",
+                    "value": "Subresource"
+                }
+            ],
+            "name": "Map",
+            "type": "class",
+            "useAs": [
+                "map"
+            ]
+        },
+        {
+            "id": 2,
+            "name": "MapType",
+            "storageType": "string",
+            "type": "enum",
+            "values": [
+                "Subresource",
+                "Walkaround",
+                "Background"
+            ],
+            "valuesAsFlags": false
+        }
+    ]
+}

@@ -1,10 +1,10 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<map version="1.10" tiledversion="1.11.2" orientation="orthogonal" renderorder="right-down" width="17" height="13" tilewidth="16" tileheight="16" infinite="0" nextlayerid="4" nextobjectid="1">
+<map version="1.10" tiledversion="1.12.2" class="Map" orientation="orthogonal" renderorder="right-down" width="17" height="13" tilewidth="16" tileheight="16" infinite="0" nextlayerid="4" nextobjectid="1">
  <properties>
   <property name="Palette Tag" value="mushroom_village"/>
   <property name="Tile16x3set Tag" value="mushroom_village"/>
   <property name="Tileset Tag" value="mushroom_village"/>
-  <property name="Type" value="Walkaround"/>
+  <property name="Type" propertytype="MapType" value="Walkaround"/>
  </properties>
  <tileset firstgid="1" source="mushroom-village/grass.tsx"/>
  <tileset firstgid="13" source="mushroom-village/path_light.tsx"/>
