@@ -182,36 +182,83 @@ static void tile16x3map_write_to_elf(
 		);
 	}
 
+	std::string strings_name("stringdata.");
+	strings_name += var_name;
+	StringTableBuilder strings;
+
+	std::string signs_name("signsdata.");
+	signs_name += var_name;
+	std::vector<uint16_t> signs;
+	std::vector<uint16_t> signs_x8664;
+	std::vector<relocation_template> signs_relocs;
+	std::vector<relocation_template_x8664> signs_relocs_x8664;
+	for (auto sign : mapimage.signs()) {
+		signs.push_back(static_cast<uint16_t>(sign.x));
+		signs_x8664.push_back(static_cast<uint16_t>(sign.x));
+		signs.push_back(static_cast<uint16_t>(sign.y));
+		signs_x8664.push_back(static_cast<uint16_t>(sign.y));
+		signs_relocs.push_back({
+			.offset = static_cast<Elf32_Addr>(signs.size() * 2),
+			.type = R_ARM_ABS32,
+			.symbol_name = strings_name,
+		});
+		signs_relocs_x8664.push_back({
+			.offset = static_cast<Elf64_Addr>(signs.size() * 2),
+			.type = R_X86_64_64,
+			.symbol_name = strings_name,
+		});
+		signs.push_back(static_cast<uint16_t>(strings.find_or_push(sign.message)));
+		signs.push_back(0);
+		signs_x8664.push_back(static_cast<uint16_t>(strings.find_or_push(sign.message)));
+		signs_x8664.push_back(0);
+		signs_x8664.push_back(0);
+		signs_x8664.push_back(0);
+	}
+
 	std::vector<uint16_t> serialized = {
 		0, 0, 0, 0,
 		0, 0, 0, 0,
 		0, 0,
+		0, 0,
+		static_cast<uint16_t>(mapimage.signs().size()),
 		static_cast<uint16_t>(mapimage.width()),
 		static_cast<uint16_t>(mapimage.height()),
 	};
 	std::copy(metatilemap.begin(), metatilemap.end(), std::back_inserter(serialized));
 
-	std::array<relocation_template, 3> relocs;
+	std::array<relocation_template, 4> relocs;
 	relocs[2] = {
 		.offset = 16,
 		.type = R_ARM_ABS32,
 		.symbol_name = tile16x3s.first,
+	};
+	relocs[3] = {
+		.offset = 20,
+		.type = R_ARM_ABS32,
+		.symbol_name = signs_name,
 	};
 
 	std::vector<uint16_t> serialized_x8664 = {
 		0, 0, 0, 0, 0, 0, 0, 0,
 		0, 0, 0, 0, 0, 0, 0, 0,
 		0, 0, 0, 0,
+		0, 0, 0, 0,
+		static_cast<uint16_t>(mapimage.signs().size()),
 		static_cast<uint16_t>(mapimage.width()),
 		static_cast<uint16_t>(mapimage.height()),
 	};
 	std::copy(metatilemap.begin(), metatilemap.end(), std::back_inserter(serialized_x8664));
 
-	std::array<relocation_template_x8664, 3> relocs_x8664;
+	std::array<relocation_template_x8664, 4> relocs_x8664;
 	relocs_x8664[2] = {
 		.offset = 32,
 		.type = R_X86_64_64,
 		.symbol_name = tile16x3s.first,
+	};
+	relocs_x8664[3] = {
+		.offset = 40,
+		.type = R_X86_64_64,
+		.symbol_name = signs_name,
 	};
 
 	tileset_serialized(
@@ -222,6 +269,10 @@ static void tile16x3map_write_to_elf(
 		palettes,
 		tiles);
 
+	elf.push_single_variable_rodata_sections({strings_name, STB_LOCAL}, strings.to_bytes());
+	hostelf.push_single_variable_rodata_sections({strings_name, STB_LOCAL}, strings.to_bytes());
+	elf.push_single_variable_rodata_sections({signs_name, STB_LOCAL}, signs, signs_relocs);
+	hostelf.push_single_variable_rodata_sections({signs_name, STB_LOCAL}, signs_x8664, signs_relocs_x8664);
 	elf.push_single_variable_rodata_sections({var_name, STB_GLOBAL}, serialized, relocs);
 	hostelf.push_single_variable_rodata_sections({var_name, STB_GLOBAL}, serialized_x8664, relocs_x8664);
 }
@@ -242,10 +293,17 @@ static void tile16x3map_write_struct(std::ostream& headerstream) {
 		<< "#ifndef __unix__" << std::endl
 		<< "_Static_assert(26 == sizeof(struct tile16x3));" << std::endl
 		<< "#endif" << std::endl
+		<< "struct sign_event {" << std::endl
+		<< "	uint16_t x;" << std::endl
+		<< "	uint16_t y;" << std::endl
+		<< "	const char* message;" << std::endl
+		<< "};" << std::endl
 		<< std::endl
 		<< "struct tile16x3map {" << std::endl
 		<< "	struct tileset tileset;" << std::endl
 		<< "	const struct tile16x3* metatileset;" << std::endl
+		<< "	const struct sign_event* signs;" << std::endl
+		<< "	uint16_t signs_count;" << std::endl
 		<< "	uint16_t width;" << std::endl
 		<< "	uint16_t height;" << std::endl
 		<< "	uint16_t metatilemap[];" << std::endl

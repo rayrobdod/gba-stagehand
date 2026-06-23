@@ -54,6 +54,24 @@
                 "Background"
             ],
             "valuesAsFlags": false
+        },
+        {
+            "color": "#ffa0a0a4",
+            "drawFill": true,
+            "id": 3,
+            "members": [
+                {
+                    "name": "message",
+                    "type": "string",
+                    "value": ""
+                }
+            ],
+            "name": "Sign",
+            "type": "class",
+            "useAs": [
+                "object",
+                "tile"
+            ]
         }
     ]
 }

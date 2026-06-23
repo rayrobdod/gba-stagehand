@@ -4,6 +4,7 @@ void MainCB_walkaround(void);
 #include "management/shadow_vram.h"
 #include "management/shadow_oam.h"
 #include "graphics_types.h"
+#include "text_printer.h"
 
 enum direction {
 	DIRECTION_NORTH,
@@ -49,6 +50,15 @@ extern struct walkaround_viewmodel {
 		shadow_tiles_load_tileset_retval_t border_tile_ids;
 		shadow_oam_id_t pointer_oam_id;
 	} start_menu;
+	struct {
+		bool is_open;
+		window_id_t window_id;
+		shadow_tiles_load_tileset_retval_t border_tile_ids;
+		struct text_print_step_state printer_state;
+		enum text_print_step_retval printer_retval;
+		[[gnu::aligned(4)]]
+		tile_4bpp_t shadow_tiles[26*4];
+	} dialogbox;
 	struct {
 		bgofs_t bgofs;
 		mapoffs_t mapoffs;
