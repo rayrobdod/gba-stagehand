@@ -320,7 +320,7 @@ static void font_write_to_elf(
 			.symbol_name = glyphmapping_name,
 		},
 	};
-	std::initializer_list<relocation_template> relocs_x8664 {
+	std::initializer_list<relocation_template_x8664> relocs_x8664 {
 		{
 			.offset = 0,
 			.type = R_X86_64_64,

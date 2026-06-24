@@ -41,7 +41,7 @@ struct relocation_template {
 
 struct Relocations {
 	uint32_t target;
-	std::vector<Elf32_Rel> data;
+	std::vector<relocation_template> data;
 };
 
 
@@ -131,18 +131,9 @@ public:
 		std::string rel_section_name(".rel");
 		rel_section_name += data_section_name;
 
-		std::vector<Elf32_Rel> rel_data;
+		std::vector<relocation_template> rel_data(rels.begin(), rels.end());
 
 		Elf32_Section data_section_index = index_of_section(data_section_name);
-
-		for (auto rel : rels) {
-			uint32_t symbol = id_of_symbol(rel.symbol_name);
-
-			rel_data.push_back({
-				.r_offset = rel.offset,
-				.r_info = ELF32_R_INFO(symbol, rel.type),
-			});
-		}
 
 		relocation_sections.push_back({
 			.target = data_section_index,
@@ -202,16 +193,7 @@ public:
 		});
 
 		if (! std::ranges::empty(rels)) {
-			std::vector<Elf32_Rel> rel_data;
-
-			for (auto rel : rels) {
-				uint32_t symbol = id_of_symbol(rel.symbol_name);
-
-				rel_data.push_back({
-					.r_offset = rel.offset,
-					.r_info = ELF32_R_INFO(symbol, rel.type),
-				});
-			}
+			std::vector<relocation_template> rel_data(rels.begin(), rels.end());
 
 			relocation_sections.push_back({
 				.target = data_section_index,

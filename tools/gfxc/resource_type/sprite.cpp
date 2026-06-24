@@ -175,7 +175,7 @@ static void sprite_write_to_elf(
 			.symbol_name = tiles.first,
 		},
 	};
-	std::vector<relocation_template> relocs_x8664 {
+	std::vector<relocation_template_x8664> relocs_x8664 {
 		{
 			.offset = 0,
 			.type = R_X86_64_64,

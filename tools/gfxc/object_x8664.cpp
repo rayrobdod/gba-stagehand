@@ -57,6 +57,17 @@ Object_x8664::~Object_x8664(void) {
 		std::string section_name(".rel");
 		section_name.append(section_strings[sections[i->target].sh_name]);
 
+		std::vector<Elf64_Rel> rel_data;
+
+		for (auto rel : i->data) {
+			uint32_t symbol = id_of_symbol(rel.symbol_name);
+
+			rel_data.push_back({
+				.r_offset = rel.offset,
+				.r_info = ELF64_R_INFO(symbol, rel.type),
+			});
+		}
+
 		this->push_entries_section(
 			((Elf64_Shdr_Template) {
 				.sh_name = section_name,
@@ -64,7 +75,7 @@ Object_x8664::~Object_x8664(void) {
 				.sh_link = predicted_symbols_index,
 				.sh_info = i->target,
 			}),
-			i->data
+			rel_data
 		);
 	}
 
