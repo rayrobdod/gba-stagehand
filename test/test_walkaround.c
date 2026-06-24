@@ -107,6 +107,18 @@ static const keypad_t KEYPAD_START = {
 	.r = true,
 	.l = true,
 };
+static const keypad_t KEYPAD_A = {
+	.a = false,
+	.b = true,
+	.select = true,
+	.start = true,
+	.right = true,
+	.left = true,
+	.up = true,
+	.down = true,
+	.r = true,
+	.l = true,
+};
 
 static keypad_t keypad_current_down = KEYPAD_NONE;
 static keypad_t keypad_current_new = KEYPAD_NONE;
@@ -129,6 +141,8 @@ static const struct tile16x3map clear_map = {
 		.tileset_count = 0,
 	},
 	.metatileset = clear_tile16x3,
+	.signs = NULL,
+	.signs_count = 0,
 	.width = 3,
 	.height = 3,
 	.metatilemap = {0,0,0, 0,0,0, 0,0,0},
@@ -411,6 +425,87 @@ void test_walkaround__start_opens_menu(void) {
 		&walkaround_state);
 }
 
+void test_walkaround__a_interacts_with_sign_infront_of_player(void) {
+	static const struct sign_event signs[1] = {{
+		.x = 1,
+		.y = 2,
+		.message = "SIGN MESSAGE",
+	}};
+	struct tile16x3map clear_map_with_sign = clear_map;
+	clear_map_with_sign.signs = signs;
+	clear_map_with_sign.signs_count = 1;
+
+	walkaround_state = (struct walkaround_model) {
+		.map = &clear_map_with_sign,
+		.player = {
+			.pos = {1, 1},
+			.turn_timer = 0,
+			.action = ACTION_NONE,
+			.facing = DIRECTION_SOUTH,
+		},
+	};
+	walkaround_viewmodel = (struct walkaround_viewmodel) {
+		.camera = {
+			.mapoffs = {-6*16, -4*16},
+		},
+		.player = {
+			.anims = &character_base_male,
+			.oam_id = shadow_id_invalid,
+			.mapoffs = {1*16+8, 1*16+14},
+		},
+	};
+
+	keypad_current_new = KEYPAD_A;
+	keypad_current_down = KEYPAD_A;
+	MainCB_walkaround();
+
+	TEST_ASSERT(
+		walkaround_viewmodel.dialogbox.is_open,
+		"walkaround_viewmodel.dialogbox.is_open");
+	TEST_ASSERT(
+		signs[0].message == walkaround_viewmodel.dialogbox.printer_state.message,
+		"wrong message");
+}
+
+void test_walkaround__a_does_not_interact_with_sign_not_infront_of_player(void) {
+	static const struct sign_event signs[1] = {{
+		.x = 1,
+		.y = 1,
+		.message = "SIGN MESSAGE",
+	}};
+	struct tile16x3map clear_map_with_sign = clear_map;
+	clear_map_with_sign.signs = signs;
+	clear_map_with_sign.signs_count = 1;
+
+	walkaround_state = (struct walkaround_model) {
+		.map = &clear_map_with_sign,
+		.player = {
+			.pos = {1, 1},
+			.turn_timer = 0,
+			.action = ACTION_NONE,
+			.facing = DIRECTION_SOUTH,
+		},
+	};
+	walkaround_viewmodel = (struct walkaround_viewmodel) {
+		.camera = {
+			.mapoffs = {-6*16, -4*16},
+		},
+		.player = {
+			.anims = &character_base_male,
+			.oam_id = shadow_id_invalid,
+			.mapoffs = {1*16+8, 1*16+14},
+		},
+	};
+
+	keypad_current_new = KEYPAD_A;
+	keypad_current_down = KEYPAD_A;
+	MainCB_walkaround();
+
+	TEST_ASSERT(
+		! walkaround_viewmodel.dialogbox.is_open,
+		"! walkaround_viewmodel.dialogbox.is_open");
+}
+
 int main() {
 	total = 0;
 	failed = 0;
@@ -422,6 +517,8 @@ int main() {
 	RUN_TEST(test_walkaround__cannot_walk_down_into_impassable_space);
 	RUN_TEST(test_walkaround__cannot_walk_down_when_current_is_impassable_south);
 	RUN_TEST(test_walkaround__start_opens_menu);
+	RUN_TEST(test_walkaround__a_interacts_with_sign_infront_of_player);
+	RUN_TEST(test_walkaround__a_does_not_interact_with_sign_not_infront_of_player);
 
 	MgbaPrintf(MGBA_LOG_INFO, "Total: %d; Failing: %d", total, failed);
 	return 0 != failed;
