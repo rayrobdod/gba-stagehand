@@ -7,6 +7,7 @@
 #include "find_palette_superset.hpp"
 #include "indexed_insert_only_set.hpp"
 #include "object.hpp"
+#include "struct_bytes_builder.hpp"
 #include "tileset.hpp"
 
 template<>
@@ -188,40 +189,18 @@ static void tile16x3map_write_to_elf(
 
 	std::string signs_name("signsdata.");
 	signs_name += var_name;
-	std::vector<uint16_t> signs;
-	std::vector<uint16_t> signs_x8664;
-	std::vector<relocation_template> signs_relocs;
-	std::vector<relocation_template_x8664> signs_relocs_x8664;
+	StructBytesBuilder signs;
 	for (auto sign : mapimage.signs()) {
-		signs.push_back(static_cast<uint16_t>(sign.x));
-		signs_x8664.push_back(static_cast<uint16_t>(sign.x));
-		signs.push_back(static_cast<uint16_t>(sign.y));
-		signs_x8664.push_back(static_cast<uint16_t>(sign.y));
-		signs_relocs.push_back({
-			.offset = static_cast<Elf32_Addr>(signs.size() * 2),
-			.type = R_ARM_ABS32,
-			.symbol_name = strings_name,
-		});
-		signs_relocs_x8664.push_back({
-			.offset = static_cast<Elf64_Addr>(signs.size() * 2),
-			.type = R_X86_64_64,
-			.symbol_name = strings_name,
-		});
-		signs.push_back(static_cast<uint16_t>(strings.find_or_push(sign.message)));
-		signs.push_back(0);
-		signs_x8664.push_back(static_cast<uint16_t>(strings.find_or_push(sign.message)));
-		signs_x8664.push_back(0);
-		signs_x8664.push_back(0);
-		signs_x8664.push_back(0);
+		signs.push_uint16(static_cast<uint16_t>(sign.x));
+		signs.push_uint16(static_cast<uint16_t>(sign.y));
+		signs.push_pointer(strings_name, strings.find_or_push(sign.message));
+		signs.self_align();
 	}
 
 	std::string warps_name("warpsdata.");
 	warps_name += var_name;
 	uint16_t warp_index = 0;
-	std::vector<uint16_t> warps;
-	std::vector<uint16_t> warps_x8664;
-	std::vector<relocation_template> warps_relocs;
-	std::vector<relocation_template_x8664> warps_relocs_x8664;
+	StructBytesBuilder warps;
 	for (auto warp : mapimage.warps()) {
 		std::string warp_symbol_name = var_name + "." + warp.name;
 		elf.push_symbol({
@@ -244,120 +223,34 @@ static void tile16x3map_write_to_elf(
 		});
 		warp_index += 1;
 
-		warps.push_back(static_cast<uint16_t>(warp.x));
-		warps_x8664.push_back(static_cast<uint16_t>(warp.x));
-		warps.push_back(static_cast<uint16_t>(warp.y));
-		warps_x8664.push_back(static_cast<uint16_t>(warp.y));
-		warps_relocs.push_back({
-			.offset = static_cast<Elf32_Addr>(warps.size() * 2),
-			.type = R_ARM_ABS32,
-			.symbol_name = warp.destination_map,
-		});
-		warps_relocs_x8664.push_back({
-			.offset = static_cast<Elf64_Addr>(warps.size() * 2),
-			.type = R_X86_64_64,
-			.symbol_name = warp.destination_map,
-		});
-		warps.push_back(0);
-		warps.push_back(0);
-		warps_x8664.push_back(0);
-		warps_x8664.push_back(0);
-		warps_x8664.push_back(0);
-		warps_x8664.push_back(0);
-		warps_relocs.push_back({
-			.offset = static_cast<Elf32_Addr>(warps.size() * 2),
-			.type = R_ARM_ABS16,
-			.symbol_name = warp.destination_map + "." + warp.destination_warp,
-		});
-		warps_relocs_x8664.push_back({
-			.offset = static_cast<Elf64_Addr>(warps.size() * 2),
-			.type = R_X86_64_16,
-			.symbol_name = warp.destination_map + "." + warp.destination_warp,
-		});
-		warps.push_back(0);
-		warps.push_back(0);
-		warps_x8664.push_back(0);
-		warps_x8664.push_back(0);
-		warps_x8664.push_back(0);
-		warps_x8664.push_back(0);
+		warps.push_uint16(static_cast<uint16_t>(warp.x));
+		warps.push_uint16(static_cast<uint16_t>(warp.y));
+		warps.push_pointer(warp.destination_map);
+		warps.push_uint16_relocated(warp.destination_map + "." + warp.destination_warp);
+		warps.self_align();
 	}
 
-	std::vector<uint16_t> serialized = {
-		0, 0, 0, 0,
-		0, 0, 0, 0,
-		0, 0,
-		0, 0,
-		0, 0,
-		static_cast<uint16_t>(mapimage.signs().size()),
-		static_cast<uint16_t>(mapimage.warps().size()),
-		static_cast<uint16_t>(mapimage.width()),
-		static_cast<uint16_t>(mapimage.height()),
-	};
-	std::copy(metatilemap.begin(), metatilemap.end(), std::back_inserter(serialized));
-
-	std::array<relocation_template, 5> relocs;
-	relocs[2] = {
-		.offset = 16,
-		.type = R_ARM_ABS32,
-		.symbol_name = tile16x3s.first,
-	};
-	relocs[3] = {
-		.offset = 20,
-		.type = R_ARM_ABS32,
-		.symbol_name = signs_name,
-	};
-	relocs[4] = {
-		.offset = 24,
-		.type = R_ARM_ABS32,
-		.symbol_name = warps_name,
-	};
-
-	std::vector<uint16_t> serialized_x8664 = {
-		0, 0, 0, 0, 0, 0, 0, 0,
-		0, 0, 0, 0, 0, 0, 0, 0,
-		0, 0, 0, 0,
-		0, 0, 0, 0,
-		0, 0, 0, 0,
-		static_cast<uint16_t>(mapimage.signs().size()),
-		static_cast<uint16_t>(mapimage.warps().size()),
-		static_cast<uint16_t>(mapimage.width()),
-		static_cast<uint16_t>(mapimage.height()),
-	};
-	std::copy(metatilemap.begin(), metatilemap.end(), std::back_inserter(serialized_x8664));
-
-	std::array<relocation_template_x8664, 5> relocs_x8664;
-	relocs_x8664[2] = {
-		.offset = 32,
-		.type = R_X86_64_64,
-		.symbol_name = tile16x3s.first,
-	};
-	relocs_x8664[3] = {
-		.offset = 40,
-		.type = R_X86_64_64,
-		.symbol_name = signs_name,
-	};
-	relocs_x8664[4] = {
-		.offset = 48,
-		.type = R_X86_64_64,
-		.symbol_name = warps_name,
-	};
-
-	tileset_serialized(
-		std::span<uint16_t, 8>(serialized.begin(), 8),
-		std::span<relocation_template, 2>(relocs.begin(), 2),
-		std::span<uint16_t, 16>(serialized_x8664.begin(), 16),
-		std::span<relocation_template_x8664, 2>(relocs_x8664.begin(), 2),
-		palettes,
-		tiles);
+	StructBytesBuilder serialized;
+	serialized.push_tileset(palettes, tiles);
+	serialized.push_pointer(tile16x3s.first);
+	serialized.push_pointer(signs_name);
+	serialized.push_pointer(warps_name);
+	serialized.push_uint16(static_cast<uint16_t>(mapimage.signs().size()));
+	serialized.push_uint16(static_cast<uint16_t>(mapimage.warps().size()));
+	serialized.push_uint16(static_cast<uint16_t>(mapimage.width()));
+	serialized.push_uint16(static_cast<uint16_t>(mapimage.height()));
+	for (uint16_t i : metatilemap) {
+		serialized.push_uint16(i);
+	}
 
 	elf.push_single_variable_rodata_sections({strings_name, STB_LOCAL}, strings.to_bytes());
 	hostelf.push_single_variable_rodata_sections({strings_name, STB_LOCAL}, strings.to_bytes());
-	elf.push_single_variable_rodata_sections({signs_name, STB_LOCAL}, signs, signs_relocs);
-	hostelf.push_single_variable_rodata_sections({signs_name, STB_LOCAL}, signs_x8664, signs_relocs_x8664);
-	elf.push_single_variable_rodata_sections({warps_name, STB_LOCAL}, warps, warps_relocs);
-	hostelf.push_single_variable_rodata_sections({warps_name, STB_LOCAL}, warps_x8664, warps_relocs_x8664);
-	elf.push_single_variable_rodata_sections({var_name, STB_GLOBAL}, serialized, relocs);
-	hostelf.push_single_variable_rodata_sections({var_name, STB_GLOBAL}, serialized_x8664, relocs_x8664);
+	elf.push_single_variable_rodata_sections({signs_name, STB_LOCAL}, signs.bytes_arm, signs.relocs_arm);
+	hostelf.push_single_variable_rodata_sections({signs_name, STB_LOCAL}, signs.bytes_x8664, signs.relocs_x8664);
+	elf.push_single_variable_rodata_sections({warps_name, STB_LOCAL}, warps.bytes_arm, warps.relocs_arm);
+	hostelf.push_single_variable_rodata_sections({warps_name, STB_LOCAL}, warps.bytes_x8664, warps.relocs_x8664);
+	elf.push_single_variable_rodata_sections({var_name, STB_GLOBAL}, serialized.bytes_arm, serialized.relocs_arm);
+	hostelf.push_single_variable_rodata_sections({var_name, STB_GLOBAL}, serialized.bytes_x8664, serialized.relocs_x8664);
 }
 
 static void tile16x3map_write_struct(std::ostream& headerstream) {

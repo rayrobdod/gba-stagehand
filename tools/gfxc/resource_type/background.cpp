@@ -7,6 +7,7 @@
 #include "find_palette_superset.hpp"
 #include "object.hpp"
 #include "resource_type/tileset.hpp"
+#include "struct_bytes_builder.hpp"
 
 // may improve frit compression
 static constexpr bool SORT_BY_PALETTE = true;
@@ -168,35 +169,13 @@ static void background_write_to_elf(
 
 	std::vector<bg_tile_t> tilemap = background_extract_map(input, palettes.second, tiles_pair.second);
 
-	std::string pal_name = palettes.first;
-	std::string tileset_name = tiles_pair.first;
 	std::string tilemap_name("map.");
 	tilemap_name += var_name;
 
-	std::array<uint16_t, 12> serialized = {0};
-	std::array<relocation_template, 3> relocs = {0};
-	std::array<uint16_t, 24> serialized_x8664 = {0};
-	std::array<relocation_template_x8664, 3> relocs_x8664 = {0};
-
-	tileset_serialized(
-		std::span<uint16_t, 8>(serialized.begin(), 8),
-		std::span<relocation_template, 2>(relocs.begin(), 2),
-		std::span<uint16_t, 16>(serialized_x8664.begin(), 16),
-		std::span<relocation_template_x8664, 2>(relocs_x8664.begin(), 2),
-		palettes,
-		tiles_pair);
-	serialized[10] = static_cast<uint16_t>(tilemap.size());
-	relocs[2] = {
-		.offset = 16,
-		.type = R_ARM_ABS32,
-		.symbol_name = tilemap_name,
-	};
-	serialized_x8664[20] = static_cast<uint16_t>(tilemap.size());
-	relocs_x8664[2] = {
-		.offset = 32,
-		.type = R_X86_64_64,
-		.symbol_name = tilemap_name,
-	};
+	StructBytesBuilder serialized;
+	serialized.push_tileset(palettes, tiles_pair);
+	serialized.push_pointer(tilemap_name);
+	serialized.push_uint16(static_cast<uint16_t>(tilemap.size()));
 
 	std::vector<uint8_t> tilemap_bytes;
 	for (bg_tile_t entry : tilemap) {
@@ -207,10 +186,10 @@ static void background_write_to_elf(
 	auto tilemap_comp = choose_compression(tilemap_name, tilemap_bytes);
 
 	elf.push_single_variable_rodata_sections({tilemap_name, STB_LOCAL}, tilemap_comp.data);
-	elf.push_single_variable_rodata_sections({var_name, STB_GLOBAL}, serialized, relocs);
+	elf.push_single_variable_rodata_sections({var_name, STB_GLOBAL}, serialized.bytes_arm, serialized.relocs_arm);
 
 	hostelf.push_single_variable_rodata_sections({tilemap_name, STB_LOCAL}, tilemap_comp.data);
-	hostelf.push_single_variable_rodata_sections({var_name, STB_GLOBAL}, serialized_x8664, relocs_x8664);
+	hostelf.push_single_variable_rodata_sections({var_name, STB_GLOBAL}, serialized.bytes_x8664, serialized.relocs_x8664);
 }
 
 const type_functions background_type_functions(
