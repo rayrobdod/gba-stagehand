@@ -72,6 +72,29 @@
                 "object",
                 "tile"
             ]
+        },
+        {
+            "color": "#ffa0a0a4",
+            "drawFill": true,
+            "id": 4,
+            "members": [
+                {
+                    "name": "destination_map",
+                    "type": "string",
+                    "value": ""
+                },
+                {
+                    "name": "destination_warp",
+                    "type": "string",
+                    "value": ""
+                }
+            ],
+            "name": "Warp",
+            "type": "class",
+            "useAs": [
+                "object",
+                "tile"
+            ]
         }
     ]
 }

@@ -173,6 +173,8 @@ void Object_x8664::push_symbol(Elf64_Sym_Template hdr) {
 }
 
 Elf64_Section Object_x8664::index_of_section(const std::string_view name) const {
+	if (name == "<ABS>") return SHN_ABS;
+
 	Elf64_Section i = 0;
 	for (auto s = sections.begin(); s != sections.end(); s++, i++) {
 		if (name == section_strings[s->sh_name]) {

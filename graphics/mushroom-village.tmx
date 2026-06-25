@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<map version="1.10" tiledversion="1.12.2" class="Map" orientation="orthogonal" renderorder="right-down" width="17" height="13" tilewidth="16" tileheight="16" infinite="0" nextlayerid="5" nextobjectid="3">
+<map version="1.10" tiledversion="1.12.2" class="Map" orientation="orthogonal" renderorder="right-down" width="17" height="13" tilewidth="16" tileheight="16" infinite="0" nextlayerid="5" nextobjectid="5">
  <properties>
   <property name="Palette Tag" value="mushroom_village"/>
   <property name="Tile16x3set Tag" value="mushroom_village"/>
@@ -80,6 +80,18 @@
   <object id="2" gid="332" x="64" y="80" width="16" height="16">
    <properties>
     <property name="message" value="Stuff that way."/>
+   </properties>
+  </object>
+  <object id="3" name="house_center" gid="333" x="112" y="96" width="16" height="16">
+   <properties>
+    <property name="destination_map" value="mushroom_village"/>
+    <property name="destination_warp" value="house_blue"/>
+   </properties>
+  </object>
+  <object id="4" name="house_blue" gid="333" x="192" y="144" width="16" height="16">
+   <properties>
+    <property name="destination_map" value="mushroom_village"/>
+    <property name="destination_warp" value="house_center"/>
    </properties>
   </object>
  </objectgroup>

@@ -27,7 +27,7 @@
 
 static void InitFadeOut_walkaround_newgame(void);
 static void InitFadeOut_walkaround_return(void);
-static void InitFadeOut_walkaround_warp(void);
+static void InitFadeOut_walkaround_startmenuwarp(void);
 static union palette512 InitFadeIn_walkaround(void);
 static void FadeCB_walkaround(void);
 static void close_start_menu(void);
@@ -172,8 +172,15 @@ const struct transitionTargetCallbacks transitionTargetCbs_walkaround_return = {
 	.fadeIn = FadeCB_walkaround,
 	.target = MainCB_walkaround,
 };
-const struct transitionTargetCallbacks transitionTargetCbs_walkaround_warp = {
-	.initFadeOut = InitFadeOut_walkaround_warp,
+const struct transitionTargetCallbacks transitionTargetCbs_walkaround_startmenuwarp = {
+	.initFadeOut = InitFadeOut_walkaround_startmenuwarp,
+	.fadeOut = NULL,
+	.initFadeIn = InitFadeIn_walkaround,
+	.fadeIn = FadeCB_walkaround,
+	.target = MainCB_walkaround,
+};
+const struct transitionTargetCallbacks transitionTargetCbs_walkaround_mapwarpevent = {
+	.initFadeOut = NULL,
 	.fadeOut = NULL,
 	.initFadeIn = InitFadeIn_walkaround,
 	.fadeIn = FadeCB_walkaround,
@@ -224,7 +231,7 @@ static void menu_action_warp(void) {
 	StartTransition(
 		&transition_paletteFade_black,
 		&transitionSourceCbs_walkaround,
-		&transitionTargetCbs_walkaround_warp);
+		&transitionTargetCbs_walkaround_startmenuwarp);
 }
 static void menu_action_change_anims(void) {
 	if (walkaround_viewmodel.player.anims == &character_base_male) {
@@ -328,7 +335,7 @@ static void InitFadeOut_walkaround_newgame(void) {
 static void InitFadeOut_walkaround_return(void) {
 	warp_target.transition_is_warp = false;
 }
-static void InitFadeOut_walkaround_warp(void) {
+static void InitFadeOut_walkaround_startmenuwarp(void) {
 	warp_target.transition_is_warp = true;
 	warp_target.map = &mushroom_village_2;
 	warp_target.player_pos = (tile_coord_t) {.x = 10, .y = 7};
@@ -912,6 +919,26 @@ static normal_player_movement_t normal_player_movement(void) {
 		else if (walkaround_viewmodel.player.mapoffs.y > target_mapoffs.y) {
 			walkaround_viewmodel.player.mapoffs.y -= PLAYER_MOVE_SPEED;
 			retval.refresh_player = player_switch_or_advance_anim(&walkaround_viewmodel.player.anims->walking[walkaround_state.player.facing]);
+		}
+
+		if (walkaround_viewmodel.player.mapoffs.x == target_mapoffs.x && walkaround_viewmodel.player.mapoffs.y == target_mapoffs.y) {
+			for (unsigned i = 0; i < walkaround_state.map->warps_count; i++) {
+				const struct warp_event* warp = &walkaround_state.map->warps[i];
+				if (warp->x == walkaround_state.player.pos.x &&
+						warp->y == walkaround_state.player.pos.y) {
+					warp_target.transition_is_warp = true;
+					warp_target.map = warp->destination.map;
+					warp_target.player_pos = (tile_coord_t) {
+						.x = warp->destination.map->warps[warp->destination.warp].x,
+						.y = warp->destination.map->warps[warp->destination.warp].y
+					};
+					StartTransition(
+						&transition_paletteFade_black,
+						&transitionSourceCbs_walkaround,
+						&transitionTargetCbs_walkaround_mapwarpevent);
+					break;
+				}
+			}
 		}
 	} else if (walkaround_state.player.action == ACTION_TURNING) {
 		walkaround_state.player.turn_timer -= 1;

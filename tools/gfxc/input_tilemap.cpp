@@ -5,14 +5,23 @@ input_tile16x3map::input_tile16x3map(
 		size_t height,
 		const std::vector<input_tile16x3>& tiles,
 		const std::vector<input_tile16x3map::sign>& signs,
+		const std::vector<input_tile16x3map::warp>& warps,
 		const std::map<std::string, std::string>& properties)
-	: _width(width), _height(height), _tiles(tiles), _signs(signs), _properties(properties) {
+	:
+		_width(width),
+		_height(height),
+		_tiles(tiles),
+		_signs(signs),
+		_warps(warps),
+		_properties(properties)
+	{
 }
 
 unsigned input_tile16x3map::width() const { return this->_width; }
 unsigned input_tile16x3map::height() const  { return this->_height; }
 const std::vector<input_tile16x3>& input_tile16x3map::tiles() const  { return this->_tiles; }
 const std::vector<input_tile16x3map::sign>& input_tile16x3map::signs() const { return this->_signs; }
+const std::vector<input_tile16x3map::warp>& input_tile16x3map::warps() const { return this->_warps; }
 const std::map<std::string, std::string>& input_tile16x3map::properties() const { return this->_properties; }
 const input_tile16x3& input_tile16x3map::tile(size_t x, size_t y) const {
 	return this->_tiles[x + this->_width * y];
@@ -141,6 +150,7 @@ input_tile16x3map tilemap_deserialize(
 	}
 
 	std::vector<input_tile16x3map::sign> signs;
+	std::vector<input_tile16x3map::warp> warps;
 	{
 		const Tiled::ObjectGroup* const layer = map->findLayer("events", Tiled::Layer::ObjectGroupType)->asObjectGroup();
 
@@ -150,6 +160,15 @@ input_tile16x3map tilemap_deserialize(
 					(*it)->x() / 16,
 					((*it)->y() - (*it)->height()) / 16,
 					(*it)->resolvedProperty("message").toString().toStdString()
+				);
+			}
+			else if ("Warp" == (*it)->effectiveType()) {
+				warps.emplace_back(
+					(*it)->name().toStdString(),
+					(*it)->x() / 16,
+					((*it)->y() - (*it)->height()) / 16,
+					(*it)->resolvedProperty("destination_map").toString().toStdString(),
+					(*it)->resolvedProperty("destination_warp").toString().toStdString()
 				);
 			}
 		}
@@ -165,6 +184,7 @@ input_tile16x3map tilemap_deserialize(
 		map->height(),
 		metatiles,
 		signs,
+		warps,
 		text);
 	return retval;
 }
