@@ -7,6 +7,7 @@
 #include "find_palette_superset.hpp"
 #include "indexed_insert_only_set.hpp"
 #include "object.hpp"
+#include "struct_bytes_builder.hpp"
 #include "tileset.hpp"
 
 template<>
@@ -182,48 +183,74 @@ static void tile16x3map_write_to_elf(
 		);
 	}
 
-	std::vector<uint16_t> serialized = {
-		0, 0, 0, 0,
-		0, 0, 0, 0,
-		0, 0,
-		static_cast<uint16_t>(mapimage.width()),
-		static_cast<uint16_t>(mapimage.height()),
-	};
-	std::copy(metatilemap.begin(), metatilemap.end(), std::back_inserter(serialized));
+	std::string strings_name("stringdata.");
+	strings_name += var_name;
+	StringTableBuilder strings;
 
-	std::array<relocation_template, 3> relocs;
-	relocs[2] = {
-		.offset = 16,
-		.type = R_ARM_ABS32,
-		.symbol_name = tile16x3s.first,
-	};
+	std::string signs_name("signsdata.");
+	signs_name += var_name;
+	StructBytesBuilder signs;
+	for (auto sign : mapimage.signs()) {
+		signs.push_uint16(static_cast<uint16_t>(sign.x));
+		signs.push_uint16(static_cast<uint16_t>(sign.y));
+		signs.push_pointer(strings_name, strings.find_or_push(sign.message));
+		signs.self_align();
+	}
 
-	std::vector<uint16_t> serialized_x8664 = {
-		0, 0, 0, 0, 0, 0, 0, 0,
-		0, 0, 0, 0, 0, 0, 0, 0,
-		0, 0, 0, 0,
-		static_cast<uint16_t>(mapimage.width()),
-		static_cast<uint16_t>(mapimage.height()),
-	};
-	std::copy(metatilemap.begin(), metatilemap.end(), std::back_inserter(serialized_x8664));
+	std::string warps_name("warpsdata.");
+	warps_name += var_name;
+	uint16_t warp_index = 0;
+	StructBytesBuilder warps;
+	for (auto warp : mapimage.warps()) {
+		std::string warp_symbol_name = var_name + "." + warp.name;
+		elf.push_symbol({
+			.name = warp_symbol_name,
+			.st_value = warp_index,
+			.st_size = 0,
+			.binding = STB_LOCAL,
+			.type = STT_NOTYPE,
+			.st_other = STV_DEFAULT,
+			.section = "<ABS>",
+		});
+		hostelf.push_symbol({
+			.name = warp_symbol_name,
+			.st_value = warp_index,
+			.st_size = 0,
+			.binding = STB_LOCAL,
+			.type = STT_NOTYPE,
+			.st_other = STV_DEFAULT,
+			.section = "<ABS>",
+		});
+		warp_index += 1;
 
-	std::array<relocation_template_x8664, 3> relocs_x8664;
-	relocs_x8664[2] = {
-		.offset = 32,
-		.type = R_X86_64_64,
-		.symbol_name = tile16x3s.first,
-	};
+		warps.push_uint16(static_cast<uint16_t>(warp.x));
+		warps.push_uint16(static_cast<uint16_t>(warp.y));
+		warps.push_pointer(warp.destination_map);
+		warps.push_uint16_relocated(warp.destination_map + "." + warp.destination_warp);
+		warps.self_align();
+	}
 
-	tileset_serialized(
-		std::span<uint16_t, 8>(serialized.begin(), 8),
-		std::span<relocation_template, 2>(relocs.begin(), 2),
-		std::span<uint16_t, 16>(serialized_x8664.begin(), 16),
-		std::span<relocation_template_x8664, 2>(relocs_x8664.begin(), 2),
-		palettes,
-		tiles);
+	StructBytesBuilder serialized;
+	serialized.push_tileset(palettes, tiles);
+	serialized.push_pointer(tile16x3s.first);
+	serialized.push_pointer(signs_name);
+	serialized.push_pointer(warps_name);
+	serialized.push_uint16(static_cast<uint16_t>(mapimage.signs().size()));
+	serialized.push_uint16(static_cast<uint16_t>(mapimage.warps().size()));
+	serialized.push_uint16(static_cast<uint16_t>(mapimage.width()));
+	serialized.push_uint16(static_cast<uint16_t>(mapimage.height()));
+	for (uint16_t i : metatilemap) {
+		serialized.push_uint16(i);
+	}
 
-	elf.push_single_variable_rodata_sections({var_name, STB_GLOBAL}, serialized, relocs);
-	hostelf.push_single_variable_rodata_sections({var_name, STB_GLOBAL}, serialized_x8664, relocs_x8664);
+	elf.push_single_variable_rodata_sections({strings_name, STB_LOCAL}, strings.to_bytes());
+	hostelf.push_single_variable_rodata_sections({strings_name, STB_LOCAL}, strings.to_bytes());
+	elf.push_single_variable_rodata_sections({signs_name, STB_LOCAL}, signs.bytes_arm, signs.relocs_arm);
+	hostelf.push_single_variable_rodata_sections({signs_name, STB_LOCAL}, signs.bytes_x8664, signs.relocs_x8664);
+	elf.push_single_variable_rodata_sections({warps_name, STB_LOCAL}, warps.bytes_arm, warps.relocs_arm);
+	hostelf.push_single_variable_rodata_sections({warps_name, STB_LOCAL}, warps.bytes_x8664, warps.relocs_x8664);
+	elf.push_single_variable_rodata_sections({var_name, STB_GLOBAL}, serialized.bytes_arm, serialized.relocs_arm);
+	hostelf.push_single_variable_rodata_sections({var_name, STB_GLOBAL}, serialized.bytes_x8664, serialized.relocs_x8664);
 }
 
 static void tile16x3map_write_struct(std::ostream& headerstream) {
@@ -242,10 +269,27 @@ static void tile16x3map_write_struct(std::ostream& headerstream) {
 		<< "#ifndef __unix__" << std::endl
 		<< "_Static_assert(26 == sizeof(struct tile16x3));" << std::endl
 		<< "#endif" << std::endl
+		<< "struct sign_event {" << std::endl
+		<< "	uint16_t x;" << std::endl
+		<< "	uint16_t y;" << std::endl
+		<< "	const char* message;" << std::endl
+		<< "};" << std::endl
+		<< "struct warp_event {" << std::endl
+		<< "	uint16_t x;" << std::endl
+		<< "	uint16_t y;" << std::endl
+		<< "	struct {" << std::endl
+		<< "		const struct tile16x3map* map;" << std::endl
+		<< "		uint16_t warp;" << std::endl
+		<< "	} destination;" << std::endl
+		<< "};" << std::endl
 		<< std::endl
 		<< "struct tile16x3map {" << std::endl
 		<< "	struct tileset tileset;" << std::endl
 		<< "	const struct tile16x3* metatileset;" << std::endl
+		<< "	const struct sign_event* signs;" << std::endl
+		<< "	const struct warp_event* warps;" << std::endl
+		<< "	uint16_t signs_count;" << std::endl
+		<< "	uint16_t warps_count;" << std::endl
 		<< "	uint16_t width;" << std::endl
 		<< "	uint16_t height;" << std::endl
 		<< "	uint16_t metatilemap[];" << std::endl

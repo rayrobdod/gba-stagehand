@@ -27,10 +27,11 @@
 
 static void InitFadeOut_walkaround_newgame(void);
 static void InitFadeOut_walkaround_return(void);
-static void InitFadeOut_walkaround_warp(void);
+static void InitFadeOut_walkaround_startmenuwarp(void);
 static union palette512 InitFadeIn_walkaround(void);
 static void FadeCB_walkaround(void);
 static void close_start_menu(void);
+static void open_dialogbox(const char* message);
 
 static const int PLAYER_MOVE_SPEED = 1;
 static const int TURN_FRAMES = 4;
@@ -171,8 +172,15 @@ const struct transitionTargetCallbacks transitionTargetCbs_walkaround_return = {
 	.fadeIn = FadeCB_walkaround,
 	.target = MainCB_walkaround,
 };
-const struct transitionTargetCallbacks transitionTargetCbs_walkaround_warp = {
-	.initFadeOut = InitFadeOut_walkaround_warp,
+const struct transitionTargetCallbacks transitionTargetCbs_walkaround_startmenuwarp = {
+	.initFadeOut = InitFadeOut_walkaround_startmenuwarp,
+	.fadeOut = NULL,
+	.initFadeIn = InitFadeIn_walkaround,
+	.fadeIn = FadeCB_walkaround,
+	.target = MainCB_walkaround,
+};
+const struct transitionTargetCallbacks transitionTargetCbs_walkaround_mapwarpevent = {
+	.initFadeOut = NULL,
 	.fadeOut = NULL,
 	.initFadeIn = InitFadeIn_walkaround,
 	.fadeIn = FadeCB_walkaround,
@@ -223,7 +231,7 @@ static void menu_action_warp(void) {
 	StartTransition(
 		&transition_paletteFade_black,
 		&transitionSourceCbs_walkaround,
-		&transitionTargetCbs_walkaround_warp);
+		&transitionTargetCbs_walkaround_startmenuwarp);
 }
 static void menu_action_change_anims(void) {
 	if (walkaround_viewmodel.player.anims == &character_base_male) {
@@ -327,7 +335,7 @@ static void InitFadeOut_walkaround_newgame(void) {
 static void InitFadeOut_walkaround_return(void) {
 	warp_target.transition_is_warp = false;
 }
-static void InitFadeOut_walkaround_warp(void) {
+static void InitFadeOut_walkaround_startmenuwarp(void) {
 	warp_target.transition_is_warp = true;
 	warp_target.map = &mushroom_village_2;
 	warp_target.player_pos = (tile_coord_t) {.x = 10, .y = 7};
@@ -846,6 +854,22 @@ static bool can_move_in_direction(tile_coord_t from, enum direction direction) {
 	return direction_info->can_leave(current_behavior) && direction_info->can_enter(target_behavior);
 }
 
+static const struct sign_event* sign_at_dir(tile_coord_t from, enum direction direction) {
+	const struct direction_info* direction_info = &direction_infos[direction];
+	tile_coord_t target = {
+		from.x + direction_info->dx,
+		from.y + direction_info->dy,
+	};
+
+	const struct sign_event* sign = walkaround_state.map->signs;
+	for (int i = 0; i < walkaround_state.map->signs_count; i++, sign++) {
+		if (target.x == sign->x && target.y == sign->y)
+			return sign;
+	}
+
+	return NULL;
+}
+
 static bool player_switch_or_advance_anim(const struct oam_animation* target_anim) {
 	if (walkaround_viewmodel.player.anim == target_anim) {
 		walkaround_viewmodel.player.anim_delay -= 1;
@@ -895,6 +919,26 @@ static normal_player_movement_t normal_player_movement(void) {
 		else if (walkaround_viewmodel.player.mapoffs.y > target_mapoffs.y) {
 			walkaround_viewmodel.player.mapoffs.y -= PLAYER_MOVE_SPEED;
 			retval.refresh_player = player_switch_or_advance_anim(&walkaround_viewmodel.player.anims->walking[walkaround_state.player.facing]);
+		}
+
+		if (walkaround_viewmodel.player.mapoffs.x == target_mapoffs.x && walkaround_viewmodel.player.mapoffs.y == target_mapoffs.y) {
+			for (unsigned i = 0; i < walkaround_state.map->warps_count; i++) {
+				const struct warp_event* warp = &walkaround_state.map->warps[i];
+				if (warp->x == walkaround_state.player.pos.x &&
+						warp->y == walkaround_state.player.pos.y) {
+					warp_target.transition_is_warp = true;
+					warp_target.map = warp->destination.map;
+					warp_target.player_pos = (tile_coord_t) {
+						.x = warp->destination.map->warps[warp->destination.warp].x,
+						.y = warp->destination.map->warps[warp->destination.warp].y
+					};
+					StartTransition(
+						&transition_paletteFade_black,
+						&transitionSourceCbs_walkaround,
+						&transitionTargetCbs_walkaround_mapwarpevent);
+					break;
+				}
+			}
 		}
 	} else if (walkaround_state.player.action == ACTION_TURNING) {
 		walkaround_state.player.turn_timer -= 1;
@@ -998,7 +1042,14 @@ static normal_player_movement_t normal_player_movement(void) {
 		else {
 			keypad_t new_inputs = keyinput_get_new();
 			walkaround_state.player.action = ACTION_NONE;
-			retval.open_start_menu = ! new_inputs.start;
+			if (! new_inputs.start) {
+				retval.open_start_menu = true;
+			} else if (! new_inputs.a) {
+				const struct sign_event* sign = sign_at_dir(walkaround_state.player.pos, walkaround_state.player.facing);
+				if (sign) {
+					open_dialogbox(sign->message);
+				}
+			}
 			retval.refresh_player = player_switch_or_advance_anim(&walkaround_viewmodel.player.anims->idle[walkaround_state.player.facing]);
 		}
 	}
@@ -1141,12 +1192,100 @@ static void start_menu_do_input(void) {
 	}
 }
 
+static const struct shadow_tiles_window_allocate dialogbox_window = {
+	.bg = 0,
+	.palette = 15,
+	.x = 2,
+	.y = 20 - 4 - 1,
+	.width = 26,
+	.height = 4,
+};
+
+static void open_dialogbox(const char* message) {
+	CpuFastFill(0x77777777, walkaround_viewmodel.dialogbox.shadow_tiles, sizeof(walkaround_viewmodel.dialogbox.shadow_tiles) / sizeof(uint32_t));
+
+	text_print_step_init(
+		&walkaround_viewmodel.dialogbox.printer_state,
+		walkaround_viewmodel.dialogbox.shadow_tiles,
+		&dialogbox_window,
+		&bitmapfont,
+		(coord16_t) {2,3},
+		(coord16_t) {1,2},
+		(text_print_overflow_t) {TEXTPRINTOVERFLOWX_CLIP, TEXTPRINTOVERFLOWY_SCROLL},
+		(font_colors_t) {0, 7, 15, 8, false},
+		message);
+
+	walkaround_viewmodel.dialogbox.window_id =
+		shadow_tiles_window_allocate(&dialogbox_window);
+
+	const struct tileset* dialog_frame = options_frame_get();
+	walkaround_viewmodel.dialogbox.border_tile_ids =
+		shadow_tiles_load_tileset(dialog_frame, (shadow_tiles_load_tileset_args_t) {.bg = 0});
+
+	vram_op_queue_enqueue(&(struct vram_op) {
+		.type = VRAM_QUEUE_OP_BG_PALETTES,
+		.palettes = {
+			.from = &ansi_text_palette,
+			.to_palette = 15,
+			.count = 1,
+		},
+	});
+
+	shadow_tiles_window_queue_map_with_border(walkaround_viewmodel.dialogbox.window_id, walkaround_viewmodel.dialogbox.border_tile_ids);
+	shadow_tiles_window_queue_tiles(walkaround_viewmodel.dialogbox.window_id, walkaround_viewmodel.dialogbox.shadow_tiles);
+
+	walkaround_viewmodel.dialogbox.is_open = true;
+	walkaround_viewmodel.dialogbox.printer_retval = TEXT_PRINT_STEP_CONTINUE;
+}
+
+static void close_dialogbox(void) {
+	shadow_tiles_window_deallocate(walkaround_viewmodel.dialogbox.window_id);
+	shadow_tiles_deallocate_tileset(walkaround_viewmodel.dialogbox.border_tile_ids, options_frame_get(), (shadow_tiles_load_tileset_args_t) {.bg = 0});
+
+	walkaround_viewmodel.dialogbox.is_open = false;
+	walkaround_viewmodel.dialogbox.window_id = window_id_invalid;
+	walkaround_viewmodel.dialogbox.border_tile_ids.palid = shadow_vram_palid_invalid;
+	walkaround_viewmodel.dialogbox.border_tile_ids.tileid = shadow_vram_tileid_invalid;
+
+	vram_op_queue_enqueue(&(struct vram_op) {
+		.type = VRAM_QUEUE_OP_BG_MAP_FILL,
+		.map_fill = {
+			.value = {0},
+			.to_block = HUD_SCREENBLOCK,
+			.to_tile = 0,
+			.count = 32 * 32,
+		},
+	});
+}
+
+static void dialogbox_do_input(void) {
+	switch (walkaround_viewmodel.dialogbox.printer_retval) {
+	case TEXT_PRINT_STEP_CONTINUE:
+		walkaround_viewmodel.dialogbox.printer_retval = text_print_step(&walkaround_viewmodel.dialogbox.printer_state);
+		shadow_tiles_window_queue_tiles(walkaround_viewmodel.dialogbox.window_id, walkaround_viewmodel.dialogbox.shadow_tiles);
+		break;
+	case TEXT_PRINT_STEP_WAIT:
+		if (! keyinput_get_new().a || ! keyinput_get_down().r) {
+			walkaround_viewmodel.dialogbox.printer_retval = TEXT_PRINT_STEP_CONTINUE;
+			dialogbox_do_input();
+		}
+		break;
+	case TEXT_PRINT_STEP_STOP:
+		if (! keyinput_get_new().a) {
+			close_dialogbox();
+		}
+		break;
+	}
+}
+
 void MainCB_walkaround(void) {
 	bool refresh_player = false;
 
 	if (walkaround_viewmodel.start_menu.is_open) {
 		start_menu_do_input();
 		refresh_player = player_switch_or_advance_anim(&walkaround_viewmodel.player.anims->idle[walkaround_state.player.facing]);
+	} else if (walkaround_viewmodel.dialogbox.is_open) {
+		dialogbox_do_input();
 	} else {
 		normal_player_movement_t v = normal_player_movement();
 		refresh_player |= v.refresh_player;

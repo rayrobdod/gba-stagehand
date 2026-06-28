@@ -11,16 +11,23 @@ struct input_tile16x3 {
 };
 
 class input_tile16x3map {
+public:
+	struct sign {int x; int y; std::string message;};
+	struct warp {std::string name; int x; int y; std::string destination_map; std::string destination_warp;};
 private:
 	const size_t _width;
 	const size_t _height;
 	const std::vector<input_tile16x3> _tiles;
+	const std::vector<sign> _signs;
+	const std::vector<warp> _warps;
 	const std::map<std::string, std::string> _properties;
 public:
 	input_tile16x3map(
 		size_t width,
 		size_t height,
 		const std::vector<input_tile16x3>& tiles,
+		const std::vector<sign>& _signs,
+		const std::vector<warp>& _warps,
 		const std::map<std::string, std::string>& properties);
 
 	unsigned width() const;
@@ -28,6 +35,8 @@ public:
 	const input_tile16x3& tile(size_t x, size_t y) const;
 
 	const std::vector<input_tile16x3>& tiles() const;
+	const std::vector<sign>& signs() const;
+	const std::vector<warp>& warps() const;
 	const std::map<std::string, std::string>& properties() const;
 };
 

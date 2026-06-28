@@ -4,6 +4,7 @@
 #include <stdexcept>
 #include "find_palette_superset.hpp"
 #include "object.hpp"
+#include "struct_bytes_builder.hpp"
 
 palette_data_builder tileset_extract_palettes(input_path_and_data input) {
 	palette_data_builder retval;
@@ -58,64 +59,6 @@ static void tileset_write_struct(std::ostream& headerstream) {
 		<< "};" << std::endl;
 }
 
-void tileset_serialized(
-		std::span<uint16_t, 8> bytebuffer,
-		std::span<relocation_template, 2> relocs,
-		std::span<uint16_t, 16> bytebuffer_x8664,
-		std::span<relocation_template_x8664, 2> relocs_x8664,
-		const std::pair<std::string, palette_data> palettes,
-		const std::pair<std::string, tiles_data> tiles) {
-
-	bytebuffer[0] = 0;
-	bytebuffer[1] = 0;
-	bytebuffer[2] = static_cast<uint16_t>(palettes.second.colorss.size());
-	bytebuffer[3] = palettes.second.tag;
-	bytebuffer[4] = 0;
-	bytebuffer[5] = 0;
-	bytebuffer[6] = static_cast<uint16_t>(tiles.second.tiles.size());
-	bytebuffer[7] = tiles.second.tag;
-
-	relocs[0] = {
-		.offset = 0,
-		.type = R_ARM_ABS32,
-		.symbol_name = palettes.first,
-	};
-	relocs[1] = {
-		.offset = 8,
-		.type = R_ARM_ABS32,
-		.symbol_name = tiles.first,
-	};
-
-
-	bytebuffer_x8664[0] = 0;
-	bytebuffer_x8664[1] = 0;
-	bytebuffer_x8664[2] = 0;
-	bytebuffer_x8664[3] = 0;
-	bytebuffer_x8664[4] = static_cast<uint16_t>(palettes.second.colorss.size());
-	bytebuffer_x8664[5] = palettes.second.tag;
-	bytebuffer_x8664[6] = 0;
-	bytebuffer_x8664[7] = 0;
-	bytebuffer_x8664[8] = 0;
-	bytebuffer_x8664[9] = 0;
-	bytebuffer_x8664[10] = 0;
-	bytebuffer_x8664[11] = 0;
-	bytebuffer_x8664[12] = static_cast<uint16_t>(tiles.second.tiles.size());
-	bytebuffer_x8664[13] = tiles.second.tag;
-	bytebuffer_x8664[14] = 0;
-	bytebuffer_x8664[15] = 0;
-
-	relocs_x8664[0] = {
-		.offset = 0,
-		.type = R_X86_64_64,
-		.symbol_name = palettes.first,
-	};
-	relocs_x8664[1] = {
-		.offset = 16,
-		.type = R_X86_64_64,
-		.symbol_name = tiles.first,
-	};
-}
-
 static void tileset_write_to_elf(
 	[[gnu::unused]] input_path_and_data input,
 	std::pair<std::string, palette_data> palettes,
@@ -128,15 +71,11 @@ static void tileset_write_to_elf(
 ) {
 	headerstream << "extern const struct tileset " << var_name << ";" << std::endl;
 
-	std::array<uint16_t, 8> serialized = {0};
-	std::array<relocation_template, 2> relocs = {0};
-	std::array<uint16_t, 16> serialized_x8664 = {0};
-	std::array<relocation_template_x8664, 2> relocs_x8664 = {0};
+	StructBytesBuilder serialized;
+	serialized.push_tileset(palettes, tiles);
 
-	tileset_serialized(serialized, relocs, serialized_x8664, relocs_x8664, palettes, tiles);
-
-	elf.push_single_variable_rodata_sections({var_name, STB_GLOBAL}, serialized, relocs);
-	hostelf.push_single_variable_rodata_sections({var_name, STB_GLOBAL}, serialized_x8664, relocs_x8664);
+	elf.push_single_variable_rodata_sections({var_name, STB_GLOBAL}, serialized.bytes_arm, serialized.relocs_arm);
+	hostelf.push_single_variable_rodata_sections({var_name, STB_GLOBAL}, serialized.bytes_x8664, serialized.relocs_x8664);
 }
 
 const type_functions tileset_type_functions(
