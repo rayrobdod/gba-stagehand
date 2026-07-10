@@ -15,6 +15,7 @@
 #include "main.h"
 #include "mgba.h"
 #include "options.h"
+#include "strings.h"
 #include "text_printer.h"
 
 static void MainCB_textPrintStep(void);
@@ -39,23 +40,6 @@ static struct {
 	tile_4bpp_t* dialog_window_shadow_tiles;
 } view_model = {0};
 
-static const char lorem_ipsum[] =
-	"Lorem ipsum dolor sit amet,\n"
-	"consectetur adipiscing elit, sed\n"
-	"do eiusmod tempor incididunt ut\n"
-	"labore et dolore magna aliqua.\f"
-	"Ut enim ad minim veniam, quis\n"
-	"nostrud exercitation ullamco\n"
-	"laboris nisi ut aliquip ex ea\n"
-	"commodo consequat. Duis aute\n"
-	"irure dolor in reprehenderit in\n"
-	"voluptate velit esse cillum\n"
-	"dolore eu fugiat nulla pariatur.\f"
-	"Excepteur sint occaecat\n"
-	"cupidatat non proident, sunt\n"
-	"in culpa qui officia deserunt\n"
-	"mollit anim id est laborum.";
-
 static const struct {
 	const struct font* font;
 	coord16_t start_point;
@@ -70,7 +54,7 @@ static const struct {
 		.kerning = (coord16_t) {1,2},
 		.overflow = (text_print_overflow_t) {TEXTPRINTOVERFLOWX_CLIP, TEXTPRINTOVERFLOWY_SCROLL},
 		.colors = (font_colors_t) {0, 7, 15, 8, false},
-		.message = lorem_ipsum,
+		.message = text__text_print_step__lorem_ipsum,
 	},
 	{
 		.font = &lepidos,
@@ -78,7 +62,7 @@ static const struct {
 		.kerning = (coord16_t) {0,0},
 		.overflow = (text_print_overflow_t) {TEXTPRINTOVERFLOWX_CLIP, TEXTPRINTOVERFLOWY_SCROLL},
 		.colors = (font_colors_t) {0, 0, 0, 8, false},
-		.message = lorem_ipsum,
+		.message = text__text_print_step__lorem_ipsum,
 	},
 };
 

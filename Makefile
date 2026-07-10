@@ -55,6 +55,7 @@ V		:= @
 
 SOURCEDIR	:= source
 GRAPHICSDIR	:= graphics
+STRINGSDIR	:= strings
 SOURCEDIR_HOST	:= host
 SOURCEDIR_TEST	:= test
 
@@ -86,6 +87,7 @@ GBAFIX	:= tools/gbafix/gbafix
 GFXC	:= tools/gfxc/gfxc
 METADATA	:= tools/metadata/metadata
 ROMTEST	?= ../icwic/tools/mgba/mgba-rom-test
+TEXTC	:= tools/textc/textc
 
 # Source files
 # ------------
@@ -96,6 +98,7 @@ SOURCES_CPP	:= $(wildcard $(SOURCEDIR)/*.cpp $(SOURCEDIR)/**/*.cpp)
 SOURCES_PNG	:= $(wildcard $(GRAPHICSDIR)/*.png $(GRAPHICSDIR)/**/*.png $(GRAPHICSDIR)/**/**/*.png)
 SOURCES_TILEDMAP	:= $(wildcard $(GRAPHICSDIR)/*.tmx $(GRAPHICSDIR)/**/*.tmx $(GRAPHICSDIR)/**/**/*.tmx)
 SOURCES_TILEDSET	:= $(wildcard $(GRAPHICSDIR)/*.tsx $(GRAPHICSDIR)/**/*.tsx $(GRAPHICSDIR)/**/**/*.tsx)
+SOURCES_STRINGS	:= $(wildcard $(STRINGSDIR)/*.fescript $(STRINGSDIR)/**/*.fescript $(STRINGSDIR)/**/**/*.fescript)
 
 HOSTSRCS_C	:= $(wildcard $(SOURCEDIR_HOST)/*.c) $(wildcard $(SOURCEDIR_HOST)/**/*.c)
 TESTSRCS_C	:= $(wildcard $(SOURCEDIR_TEST)/*.c) $(wildcard $(SOURCEDIR_TEST)/**/*.c)
@@ -305,6 +308,9 @@ $(GFXC): $(wildcard tools/gfxc/*.c) $(wildcard tools/gfxc/*.cpp) $(wildcard tool
 $(METADATA): $(wildcard tools/metadata/*.c) $(wildcard tools/metadata/*.h) $(wildcard tools/metadata/*.cpp) $(wildcard tools/gfxc/object.cpp) $(wildcard tools/gfxc/object.hpp)
 	$(V)cd tools/metadata && $(MAKE)
 
+$(TEXTC): $(wildcard tools/textc/*.c) $(wildcard tools/textc/*.cpp) $(wildcard tools/textc/**/*.cpp)
+	$(V)cd tools/textc && $(MAKE)
+
 generated_headers: $(BUILDSRCDIR)/dmg_music.h
 $(BUILDSRCDIR)/dmg_music.h &: $(DMGNOTES)
 	@echo "  DMG_NOTES --note-numbers"
@@ -360,6 +366,16 @@ $(BUILDOBJDIR)/resource_credits.o $(BUILDSRCDIR)/resource_credits.h &: $(METADAT
 		--out-header $(BUILDSRCDIR)/resource_credits.h \
 		--out-text $(BUILDDIR)/main/CREDITS.md \
 		$(SOURCES_PNG)
+
+generated_headers: $(BUILDSRCDIR)/strings.h
+OBJS += $(BUILDOBJDIR)/strings.o
+TEST_OBJS += $(HOSTOBJDIR_HOST)/strings.o
+$(BUILDOBJDIR)/strings.o $(BUILDSRCDIR)/strings.h $(HOSTOBJDIR_HOST)/strings.o &: $(TEXTC) $(SOURCES_STRINGS)
+	@echo "  TEXTC"
+	@$(MKDIR) -p $(BUILDOBJDIR)
+	@$(MKDIR) -p $(HOSTOBJDIR_HOST)
+	@$(MKDIR) -p $(BUILDSRCDIR)
+	$(V)$(TEXTC) $(BUILDOBJDIR)/strings.o $(BUILDSRCDIR)/strings.h $(HOSTOBJDIR_HOST)/strings.o $(SOURCES_STRINGS)
 
 $(ELF): $(OBJS) source/sys/gba_cart.ld
 	@echo "  LD      $@"
@@ -475,9 +491,11 @@ sym: $(SYM)
 clean:
 	@echo "  CLEAN"
 	$(V)$(RM) $(ROM) $(ELF) $(DUMP) $(SYM) $(MAP) $(BUILDDIR)
+	$(V)cd tools/dmg_notes && $(MAKE) clean
 	$(V)cd tools/gbafix && $(MAKE) clean
 	$(V)cd tools/gfxc && $(MAKE) clean
 	$(V)cd tools/metadata && $(MAKE) clean
+	$(V)cd tools/textc && $(MAKE) clean
 
 generated_headers:
 	@:
