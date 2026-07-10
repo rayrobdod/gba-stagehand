@@ -64,16 +64,12 @@ static inline void shadow_vram_reserve_screenblock(bgcnt_t cnt) {
 	MgbaPrintf(MGBA_LOG_DEBUG, "  cnt.charblock = %d",  cnt.charblock);
 	MgbaPrintf(MGBA_LOG_DEBUG, "  cnt.screenblock = %d",  cnt.screenblock);
 	MgbaPrintf(MGBA_LOG_DEBUG, "  cnt.size = %d",  cnt.size);
-	const uint32_t one = 0x02020202;
 
 	_Static_assert(0 == (TILES_PER_SCREENBLOCK % 32), "CpuFastSet requires 32-byte-multiple length");
-	CpuFastSet(
-		&one,
+	CpuFastFill(
+		0x02020202,
 		shadow_tiles_used + cnt.screenblock * TILES_PER_SCREENBLOCK,
-		(struct CpuFastSet) {
-			.word_count = TILES_PER_SCREENBLOCK * bgsize_properties[cnt.size].screenblocks / sizeof(uint32_t),
-			.mode = CPU_SET_FILL
-		}
+		TILES_PER_SCREENBLOCK * bgsize_properties[cnt.size].screenblocks / sizeof(uint32_t)
 	);
 }
 
@@ -119,14 +115,14 @@ void shadow_vram_free_all(void) {
 	for (unsigned i = 0; i < arraycount(windows); i++) {
 		windows[i].in_use = false;
 	}
-	const uint32_t zero = 0;
 	_Static_assert(0 == (sizeof(shadow_tiles_used) % 32), "CpuFastSet requires 32-byte-multiple length");
-	CpuFastSet(&zero, shadow_tiles_used, (struct CpuFastSet) {
-		.word_count = sizeof(shadow_tiles_used) / sizeof(uint32_t),
-		.mode = CPU_SET_FILL
-	});
+	CpuFastFill(0,
+		shadow_tiles_used,
+		sizeof(shadow_tiles_used) / sizeof(uint32_t));
 	_Static_assert(0 == (sizeof(shadow_palette) % 32), "CpuFastSet requires 32-byte-multiple length");
-	CpuFastFill(0, shadow_palette, sizeof(shadow_palette) / sizeof(uint32_t));
+	CpuFastFill(0,
+		shadow_palette,
+		sizeof(shadow_palette) / sizeof(uint32_t));
 }
 
 static shadow_vram_tileid_t shadow_tiles_allocate(unsigned bg, unsigned tilecount) {

@@ -1075,15 +1075,12 @@ static void open_start_menu(void) {
 
 	const unsigned max_window_height = arraycount(start_menu) * 2;
 
-	uint32_t white = 0x77777777;
 	tile_4bpp_t* start_menu_tiles = malloc(sizeof(tile_4bpp_t) * START_MENU_WIDTH * max_window_height);
-	CpuFastSet(
-		&white,
+	CpuFastFill(
+		0x77777777,
 		start_menu_tiles,
-		(struct CpuFastSet) {
-			.word_count = sizeof(tile_4bpp_t) * START_MENU_WIDTH * max_window_height / sizeof(uint32_t),
-			.mode = CPU_SET_FILL,
-		});
+		sizeof(tile_4bpp_t) * START_MENU_WIDTH * max_window_height / sizeof(uint32_t)
+		);
 
 	struct shadow_tiles_window_allocate start_menu_window = {
 		.bg = 0,

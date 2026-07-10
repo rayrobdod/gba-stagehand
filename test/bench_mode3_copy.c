@@ -14,14 +14,9 @@ union rgb2uint {
 };
 
 void setUp(void){
-	uint32_t zero = 0;
-	CpuFastSet(
-		&zero,
+	CpuFastFill(0,
 		vram.mode3,
-		(struct CpuFastSet){
-			.word_count = 240 * 160 / 2,
-			.mode = CPU_SET_FILL,
-		});
+		240 * 160 / 2);
 }
 void tearDown(void){}
 

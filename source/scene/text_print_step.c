@@ -130,10 +130,7 @@ static void gen_window_border(void) {
 	uint32_t zero_tile_ref_pair = convert.uint << 16 | convert.uint;
 
 	bg_tile_t* map = malloc(sizeof(bg_tile_t) * TILEMAP_BUFFER_COUNT);
-	CpuFastSet(&zero_tile_ref_pair, map, (struct CpuFastSet) {
-		.word_count = TILEMAP_BUFFER_COUNT * sizeof(bg_tile_t) / sizeof(uint32_t),
-		.mode = CPU_SET_FILL
-	});
+	CpuFastFill(zero_tile_ref_pair, map, TILEMAP_BUFFER_COUNT * sizeof(bg_tile_t) / sizeof(uint32_t));
 
 	const unsigned top = dialog_window_template.y;
 	const unsigned bot = top + dialog_window_template.height;

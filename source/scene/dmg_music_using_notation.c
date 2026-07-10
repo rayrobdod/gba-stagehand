@@ -696,14 +696,9 @@ static void draw_measure(enum note_length measure_length, const struct note* con
 
 	char measure_number_str[8];
 	snprintf(measure_number_str, sizeof(measure_number_str), "%d", current_measure);
-	uint32_t zero = 0;
-	CpuFastSet(
-		&zero,
+	CpuFastFill(0,
 		view_model->measure_number_shadow_tiles,
-		(struct CpuFastSet){
-			.word_count = sizeof(view_model->measure_number_shadow_tiles) / sizeof(uint32_t),
-			.mode = CPU_SET_FILL,
-		});
+		sizeof(view_model->measure_number_shadow_tiles) / sizeof(uint32_t));
 
 	uint16_t text_x = MEASURE_NUMBER_WINDOW_WIDTH * 8 - 2 - text_width(
 		&breakout_set_font,
