@@ -8,9 +8,10 @@
 #include "management/transition.h"
 #include "management/vram_op_queue.h"
 #include "scene/brick_break.h"
-#include "scene/dmg_music_using_notation.h"
 #include "scene/display_credits.h"
+#include "scene/dmg_music_using_notation.h"
 #include "scene/gradient.h"
+#include "scene/isometric.h"
 #include "scene/mode3.h"
 #include "scene/options_menu.h"
 #include "scene/parallax_mountain_dusk.h"
@@ -73,6 +74,11 @@ static const struct {
 		.label = "Walkaround",
 		.transition = &transition_paletteFade_black,
 		.transitionCbs = &transitionTargetCbs_walkaround_newgame,
+	},
+	{
+		.label = "Isometric",
+		.transition = &transition_paletteFade_black,
+		.transitionCbs = &transitionTargetCbs_isometric,
 	},
 	{
 		.label = "Mode 3",
