@@ -1,21 +1,53 @@
 #include "scene/isometric.h"
 
 #include <stdlib.h>
+#include "management/keyinput.h"
 #include "management/shadow_oam.h"
 #include "management/shadow_vram.h"
 #include "management/vram_op_queue.h"
 #include "utils/arraycount.h"
+#include "utils/saturating_add.h"
 #include "graphics.h"
 
 static union palette512 InitFadeIn_isometric(void);
 void MainCB_isometric(void);
 
-__attribute__((section(".sbss")))
-struct {
-} viewmodel_isometric = {};
+__attribute__((packed))
+enum Terrain {
+	TERRAIN_PLAIN,
+	TERRAIN_WATER,
+	TERRAIN_MEADOW,
+	TERRAIN_ROAD,
+};
+
+typedef struct {
+	uint8_t x;
+	uint8_t y;
+} grid_coords_t;
+
+typedef struct {
+	uint8_t polarity;
+	uint8_t x;
+	uint8_t y;
+} hwmap_coords_t;
 
 __attribute__((section(".sbss")))
 struct {
+	bg_tile_t screens[4 * 0x400];
+	struct {
+		shadow_oam_id_t oamid;
+		grid_coords_t position;
+	} cursor;
+} viewmodel_isometric = {};
+
+enum {
+	TERRAIN_HEIGHT = 10,
+	TERRAIN_WIDTH = 10,
+};
+
+__attribute__((section(".sbss")))
+struct {
+	enum Terrain terrain[TERRAIN_HEIGHT][TERRAIN_WIDTH];
 } state_isometric = {};
 
 enum {
@@ -30,7 +62,7 @@ enum {
 
 static const struct shadow_vram_init shadow_vram_init__isometric = {
 	.enable_bg = {true, true, true, true},
-	.enable_obj = false,
+	.enable_obj = true,
 	.bgcnt = {
 		[0] = {
 			.priority = 0,
@@ -64,21 +96,61 @@ const struct transitionTargetCallbacks transitionTargetCbs_isometric = {
 	.target = MainCB_isometric,
 };
 
-static const unsigned terrain[10][10] = {
-	{1, 1, 1, 1, 1, 1, 1, 1, 1, 1},
-	{1, 3, 3, 3, 3, 3, 3, 3, 3, 1},
-	{1, 3, 3, 3, 3, 3, 3, 3, 3, 1},
-	{1, 3, 3, 3, 3, 3, 3, 3, 3, 1},
-	{1, 3, 3, 3, 3, 3, 3, 3, 3, 1},
-	{1, 3, 3, 3, 3, 6, 3, 3, 3, 1},
-	{1, 3, 3, 3, 3, 3, 3, 6, 3, 1},
-	{1, 3, 3, 3, 3, 3, 6, 6, 3, 1},
-	{1, 3, 3, 3, 3, 3, 3, 3, 3, 1},
-	{1, 1, 1, 1, 1, 1, 1, 1, 1, 1},
-};
+static hwmap_coords_t coords_grid_to_hwmap_2(unsigned x, unsigned y) {
+	return (hwmap_coords_t) {
+		.polarity = (x + y) % 2,
+		.x = 14 + x - y,
+		.y = 4 + (x + y) / 2,
+	};
+}
+static hwmap_coords_t coords_grid_to_hwmap(grid_coords_t in) {
+	return coords_grid_to_hwmap_2(in.x, in.y);
+}
+static ucoords16_t coords_hwmap_to_screen(hwmap_coords_t in) {
+	return (ucoords16_t) {
+		.x = in.x * 8,
+		.y = in.y * 8 - (in.x % 2 ? 0 : 4),
+	};
+}
+
+void render_one_tile(unsigned grid_x, unsigned grid_y) {
+	hwmap_coords_t screen = coords_grid_to_hwmap_2(grid_x, grid_y);
+
+	unsigned position_in_layer = screen.y * 32 + screen.x;
+	unsigned position_of_below_layer = (screen.polarity) * sizeof(screenblock_t) / sizeof(bg_tile_t);
+	unsigned position_below = position_of_below_layer + position_in_layer;
+
+	switch (state_isometric.terrain[grid_y][grid_x]) {
+	case TERRAIN_PLAIN:
+		viewmodel_isometric.screens[position_below] = (bg_tile_t) {6};
+		viewmodel_isometric.screens[position_below + 1] = (bg_tile_t) {7};
+		break;
+	case TERRAIN_WATER:
+		viewmodel_isometric.screens[position_below] = (bg_tile_t) {2};
+		viewmodel_isometric.screens[position_below + 1] = (bg_tile_t) {3};
+		break;
+	case TERRAIN_MEADOW:
+		viewmodel_isometric.screens[position_below] = (bg_tile_t) {12};
+		viewmodel_isometric.screens[position_below + 1] = (bg_tile_t) {13};
+		break;
+	case TERRAIN_ROAD:
+		unsigned tileid = 16
+			+ (grid_x > 0 && TERRAIN_ROAD == state_isometric.terrain[grid_y][grid_x - 1] ? 2 : 0)
+			+ (grid_y > 0 && TERRAIN_ROAD == state_isometric.terrain[grid_y - 1][grid_x] ? 4 : 0)
+			+ (grid_x + 1 < TERRAIN_WIDTH && TERRAIN_ROAD == state_isometric.terrain[grid_y][grid_x + 1] ? 8 : 0)
+			+ (grid_y + 1 < TERRAIN_HEIGHT && TERRAIN_ROAD == state_isometric.terrain[grid_y + 1][grid_x] ? 16 : 0)
+			;
+		viewmodel_isometric.screens[position_below] = (bg_tile_t) {tileid};
+		viewmodel_isometric.screens[position_below + 1] = (bg_tile_t) {tileid + 1};
+		break;
+	}
+}
 
 static union palette512 InitFadeIn_isometric(void) {
 	union palette512 final_palette = {0};
+	state_isometric = (typeof(state_isometric)) {};
+	viewmodel_isometric = (typeof(viewmodel_isometric)) {};
+
 	shadow_vram_init(&shadow_vram_init__isometric);
 	shadow_oam_init();
 
@@ -89,34 +161,25 @@ static union palette512 InitFadeIn_isometric(void) {
 			.bg = 2, .start_palette = 0, .start_tiles = 0});
 	final_palette.background._8[0] = rgb(0,0,0);
 
-	bg_tile_t* screens = malloc(4 * sizeof(screenblock_t));
-	if (screens) {
-		CpuFastFill(0, screens, 4 * sizeof(screenblock_t) / sizeof(uint32_t));
-
-		for (unsigned y = 0; y < arraycount(terrain); y++)
-		for (unsigned x = 0; x < arraycount(terrain[0]); x++)
-		{
-			unsigned polarity = (x + y) % 2;
-			unsigned screen_y = 4 + (x + y) / 2;
-			unsigned screen_x = 14 + x - y;
-
-			unsigned position_in_layer = screen_y * 32 + screen_x;
-			unsigned position_of_below_layer = (polarity) * sizeof(screenblock_t) / sizeof(bg_tile_t);
-			unsigned position_below = position_of_below_layer + position_in_layer;
-
-			screens[position_below] = (bg_tile_t) {terrain[y][x] * 2, false, false, 0};
-			screens[position_below + 1] = (bg_tile_t) {terrain[y][x] * 2 + 1, false, false, 0};
-		}
-		vram_op_queue_enqueue(&(struct vram_op) {
-			.type = VRAM_QUEUE_OP_BG_MAP_FREE,
-			.map_free = {
-				.from = screens,
-				.to_block = BELOW_ODDS_SCREENBLOCK,
-				.to_tile = 0,
-				.count = 4 * sizeof(screenblock_t) / sizeof(bg_tile_t),
-			},
-		});
+	for (unsigned x = 2; x < 8; x++) {
+		state_isometric.terrain[0][x] = TERRAIN_WATER;
+		state_isometric.terrain[8][x] = TERRAIN_MEADOW;
 	}
+
+	for (unsigned y = 0; y < TERRAIN_HEIGHT; y++)
+	for (unsigned x = 0; x < TERRAIN_WIDTH; x++)
+	{
+		render_one_tile(x, y);
+	}
+	vram_op_queue_enqueue(&(struct vram_op) {
+		.type = VRAM_QUEUE_OP_BG_MAP,
+		.map_free = {
+			.from = viewmodel_isometric.screens,
+			.to_block = BELOW_ODDS_SCREENBLOCK,
+			.to_tile = 0,
+			.count = 4 * sizeof(screenblock_t) / sizeof(bg_tile_t),
+		},
+	});
 
 	vram_op_queue_enqueue(&(struct vram_op) {
 		.type = VRAM_QUEUE_OP_HWREG_BGOFSS,
@@ -130,9 +193,67 @@ static union palette512 InitFadeIn_isometric(void) {
 		},
 	});
 
+	viewmodel_isometric.cursor.position.x = 0;
+	viewmodel_isometric.cursor.position.y = 0;
+	viewmodel_isometric.cursor.oamid = shadow_oam_add_sprite_no_palette_vram_op(
+		&final_palette,
+		&isometric_cursor,
+		(struct shadow_oam_position) {
+			coords_hwmap_to_screen(coords_grid_to_hwmap(viewmodel_isometric.cursor.position)),
+			HOTSPOT_TOPLEFT,
+			false,
+			false,
+			0,
+		}
+	);
 
 	return final_palette;
 }
 
 void MainCB_isometric(void) {
+	viewmodel_isometric.cursor.position.x = saturating_add(
+			viewmodel_isometric.cursor.position.x,
+			0, TERRAIN_WIDTH - 1, keyinput_horizontal_new());
+	viewmodel_isometric.cursor.position.y = saturating_add(
+			viewmodel_isometric.cursor.position.y,
+			0, TERRAIN_HEIGHT - 1, keyinput_vertical_new());
+	shadow_oam_move_sprite(
+		viewmodel_isometric.cursor.oamid,
+		(struct shadow_oam_position) {
+			coords_hwmap_to_screen(coords_grid_to_hwmap(viewmodel_isometric.cursor.position)),
+			HOTSPOT_TOPLEFT,
+			false,
+			false,
+			0,
+		}
+	);
+
+	if (!keyinput_get_new().a) {
+		if (TERRAIN_PLAIN == state_isometric.terrain[viewmodel_isometric.cursor.position.y][viewmodel_isometric.cursor.position.x]) {
+			state_isometric.terrain[viewmodel_isometric.cursor.position.y][viewmodel_isometric.cursor.position.x] = TERRAIN_ROAD;
+		}
+		else if (TERRAIN_ROAD == state_isometric.terrain[viewmodel_isometric.cursor.position.y][viewmodel_isometric.cursor.position.x]) {
+			state_isometric.terrain[viewmodel_isometric.cursor.position.y][viewmodel_isometric.cursor.position.x] = TERRAIN_PLAIN;
+		}
+
+		render_one_tile(viewmodel_isometric.cursor.position.x, viewmodel_isometric.cursor.position.y);
+		if (viewmodel_isometric.cursor.position.x > 0)
+			render_one_tile(viewmodel_isometric.cursor.position.x - 1, viewmodel_isometric.cursor.position.y);
+		if (viewmodel_isometric.cursor.position.x + 1 < TERRAIN_WIDTH)
+			render_one_tile(viewmodel_isometric.cursor.position.x + 1, viewmodel_isometric.cursor.position.y);
+		if (viewmodel_isometric.cursor.position.y > 0)
+			render_one_tile(viewmodel_isometric.cursor.position.x, viewmodel_isometric.cursor.position.y - 1);
+		if (viewmodel_isometric.cursor.position.y + 1 < TERRAIN_HEIGHT)
+			render_one_tile(viewmodel_isometric.cursor.position.x, viewmodel_isometric.cursor.position.y + 1);
+
+		vram_op_queue_enqueue(&(struct vram_op) {
+			.type = VRAM_QUEUE_OP_BG_MAP,
+			.map_free = {
+				.from = viewmodel_isometric.screens,
+				.to_block = BELOW_ODDS_SCREENBLOCK,
+				.to_tile = 0,
+				.count = 4 * sizeof(screenblock_t) / sizeof(bg_tile_t),
+			},
+		});
+	}
 }
