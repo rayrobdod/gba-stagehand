@@ -29,6 +29,12 @@ std::ostream& operator<<(std::ostream& os, enum type typ) {
 	case TYPE_WALKAROUND_TILEMAP:
 		os << "WALKAROUND_TILEMAP";
 		break;
+	case TYPE_ISOMETRIC_OBJECT:
+		os << "TYPE_ISOMETRIC_OBJECT";
+		break;
+	case TYPE_ISOMETRIC_ROAD:
+		os << "TYPE_ISOMETRIC_ROAD";
+		break;
 	}
 	return os;
 }
@@ -52,6 +58,10 @@ enum type resource_type(const bufferedimage& image) {
 			return TYPE_BACKGROUND_MODE3;
 		if (explicit_typ->second == "Background Horizontal Scroll")
 			return TYPE_BACKGROUND_HORIZONTAL_SCROLL;
+		if (explicit_typ->second == "Isometric Object")
+			return TYPE_ISOMETRIC_OBJECT;
+		if (explicit_typ->second == "Isometric Road")
+			return TYPE_ISOMETRIC_ROAD;
 
 		std::string msg("Unknown explicit type: ");
 		msg += explicit_typ->second;

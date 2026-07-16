@@ -14,6 +14,8 @@ enum type {
 	TYPE_BACKGROUND_MODE3,
 	TYPE_BACKGROUND_HORIZONTAL_SCROLL,
 	TYPE_WALKAROUND_TILEMAP,
+	TYPE_ISOMETRIC_OBJECT,
+	TYPE_ISOMETRIC_ROAD,
 };
 
 std::ostream& operator<<(std::ostream& os, enum type typ);

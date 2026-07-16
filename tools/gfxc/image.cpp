@@ -10,6 +10,7 @@ rgba16_t rgb15_t::with_alpha(uint16_t a) const {
 	return {this->r, this->g, this->b, a != 0};
 }
 const rgba16 rgba16_t::BLACK = {0, 0, 0, 1};
+const rgba16 rgba16_t::TRANSPARENT = {0, 0, 0, 0};
 const rgb15 rgb15_t::BLACK = {0, 0, 0};
 
 bool operator==(const rgba16_t& lhs, const rgba16_t& rhs) {

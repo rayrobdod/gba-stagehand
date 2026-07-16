@@ -33,6 +33,7 @@ typedef struct rgba16 {
 	std::array<uint8_t, 2> to_bytes(void);
 
 	static const rgba16 BLACK;
+	static const rgba16 TRANSPARENT;
 } rgba16_t;
 
 bool operator<(const rgba16_t&, const rgba16_t&);
