@@ -1,5 +1,6 @@
 #include "build_compress_suite.hpp"
 
+#include <algorithm>
 #include <filesystem>
 #include "resource_type/background.hpp"
 #include "resource_type/tileset.hpp"
@@ -173,6 +174,34 @@ int build_trivial_decompression_suite(std::filesystem::path objfile) {
 		count = "256";
 
 		suite_1(var + count, count + label, data, elf);
+
+		for (; i < 260; i++) {
+			data.push_back(i);
+		}
+		count = "260";
+
+		suite_1(var + count, count + label, data, elf);
+	}
+
+	{
+		unsigned i;
+		data.clear();
+		for (i = 0; i < 8; i++) {
+			data.push_back(260 - i);
+		}
+		std::string var("decrement8_wrap");
+		std::string label(" decrement8_wrap");
+		std::string count("even");
+
+		suite_1(var + count, count + label, data, elf);
+
+		data.clear();
+		for (i = 0; i < 8; i++) {
+			data.push_back(261 - i);
+		}
+		count = "odd";
+
+		suite_1(var + count, count + label, data, elf);
 	}
 
 	{
@@ -231,13 +260,7 @@ int build_decompression_suite(std::filesystem::path srcfile, std::filesystem::pa
 		{
 			palette_data_builder pal_builder = background_type_functions.extract_palettes(name_and_parsed);
 			pal_builder.condense_colors();
-
-			std::map<const std::string, alt_palette_data> alternates;
-			std::vector<std::vector<rgba16_t>> colorss;
-			for (auto colors : pal_builder.colorss) {
-				colorss.emplace_back(colors.begin(), colors.end());
-			}
-			palette_data pal_data(0, colorss, alternates);
+			palette_data pal_data(0, pal_builder);
 
 			std::vector<gbatile_4bpp> tiles = background_type_functions.extract_tiles(name_and_parsed, pal_data);
 			std::vector<uint8_t> tiles_bytes;
@@ -269,13 +292,7 @@ int build_decompression_suite(std::filesystem::path srcfile, std::filesystem::pa
 		{
 			palette_data_builder pal_builder = tileset_type_functions.extract_palettes(name_and_parsed);
 			pal_builder.condense_colors();
-
-			std::map<const std::string, alt_palette_data> alternates;
-			std::vector<std::vector<rgba16_t>> colorss;
-			for (auto colors : pal_builder.colorss) {
-				colorss.emplace_back(colors.begin(), colors.end());
-			}
-			palette_data pal(0, colorss, alternates);
+			palette_data pal(0, pal_builder);
 
 			std::vector<gbatile_4bpp> tiles = tileset_type_functions.extract_tiles(name_and_parsed, pal);
 			std::vector<uint8_t> tiles_bytes;

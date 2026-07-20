@@ -2,6 +2,7 @@
 
 #include <stddef.h>
 #include <stdio.h>
+#include "gba/hw_reg.h"
 #include "decompress/type.h"
 #include "management/isr.h"
 #include "gba/bios.h"
@@ -65,6 +66,8 @@ static const char* UnCompFnName(unsigned magic) {
 		return "LZ";
 	case 0x11:
 		return "LZ11";
+	case 0x16:
+		return "LZ16";
 	case 0x24:
 		return "Huff4";
 	case 0x28:
@@ -194,6 +197,7 @@ int main() {
 	total = 0;
 	failed = 0;
 
+	reg_interrupt.WAITCNT = common_waitcnt;
 	isr_switchboard_init();
 	isr_enable(II_VBLANK);
 	MgbaOpen();

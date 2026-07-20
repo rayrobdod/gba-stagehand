@@ -2,6 +2,7 @@
 #include "mgba.h"
 #include <math.h>
 #include <stdlib.h>
+#include "decompress/type.h"
 
 void VBlankIntrWait() {
 }
@@ -96,18 +97,52 @@ void CpuFastSet(const void* src, volatile void* dest, const struct CpuFastSet ar
 	}
 }
 
-void LZ77UnCompVram(__attribute__((unused)) const struct CompressedData* src, __attribute__((unused)) volatile void* dest) {
-	// ???
-}
-
 void BitUnPack(__attribute__((unused)) const void* src, __attribute__((unused)) volatile void* dest, __attribute__((unused)) const struct BitUnPack*) {
 	// ???
 }
 
+void LZ77UnCompWram(const struct CompressedData* src, volatile void* dest) {
+	volatile uint8_t* dest8 = (volatile uint8_t*)dest;
+	volatile uint8_t* const dest_end = dest + (src->size / sizeof(uint8_t));
 
-void HeaderUnCompVram(__attribute__((unused)) const struct CompressedData* src, __attribute__((unused)) volatile void* dest) {
-	// ???
+	const uint8_t* src8 = src->data;
+
+	while (dest8 < dest_end) {
+		unsigned flags = *(src8++);
+
+		for (int i = 7; i >= 0; --i) {
+			if (dest8 >= dest_end)
+				break;
+
+			if (flags & (1 << i)) {
+				unsigned width = (*src8 >> 4) + 3;
+				unsigned distance = (((*src8 & 0xF) << 8) | (*(src8 + 1))) + 1;
+				src8 += 2;
+
+				volatile uint8_t* from = dest8 - distance;
+				for (; width > 0; --width) {
+					*dest8++ = *from++;
+				}
+			} else {
+				*dest8++ = *src8++;
+			}
+		}
+	}
 }
+void LZ77UnCompVram(const struct CompressedData* src, volatile void* dest) {
+	LZ77UnCompWram(src, dest);
+}
+void HuffUnComp([[maybe_unused]] const struct CompressedData* src, [[maybe_unused]] volatile void* dest) {}
+void RLUnCompWram([[maybe_unused]] const struct CompressedData* src, [[maybe_unused]] volatile void* dest) {}
+void RLUnCompVram(const struct CompressedData* src, volatile void* dest) {
+	RLUnCompWram(src, dest);
+}
+void Diff8UnFilterWram([[maybe_unused]] const struct CompressedData* src, [[maybe_unused]] volatile void* dest) {}
+void Diff8UnFilterVram(const struct CompressedData* src, volatile void* dest) {
+	Diff8UnFilterWram(src, dest);
+}
+void Diff16UnFilter([[maybe_unused]] const struct CompressedData* src, [[maybe_unused]] volatile void* dest) {}
+
 
 
 #include <stdarg.h>

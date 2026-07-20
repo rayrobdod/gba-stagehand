@@ -101,7 +101,7 @@ bool FUNCTION_NAME_SUSPEND(struct suspended_decompression* state) {
 	volatile WORD* const dest_end = (volatile WORD*)state->dest_end;
 	const uint8_t* src = state->src;
 
-	while (dest < dest_end && (reg_lcd.VCOUNT < (DISPLAY_HEIGHT - 10) || reg_lcd.VCOUNT > DISPLAY_HEIGHT)) {
+	while (dest < dest_end && (reg_lcd.VCOUNT < (DISPLAY_HEIGHT - 10) || reg_lcd.VCOUNT >= DISPLAY_HEIGHT)) {
 		uint8_t op = *(src++);
 		unsigned op_code = op >> 6;
 

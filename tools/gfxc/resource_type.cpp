@@ -2,6 +2,9 @@
 
 std::ostream& operator<<(std::ostream& os, enum type typ) {
 	switch (typ) {
+	case TYPE_SUBRESOURCE:
+		os << "SUBRESOURCE";
+		break;
 	case TYPE_SPRITE:
 		os << "SPRITE";
 		break;
@@ -23,13 +26,18 @@ std::ostream& operator<<(std::ostream& os, enum type typ) {
 	case TYPE_BACKGROUND_HORIZONTAL_SCROLL:
 		os << "SCENE_HORIZ_SCROLL";
 		break;
+	case TYPE_WALKAROUND_TILEMAP:
+		os << "WALKAROUND_TILEMAP";
+		break;
 	}
 	return os;
 }
 
 enum type resource_type(const bufferedimage& image) {
-	auto explicit_typ = image.text().find("Type");
-	if (explicit_typ != image.text().end()) {
+	auto explicit_typ = image.properties().find("Type");
+	if (explicit_typ != image.properties().end()) {
+		if (explicit_typ->second == "Subresource")
+			return TYPE_SUBRESOURCE;
 		if (explicit_typ->second == "Sprite")
 			return TYPE_SPRITE;
 		if (explicit_typ->second == "Font")
@@ -57,4 +65,19 @@ enum type resource_type(const bufferedimage& image) {
 		return TYPE_BACKGROUND;
 	}
 	return TYPE_TILESET;
+}
+
+enum type resource_type(const input_tile16x3map& image) {
+	auto explicit_typ = image.properties().find("Type");
+	if (explicit_typ != image.properties().end()) {
+		if (explicit_typ->second == "Subresource")
+			return TYPE_SUBRESOURCE;
+		if (explicit_typ->second == "Walkaround")
+			return TYPE_WALKAROUND_TILEMAP;
+
+		std::string msg("Unknown explicit type: ");
+		msg += explicit_typ->second;
+		throw std::runtime_error(msg);
+	}
+	return TYPE_WALKAROUND_TILEMAP;
 }

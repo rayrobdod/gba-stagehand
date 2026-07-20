@@ -19,19 +19,23 @@ static void background_horizontal_scroll_write_struct(std::ostream& headerstream
 }
 
 static void background_horizontal_scroll_write_to_elf(
-	std::pair<std::filesystem::path, struct bufferedimage> image,
+	input_path_and_data input,
 	std::pair<std::string, palette_data> palettes,
 	std::pair<std::string, tiles_data> tiles_pair,
+	[[maybe_unused]] std::pair<std::string, tile16x3s_data> tile16x3s,
 	std::string var_name,
 	std::ostream& headerstream,
+	[[maybe_unused]] Object_x8664& hostelf,
 	Object& elf
 ) {
 	headerstream << "extern const struct background_horizontal_scroll " << var_name << ";" << std::endl;
 
-	uint16_t map_height(image.second.height() / 8);
-	uint16_t map_width(image.second.width() / 8);
+	bufferedimage image = std::get<bufferedimage>(input.second);
 
-	std::vector<bg_tile_t> tilemap = background_extract_map(image, palettes.second, tiles_pair.second);
+	uint16_t map_height(image.height() / 8);
+	uint16_t map_width(image.width() / 8);
+
+	std::vector<bg_tile_t> tilemap = background_extract_map(input, palettes.second, tiles_pair.second);
 	std::vector<bg_tile_t> tilemap_transpose(tilemap.size());
 	for (unsigned y = 0; y < map_height; y++) {
 		for (unsigned x = 0; x < map_width; x++) {
@@ -87,5 +91,6 @@ const type_functions background_horizontal_scroll_type_functions(
 	  &background_horizontal_scroll_write_struct
 	, &tileset_extract_palettes
 	, &background_extract_tiles
+	, nullptr
 	, &background_horizontal_scroll_write_to_elf
 );

@@ -71,6 +71,7 @@ void bench_cpuset(void) {
 }
 
 int main() {
+	reg_interrupt.WAITCNT = common_waitcnt;
 	isr_switchboard_init();
 	isr_enable(II_VBLANK);
 	MgbaOpen();

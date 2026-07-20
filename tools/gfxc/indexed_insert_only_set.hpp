@@ -58,8 +58,13 @@ public:
 	typename std::vector<Key, Allocator>::const_iterator cbegin() const {
 		return this->_data.cbegin();
 	}
-
 	typename std::vector<Key, Allocator>::const_iterator cend() const {
+		return this->_data.cend();
+	}
+	typename std::vector<Key, Allocator>::const_iterator begin() const {
+		return this->_data.cbegin();
+	}
+	typename std::vector<Key, Allocator>::const_iterator end() const {
 		return this->_data.cend();
 	}
 };

@@ -74,10 +74,15 @@ public :
 
 	subword_output_iterator<OUT, IN, DIR> operator+(unsigned delta) const {
 		subword_output_iterator<OUT, IN, DIR> retval = *this;
-		retval._subword += bitsize<IN> * delta;
-		retval._word += retval._subword / bitsize<OUT>;
-		retval._subword %= bitsize<OUT>;
+		retval += delta;
 		return retval;
+	}
+
+	subword_output_iterator<OUT, IN, DIR>& operator+=(unsigned delta) {
+		this->_subword += bitsize<IN> * delta;
+		this->_word += this->_subword / bitsize<OUT>;
+		this->_subword %= bitsize<OUT>;
+		return *this;
 	}
 
 	std::vector<OUT> result() {

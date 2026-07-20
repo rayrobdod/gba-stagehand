@@ -37,6 +37,15 @@ struct CpuFastSet {
 };
 void CpuFastSet(const void* src, volatile void* dest, const struct CpuFastSet);
 
+[[maybe_unused]]
+static void CpuFastCopy(const void* src, volatile void* dest, const uint32_t word_count) {
+	CpuFastSet(src, dest, (struct CpuFastSet) {.word_count = word_count, .mode = CPU_SET_COPY});
+}
+[[maybe_unused]]
+static void CpuFastFill(const uint32_t src, volatile void* dest, const uint32_t word_count) {
+	CpuFastSet(&src, dest, (struct CpuFastSet) {.word_count = word_count, .mode = CPU_SET_FILL});
+}
+
 struct BitUnPack {
 	uint16_t src_length;
 	uint8_t src_bitsize;

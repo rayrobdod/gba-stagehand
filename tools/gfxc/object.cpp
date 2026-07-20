@@ -26,7 +26,7 @@ Elf32_Word StringTableBuilder::find(std::string_view value) const {
 
 Elf32_Word StringTableBuilder::find_or_push(std::string_view value) {
 	Elf32_Word retval = find(value);
-	if (0 == retval) {
+	if (0 == retval && value.length() != 0) {
 		retval = push(value);
 	}
 	return retval;
@@ -90,6 +90,17 @@ Object::~Object(void) {
 		std::string section_name(".rel");
 		section_name.append(section_strings[sections[i->target].sh_name]);
 
+		std::vector<Elf32_Rel> rel_data;
+
+		for (auto rel : i->data) {
+			uint32_t symbol = id_of_symbol(rel.symbol_name);
+
+			rel_data.push_back({
+				.r_offset = rel.offset,
+				.r_info = ELF32_R_INFO(symbol, rel.type),
+			});
+		}
+
 		this->push_entries_section(
 			((Elf32_Shdr_Template) {
 				.sh_name = section_name,
@@ -97,7 +108,7 @@ Object::~Object(void) {
 				.sh_link = predicted_symbols_index,
 				.sh_info = i->target,
 			}),
-			i->data
+			rel_data
 		);
 	}
 
@@ -195,6 +206,8 @@ void Object::push_symbol(Elf32_Sym_Template hdr) {
 }
 
 Elf32_Section Object::index_of_section(const std::string_view name) const {
+	if (name == "<ABS>") return SHN_ABS;
+
 	Elf32_Section i = 0;
 	for (auto s = sections.begin(); s != sections.end(); s++, i++) {
 		if (name == section_strings[s->sh_name]) {

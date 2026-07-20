@@ -1,5 +1,6 @@
 #include "text_printer.h"
 
+#include "gba/hw_reg.h"
 #include "management/isr.h"
 #include "benchmarks.h"
 #include "graphics.h"
@@ -43,6 +44,7 @@ void bench_text_printer_lorem_ipsum(void) {
 }
 
 int main() {
+	reg_interrupt.WAITCNT = common_waitcnt;
 	isr_switchboard_init();
 	isr_enable(II_VBLANK);
 	MgbaOpen();

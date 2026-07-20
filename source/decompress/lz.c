@@ -4,7 +4,7 @@
 #include "gba/screen.h"
 
 bool LZ77UnCompSuspendable(struct suspended_decompression* state) {
-	while (state->dest < state->dest_end && (reg_lcd.VCOUNT < (DISPLAY_HEIGHT - 5) || reg_lcd.VCOUNT > DISPLAY_HEIGHT)) {
+	while (state->dest < state->dest_end && (reg_lcd.VCOUNT < (DISPLAY_HEIGHT - 5) || reg_lcd.VCOUNT >= DISPLAY_HEIGHT)) {
 		unsigned flags = *((state->src)++);
 
 		for (int i = 7; i >= 0; --i) {

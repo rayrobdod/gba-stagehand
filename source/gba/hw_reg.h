@@ -84,15 +84,19 @@ typedef struct {
 typedef struct {
 	window_enable_t win0;
 	window_enable_t win1;
-} window_enable_pair_t;
+	window_enable_t winout;
+	window_enable_t winobj;
+} window_enable_quad_t;
 
 [[gnu::unused]]
 static window_enable_t WIN_ENABLE_ALL = {true, true, true, true, true, true};
+[[gnu::unused]]
+static window_enable_t WIN_DISABLE_ALL = {false, false, false, false, false, false};
 
-struct bgofs {
+typedef struct bgofs {
 	uint16_t h;
 	uint16_t v;
-};
+} bgofs_t;
 
 enum color_effect {
 	COLOR_EFFECT_NONE = 0,
@@ -147,8 +151,7 @@ struct reg_lcd {
 	window_horizontal_t WIN1H;	/* 4000042 */
 	window_vertical_t WIN0V;	/* 4000044 */
 	window_vertical_t WIN1V;	/* 4000046 */
-	window_enable_pair_t WININ;	/* 4000048 */
-	window_enable_pair_t WINOUT;	/* 400004A */
+	window_enable_quad_t WIN;	/* 4000048 */
 	uint16_t MOSAIC;	/* 400004C */
 	uint16_t : 16;	/* 400004E */
 	bldcnt_t BLDCNT;	/* 4000050 */
@@ -489,10 +492,51 @@ Serial Communication (2)
   uint16_t JOYSTAT;	/* 4000158 */
 #endif
 
+enum waitstate_first {
+	WAITSTATE_FIRST_4 = 0,
+	WAITSTATE_FIRST_3 = 1,
+	WAITSTATE_FIRST_2 = 2,
+	WAITSTATE_FIRST_8 = 3,
+};
+enum waitstate_sequential {
+	WAITSTATE_SEQUENTIAL_SLOW = 0,
+	WAITSTATE_SEQUENTIAL_FAST = 1,
+};
+enum phi_terminal {
+	PHI_TERMINAL_DISABLE = 0,
+	PHI_TERMINAL_4 = 1,
+	PHI_TERMINAL_8 = 2,
+	PHI_TERMINAL_16 = 3,
+};
+
+typedef struct {
+	enum waitstate_first sram : 2;
+	enum waitstate_first _0_first : 2;
+	enum waitstate_sequential _0_sequential : 1;
+	enum waitstate_first _1_first : 2;
+	enum waitstate_sequential _1_sequential : 1;
+	enum waitstate_first _2_first : 2;
+	enum waitstate_sequential _2_sequential : 1;
+	enum phi_terminal phi_terminal : 2;
+	uint16_t : 1;
+	bool prefetch : 1;
+	bool is_gbc : 1;
+} waitcnt_t;
+
+static const waitcnt_t common_waitcnt = {
+	.sram = WAITSTATE_FIRST_8,
+	._0_first = WAITSTATE_FIRST_3,
+	._0_sequential = WAITSTATE_SEQUENTIAL_FAST,
+	._2_first = WAITSTATE_FIRST_8,
+	._2_sequential = WAITSTATE_SEQUENTIAL_SLOW,
+	.phi_terminal = PHI_TERMINAL_DISABLE,
+	.prefetch = true,
+};
+
 struct reg_interrupt {
   interrupt_flag_t IE;	/* 4000200 */
   interrupt_flag_t IF;	/* 4000202 */
-  uint16_t WAITCNT;	/* 4000204 */
+  waitcnt_t WAITCNT;	/* 4000204 */
   uint16_t : 16;	/* 4000206 */
   uint16_t IME;	/* 4000208 */
 };

@@ -35,6 +35,18 @@ struct Arguments parseArguments(int argc, char** argv) {
 			}
 			retval.outCreditsHeader = argv[i];
 		}
+		else if (0 == strcmp("--out-text", argv[i])) {
+			if (NULL != retval.outTextFile) {
+				retval.errorMsg = "--out-text provided twice";
+				break;
+			}
+			i++;
+			if (i >= argc) {
+				retval.errorMsg = "no argument to --out-text";
+				break;
+			}
+			retval.outTextFile = argv[i];
+		}
 		else {
 			retval.inPngFiles = reallocarray(retval.inPngFiles, retval.inPngFileCount + 1, sizeof(const char*));
 			retval.inPngFiles[retval.inPngFileCount] = argv[i];

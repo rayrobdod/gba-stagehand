@@ -34,6 +34,16 @@ void TEST_ASSERT_EQUAL_BYTE_ARRAY(const char* expected, const char* actual, unsi
 	}
 }
 
+void TEST_ASSERT_EQUAL_UINT16_ARRAY(const uint16_t* expected, const uint16_t* actual, unsigned length) {
+	for (unsigned i = 0; i < length; i++) {
+		if (expected[i] != actual[i]) {
+			currentTestFailed = 1;
+			snprintf(fail_detail, arraycount(fail_detail), "At %d: Expected %x; was %x", i, expected[i], actual[i]);
+			break;
+		}
+	}
+}
+
 static int snprint_rgb(char* buf, size_t size, rgb_t value) {
 	return snprintf(buf, size, "{.r = %d, .g = %d, .b = %d}", value.r, value.g, value.b);
 }
@@ -45,6 +55,13 @@ void TEST_ASSERT_EQUAL_RGB(rgb_t expected, rgb_t actual) {
 		offset += snprint_rgb(fail_detail + offset, arraycount(fail_detail) - offset, expected);
 		offset += snprintf(fail_detail + offset, arraycount(fail_detail), "; was ");
 		offset += snprint_rgb(fail_detail + offset, arraycount(fail_detail) - offset, actual);
+	}
+}
+
+void TEST_ASSERT(bool actual, const char* reason) {
+	if (!actual) {
+		currentTestFailed = 1;
+		snprintf(fail_detail, arraycount(fail_detail), "%s", reason);
 	}
 }
 

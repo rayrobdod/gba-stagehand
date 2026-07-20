@@ -2,7 +2,7 @@
 
 #include <stdint.h>
 
-void IdentityUnComp(const void* src, volatile void* dest) {
+void IdentityUnComp(const struct CompressedData* src, volatile void* dest) {
 	const uint32_t* src32 = (const uint32_t*)src;
 	volatile uint32_t* dest32 = (volatile uint32_t*)dest;
 	uint32_t len = *(src32++) >> 8;

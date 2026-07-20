@@ -36,7 +36,7 @@ void TEST_ASSERT_EQUAL_UNSIGNED(unsigned expected, unsigned actual) {
 	}
 }
 
-void TEST_FAIL(std::string reason) {
+void TEST_FAIL(std::string_view reason) {
 	currentTestFailed = 1;
 	std::string msg("\033[41mFAIL\033[0m: ");
 	msg += reason;

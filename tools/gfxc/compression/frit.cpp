@@ -24,10 +24,10 @@ std::vector<WORD> decompressFrit(const std::vector<uint8_t> src, bool disassembl
 
 	while (srcPos < src.size()) {
 		const unsigned initialSrcPos = srcPos;
-	        unsigned op = src[srcPos++];
-	        unsigned op_code = op >> 6;
+		unsigned op = src[srcPos++];
+		unsigned op_code = op >> 6;
 
-	        if (0 == op_code) {
+		if (0 == op_code) {
 			unsigned from = (op & 0x30) >> 4;
 			unsigned to = (op & 0xC) >> 2;
 			unsigned hi = (op & 0x2);
@@ -122,20 +122,20 @@ std::optional<std::vector<uint8_t>> compressFrit(const std::vector<WORD> src, ui
 			WORD current = src[srcPos];
 
 			if (current - start == 0) {
-				while (length < LONGEST_RUN && srcPos < src.size() && src[srcPos] == start) {
+				while (srcPos < src.size() && src[srcPos] == start) {
 					++srcPos;
 					++length;
 				}
 			} else if (current - start == 1) {
 				delta = 1;
-				while (length < LONGEST_RUN && srcPos < src.size() && src[srcPos] == current) {
+				while (srcPos < src.size() && src[srcPos] == current) {
 					++srcPos;
 					++length;
 					++current;
 				}
 			} else if (current - start == -1) {
 				delta = -1;
-				while (length < LONGEST_RUN && srcPos < src.size() && src[srcPos] == current) {
+				while (srcPos < src.size() && src[srcPos] == current) {
 					++srcPos;
 					++length;
 					--current;
@@ -168,7 +168,7 @@ std::optional<std::vector<uint8_t>> compressFrit(const std::vector<WORD> src, ui
 		if (runPos + 1 < runs.size() &&
 			0 == runs[runPos].delta &&
 			1 < runs[runPos].length &&
-			1 == runs[runPos + 1].delta &&
+			0 != runs[runPos + 1].delta &&
 			runs[runPos].start + runs[runPos + 1].delta == runs[runPos + 1].start &&
 			true)
 		{
@@ -178,7 +178,7 @@ std::optional<std::vector<uint8_t>> compressFrit(const std::vector<WORD> src, ui
 		}
 
 		if (runPos + 1 < runs.size() &&
-			1 == runs[runPos].delta &&
+			0 != runs[runPos].delta &&
 			1 < runs[runPos].length &&
 			0 == runs[runPos + 1].delta &&
 			runs[runPos].last() == runs[runPos + 1].start &&
@@ -203,11 +203,14 @@ std::optional<std::vector<uint8_t>> compressFrit(const std::vector<WORD> src, ui
 		Run<WORD> run = *run_it;
 
 		unsigned runReg;
+	        // use a register that already has the correct start value
 		for (runReg = 0; runReg < NUM_REGS; runReg++) {
 			if (run.start == regs[runReg])
 				break;
 		}
 
+	        // Otherwise, if two registers have the same value,
+	        // use one of those two
 		if (runReg >= NUM_REGS) {
 			for (int i = 0; i < NUM_REGS; i++)
 			for (int j = i + 1; j < NUM_REGS; j++) {
@@ -217,6 +220,8 @@ std::optional<std::vector<uint8_t>> compressFrit(const std::vector<WORD> src, ui
 			}
 		}
 
+		// Otherwise, use the register whose value will be needed least soon,
+		// or whose value will not be needed at all
 		if (runReg >= NUM_REGS) {
 			auto runRegNextUse = run_it;
 
@@ -257,8 +262,16 @@ std::optional<std::vector<uint8_t>> compressFrit(const std::vector<WORD> src, ui
 		}
 
 		char opcode = (2 + run.delta) & 0x3;
+		unsigned length = run.length;
 
-		unsigned lengthSub1 = run.length - 1;
+		while (length > LONGEST_RUN)
+		{
+			retval.push_back((opcode << 6) | (runReg << 4) | 0xF);
+			retval.push_back(0xFF);
+			length -= LONGEST_RUN;
+		}
+
+		unsigned lengthSub1 = length - 1;
 
 		if (lengthSub1 < 15) {
 			retval.push_back((opcode << 6) | (runReg << 4) | lengthSub1);
@@ -315,4 +328,3 @@ std::optional<std::vector<uint8_t>> compressFrit16(std::vector<uint8_t> src) {
 std::optional<std::vector<uint8_t>> compressFrit8(std::vector<uint8_t> src) {
 	return compressFrit<uint8_t>(src, 0x41);
 }
-

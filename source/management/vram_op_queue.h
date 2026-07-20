@@ -16,6 +16,8 @@ enum vram_queue_op_type {
 	VRAM_QUEUE_OP_DISABLE_ALL_OAM,
 	/** .palettes */
 	VRAM_QUEUE_OP_BG_PALETTES,
+	/** .palettes_free */
+	VRAM_QUEUE_OP_BG_PALETTES_FREE,
 	/** .tiles */
 	VRAM_QUEUE_OP_BG_TILES,
 	/** .tiles_free ; becomes the owner of `.from` and will free `.from` */
@@ -34,12 +36,16 @@ enum vram_queue_op_type {
 	VRAM_QUEUE_OP_BG_MAP_COMPRESSED,
 	/** .map */
 	VRAM_QUEUE_OP_BG_MAP_COLUMN,
+	/** .map_free ; becomes the owner of `.from` and will free `.from` */
+	VRAM_QUEUE_OP_BG_MAP_COLUMN_FREE,
 	/** .map_fill */
 	VRAM_QUEUE_OP_BG_MAP_FILL,
 	/** .palettes */
 	VRAM_QUEUE_OP_OAM_PALETTES,
 	/** .tiles */
 	VRAM_QUEUE_OP_OAM_TILES,
+	/** .tiles_free ; becomes the owner of `.from` and will free `.from` */
+	VRAM_QUEUE_OP_OAM_TILES_FREE,
 	/** .tiles_compressed */
 	VRAM_QUEUE_OP_OAM_TILES_COMPRESSED,
 	/** .oam */
@@ -50,6 +56,12 @@ enum vram_queue_op_type {
 	VRAM_QUEUE_OP_HWREG_BGCNT,
 	/** .bgofss */
 	VRAM_QUEUE_OP_HWREG_BGOFSS,
+	/** .win */
+	VRAM_QUEUE_OP_HWREG_WIN,
+	/** .winhv */
+	VRAM_QUEUE_OP_HWREG_WINHV,
+	/** None */
+	VRAM_QUEUE_OP_ENABLE_WIN0,
 	/** .uint16 */
 	VRAM_QUEUE_OP_UINT16,
 };
@@ -62,6 +74,11 @@ struct vram_op {
 			uint16_t to_palette;
 			uint16_t count;
 		} palettes;
+		struct {
+			palette16_t* from;
+			uint16_t to_palette;
+			uint16_t count;
+		} palettes_free;
 		struct {
 			const tile_4bpp_t* from;
 			uint16_t to_block;
@@ -128,6 +145,12 @@ struct vram_op {
 		struct {
 			struct bgofs value[4];
 		} bgofss;
+		window_enable_quad_t win;
+		struct {
+			window_horizontal_t h;
+			window_vertical_t v;
+			uint16_t to_index;
+		} winhv;
 		struct {
 			uint16_t value;
 			volatile uint16_t* to;
@@ -136,6 +159,9 @@ struct vram_op {
 };
 
 void vram_op_queue_execute(void);
-void vram_op_queue_enqueue(const struct vram_op new_op);
+void vram_op_queue_enqueue(const struct vram_op* new_op);
+
+/// For test benchmarking
+uint32_t vram_op_queue_execute_verbose(unsigned indent);
 
 #endif //  #ifndef VRAM_OP_QUEUE_H

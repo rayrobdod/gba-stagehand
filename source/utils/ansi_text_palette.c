@@ -1,0 +1,20 @@
+#include "utils/ansi_text_palette.h"
+
+const palette16_t ansi_text_palette = {
+	[0] = {15, 15, 15},
+	[ANSI_PALETTE_RED] = {15, 0, 0},
+	[ANSI_PALETTE_GREEN] = {0, 15, 0},
+	[ANSI_PALETTE_YELLOW] = {10, 10, 0},
+	[ANSI_PALETTE_BLUE] = {0, 0, 15},
+	[ANSI_PALETTE_MAGENTA] = {10, 0, 10},
+	[ANSI_PALETTE_CYAN] = {0, 10, 10},
+	[ANSI_PALETTE_WHITE] = {31, 31, 31},
+	[ANSI_PALETTE_BLACK] = {0, 0, 0},
+	[ANSI_PALETTE_BRIGHT_RED] = {30, 10, 10},
+	[ANSI_PALETTE_BRIGHT_GREEN] = {10, 30, 10},
+	[ANSI_PALETTE_BRIGHT_YELLOW] = {30, 30, 0},
+	[ANSI_PALETTE_BRIGHT_BLUE] = {10, 10, 30},
+	[ANSI_PALETTE_BRIGHT_MAGENTA] = {30, 10, 30},
+	[ANSI_PALETTE_BRIGHT_CYAN] = {10, 30, 30},
+	[ANSI_PALETTE_GREY] = {15, 15, 15},
+};

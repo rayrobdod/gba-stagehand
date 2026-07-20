@@ -210,7 +210,7 @@ bool Smol1UnCompSuspendable(struct suspended_decompression* state) {
 	const uint8_t* lenOffs = state->src;
 	const uint8_t* const lenOffs_end = state->src_ptrs[1];
 
-	while (lenOffs < lenOffs_end && (reg_lcd.VCOUNT < (DISPLAY_HEIGHT - 10) || reg_lcd.VCOUNT > DISPLAY_HEIGHT)) {
+	while (lenOffs < lenOffs_end && (reg_lcd.VCOUNT < (DISPLAY_HEIGHT - 10) || reg_lcd.VCOUNT >= DISPLAY_HEIGHT)) {
 		const unsigned length = parseVarint(&lenOffs);
 		const unsigned offset = parseVarint(&lenOffs);
 

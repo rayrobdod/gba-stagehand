@@ -12,7 +12,7 @@ bool RlZeroUnCompSuspendable(struct suspended_decompression* state) {
 	volatile uint16_t* dest16 = (volatile uint16_t*) state->dest;
 	volatile uint16_t* dest_end16 = (volatile uint16_t*) state->dest_end;
 
-	while (dest16 < dest_end16 && (reg_lcd.VCOUNT < (DISPLAY_HEIGHT - 10) || reg_lcd.VCOUNT > DISPLAY_HEIGHT)) {
+	while (dest16 < dest_end16 && (reg_lcd.VCOUNT < (DISPLAY_HEIGHT - 10) || reg_lcd.VCOUNT >= DISPLAY_HEIGHT)) {
 		uint16_t counts = *src16++;
 		unsigned countCopy = counts >> 8;
 		unsigned countZero = counts & 0xFF;

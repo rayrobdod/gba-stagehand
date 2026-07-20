@@ -11,16 +11,20 @@
 #include "management/shadow_oam.h"
 #include "management/vram_op_queue.h"
 #include "mgba.h"
+#include "options.h"
 
 MainCallback scene_onframe_callback;
 
 int main() {
+	reg_interrupt.WAITCNT = common_waitcnt;
+
 	isr_switchboard_init();
 	isr_enable(II_VBLANK);
 
 	shadow_oam_init();
 
 	MgbaOpen();
+	options_load_from_save();
 
 	scene_onframe_callback = initial_scene_onframe_callback;
 

@@ -1,19 +1,26 @@
 #include "scene/text_print_step.h"
 
 #include <stdlib.h>
+#include <string.h>
 #include "management/keyinput.h"
 #include "management/shadow_vram.h"
 #include "management/vram_op_queue.h"
 #include "scene/main_menu.h"
+#include "transition/palette_fade.h"
+#include "utils/ansi_text_palette.h"
 #include "utils/arraycount.h"
 #include "utils/one_transparent_tileset.h"
+#include "utils/saturating_add.h"
 #include "graphics.h"
 #include "main.h"
 #include "mgba.h"
+#include "options.h"
 #include "text_printer.h"
 
-static void MainCB_textPrintStep_main(void);
-static void MainCB_textPrintStep_cleanup(void);
+static void MainCB_textPrintStep(void);
+static void MainCB_textPrintStep_reset(void);
+static union palette512 InitFadeIn_mainMenu(void);
+static void CleanupCB_textPrintStep(void);
 
 _Static_assert(sizeof(uint16_t) == sizeof(bg_tile_t));
 union bg_tile_2_uint {
@@ -21,15 +28,16 @@ union bg_tile_2_uint {
 	uint16_t uint;
 };
 
-__attribute__((section(".sbss")))
+__attribute__((section(".sbss.view_model.text_print_step")))
 static struct {
 	bg_tile_t zero_tile_ref;
-	uint32_t border_tile_id;
+	shadow_tiles_load_tileset_retval_t border_tile_ids;
 	window_id_t dialog_window_id;
+	uint16_t text_index;
 	struct text_print_step_state printer_state;
 	enum text_print_step_retval printer_retval;
 	tile_4bpp_t* dialog_window_shadow_tiles;
-}* view_model = NULL;
+} view_model = {0};
 
 static const char lorem_ipsum[] =
 	"Lorem ipsum dolor sit amet,\n"
@@ -48,23 +56,30 @@ static const char lorem_ipsum[] =
 	"in culpa qui officia deserunt\n"
 	"mollit anim id est laborum.";
 
-static const palette16_t text_pal = {
-	{10, 10, 10},
-	{30, 10, 10},
-	{10, 30, 10},
-	{30, 30, 0},
-	{10, 10, 30},
-	{30, 10, 30},
-	{10, 30, 30},
-	{31, 31, 31},
-	{0, 0, 0},
-	{20, 0, 0},
-	{0, 20, 0},
-	{15, 15, 0},
-	{0, 0, 20},
-	{20, 0, 20},
-	{0, 20, 20},
-	{20, 20, 20},
+static const struct {
+	const struct font* font;
+	coord16_t start_point;
+	coord16_t kerning;
+	text_print_overflow_t overflow;
+	font_colors_t colors;
+	const char* message;
+} texts[] = {
+	{
+		.font = &bitmapfont,
+		.start_point = (coord16_t) {2,3},
+		.kerning = (coord16_t) {1,2},
+		.overflow = (text_print_overflow_t) {TEXTPRINTOVERFLOWX_CLIP, TEXTPRINTOVERFLOWY_SCROLL},
+		.colors = (font_colors_t) {0, 7, 15, 8, false},
+		.message = lorem_ipsum,
+	},
+	{
+		.font = &lepidos,
+		.start_point = (coord16_t) {2,2},
+		.kerning = (coord16_t) {0,0},
+		.overflow = (text_print_overflow_t) {TEXTPRINTOVERFLOWX_CLIP, TEXTPRINTOVERFLOWY_SCROLL},
+		.colors = (font_colors_t) {0, 0, 0, 8, false},
+		.message = lorem_ipsum,
+	},
 };
 
 static const struct shadow_vram_init text_print_shadow_vram_init = {
@@ -94,11 +109,24 @@ static const struct shadow_tiles_window_allocate dialog_window_template = {
 };
 
 
-static const unsigned BORDER_PALETTE_NO = 1;
+static const unsigned TEXT_PALETTE_NO = 15;
 static const unsigned TILEMAP_BUFFER_COUNT = 32 * 20;
 
+static const struct transitionSourceCallbacks transitionSourceCbs_textPrintStep = {
+	.fadeOut = NULL,
+	.cleanup = CleanupCB_textPrintStep,
+};
+const struct transitionTargetCallbacks transitionTargetCbs_textPrintStep = {
+	.initFadeOut = NULL,
+	.fadeOut = NULL,
+	.initFadeIn = InitFadeIn_mainMenu,
+	.fadeIn = NULL,
+	.target = MainCB_textPrintStep,
+};
+
+
 static void gen_window_border(void) {
-	union bg_tile_2_uint convert = {.tile = view_model->zero_tile_ref};
+	union bg_tile_2_uint convert = {.tile = view_model.zero_tile_ref};
 	uint32_t zero_tile_ref_pair = convert.uint << 16 | convert.uint;
 
 	bg_tile_t* map = malloc(sizeof(bg_tile_t) * TILEMAP_BUFFER_COUNT);
@@ -112,7 +140,7 @@ static void gen_window_border(void) {
 	const unsigned left = dialog_window_template.x;
 	const unsigned right = left + dialog_window_template.width;
 
-	#define TILE(index) ((bg_tile_t) {.tile = view_model->border_tile_id + index, .palette = BORDER_PALETTE_NO})
+	#define TILE(index) ((bg_tile_t) {.tile = view_model.border_tile_ids.tileid + index, .palette = view_model.border_tile_ids.palid})
 
 	map[(left - 1) + 32 * (top - 1)] = TILE(0);
 	map[(right) + 32 * (top - 1)] = TILE(2);
@@ -133,7 +161,7 @@ static void gen_window_border(void) {
 
 	#undef TILE
 
-	vram_op_queue_enqueue((struct vram_op) {
+	vram_op_queue_enqueue(&(struct vram_op) {
 		.type = VRAM_QUEUE_OP_BG_MAP_FREE,
 		.map_free = {
 			.from = map,
@@ -144,104 +172,124 @@ static void gen_window_border(void) {
 	});
 }
 
-void MainCB_textPrintStep_init(void) {
-	view_model = calloc(sizeof(view_model[0]), 1);
-	if (false) {
-		MgbaPrintf(MGBA_LOG_DEBUG, "  view_model: %p, %d", view_model, sizeof(view_model[0]));
-	}
+static union palette512 InitFadeIn_mainMenu(void) {
+	union palette512 palette = {0};
+	memset(&view_model, 0, sizeof(view_model));
 	shadow_vram_init(&text_print_shadow_vram_init);
 
-	hw_palette.background._4[0][0] = rgb(0,16,31);
+	const struct tileset* frame = options_frame_get();
 
-	vram_op_queue_enqueue((struct vram_op) {
-		.type = VRAM_QUEUE_OP_BG_PALETTES,
-		.palettes = {
-			.from = dialog_box.palette,
-			.to_palette = BORDER_PALETTE_NO,
-			.count = 1,
-		},
-	});
-
-	view_model->zero_tile_ref = (bg_tile_t) {.tile = shadow_tiles_load_tileset(&one_transparent_tileset, (struct shadow_tiles_load_tileset) {0})};
-	view_model->border_tile_id = shadow_tiles_load_tileset(&dialog_box, (struct shadow_tiles_load_tileset) {0});
-	view_model->dialog_window_id = shadow_tiles_window_allocate(&dialog_window_template);
+	view_model.zero_tile_ref = (bg_tile_t) {.tile = shadow_tiles_load_tileset(&one_transparent_tileset, (shadow_tiles_load_tileset_args_t) {0}).tileid};
+	view_model.border_tile_ids = shadow_tiles_load_tileset_no_palette_vram_op(&palette, frame, (shadow_tiles_load_tileset_args_t) {0});
+	view_model.dialog_window_id = shadow_tiles_window_allocate(&dialog_window_template);
 
 	gen_window_border();
 
-	vram_op_queue_enqueue((struct vram_op) {
+	vram_op_queue_enqueue(&(struct vram_op) {
 		.type = VRAM_QUEUE_OP_BG_MAP_FILL,
 		.map_fill = {
-			.value = view_model->zero_tile_ref,
+			.value = view_model.zero_tile_ref,
 			.to_block = 30,
 			.to_tile = 0,
 			.count = TILEMAP_BUFFER_COUNT,
 		},
 	});
 
-	vram_op_queue_enqueue((struct vram_op) {
-		.type = VRAM_QUEUE_OP_BG_PALETTES,
-		.palettes = {
-			.from = &text_pal,
-			.to_palette = 15,
-			.count = 1,
-		},
-	});
+	CpuFastCopy(ansi_text_palette, palette.background._4[TEXT_PALETTE_NO], sizeof(palette16_t) / sizeof(uint32_t));
 
-	view_model->dialog_window_shadow_tiles = calloc(sizeof(tile_4bpp_t), dialog_window_template.width * dialog_window_template.height);
+	view_model.dialog_window_shadow_tiles = calloc(sizeof(tile_4bpp_t), dialog_window_template.width * dialog_window_template.height);
 
 	text_print_step_init(
-		&view_model->printer_state,
-		view_model->dialog_window_shadow_tiles,
+		&view_model.printer_state,
+		view_model.dialog_window_shadow_tiles,
 		&dialog_window_template,
-		&bitmapfont,
-		(coord16_t) {2,3},
-		(coord16_t) {1,2},
-		(font_colors_t) {0, 7, 15, 8, false},
-		lorem_ipsum);
+		texts[0].font,
+		texts[0].start_point,
+		texts[0].kerning,
+		texts[0].overflow,
+		texts[0].colors,
+		texts[0].message);
 
-	view_model->printer_retval = TEXT_PRINT_STEP_CONTINUE;
+	view_model.printer_retval = TEXT_PRINT_STEP_CONTINUE;
 
-	shadow_tiles_window_queue_tiles(view_model->dialog_window_id, view_model->dialog_window_shadow_tiles);
-	shadow_tiles_window_queue_map(view_model->dialog_window_id);
+	shadow_tiles_window_queue_tiles(view_model.dialog_window_id, view_model.dialog_window_shadow_tiles);
+	shadow_tiles_window_queue_map(view_model.dialog_window_id);
 
-	scene_onframe_callback = &MainCB_textPrintStep_main;
+	palette.background._4[0][0] = rgb(4, 18, 31);
+
+	return palette;
 }
 
-static void MainCB_textPrintStep_main(void) {
-	switch (view_model->printer_retval) {
+static void MainCB_textPrintStep(void) {
+	switch (view_model.printer_retval) {
 	case TEXT_PRINT_STEP_CONTINUE:
 		{
-			view_model->printer_retval = text_print_step(&view_model->printer_state);
-			shadow_tiles_window_queue_tiles(view_model->dialog_window_id, view_model->dialog_window_shadow_tiles);
+			view_model.printer_retval = text_print_step(&view_model.printer_state);
+			shadow_tiles_window_queue_tiles(view_model.dialog_window_id, view_model.dialog_window_shadow_tiles);
 		}
 		break;
 	case TEXT_PRINT_STEP_WAIT:
 		if (! keyinput_get_new().a || ! keyinput_get_down().r) {
-			view_model->printer_retval = TEXT_PRINT_STEP_CONTINUE;
-			MainCB_textPrintStep_main();
+			view_model.printer_retval = TEXT_PRINT_STEP_CONTINUE;
+			MainCB_textPrintStep();
 		}
 		break;
 	case TEXT_PRINT_STEP_STOP:
 		if (! keyinput_get_new().a) {
-			scene_onframe_callback = &MainCB_textPrintStep_cleanup;
+			StartTransition(
+				&transition_paletteFade_dodgerblue,
+				&transitionSourceCbs_textPrintStep,
+				&transitionTargetCbs_mainMenu);
 		}
 		break;
 	}
 
+	const int text_delta = keyinput_horizontal_pressed();
+	if (0 != text_delta) {
+		view_model.text_index = saturating_add(view_model.text_index, 0, arraycount(texts) - 1, text_delta);
+		view_model.printer_retval = TEXT_PRINT_STEP_CONTINUE;
+		view_model.printer_state.current_point.y = 32;
+		view_model.printer_state.message = "\f";
+		scene_onframe_callback = MainCB_textPrintStep_reset;
+	}
+
 	if (! keyinput_get_new().b) {
-		scene_onframe_callback = &MainCB_textPrintStep_cleanup;
+		StartTransition(
+			&transition_paletteFade_dodgerblue,
+			&transitionSourceCbs_textPrintStep,
+			&transitionTargetCbs_mainMenu);
 	}
 }
 
-static void MainCB_textPrintStep_cleanup(void) {
-	if (view_model->dialog_window_shadow_tiles) {
-		free(view_model->dialog_window_shadow_tiles);
-		view_model->dialog_window_shadow_tiles = NULL;
+static void MainCB_textPrintStep_reset(void) {
+	switch (view_model.printer_retval) {
+	case TEXT_PRINT_STEP_CONTINUE:
+	case TEXT_PRINT_STEP_WAIT:
+		{
+			view_model.printer_retval = text_print_step(&view_model.printer_state);
+			shadow_tiles_window_queue_tiles(view_model.dialog_window_id, view_model.dialog_window_shadow_tiles);
+		}
+		break;
+	case TEXT_PRINT_STEP_STOP:
+		text_print_step_init(
+			&view_model.printer_state,
+			view_model.dialog_window_shadow_tiles,
+			&dialog_window_template,
+			texts[view_model.text_index].font,
+			texts[view_model.text_index].start_point,
+			texts[view_model.text_index].kerning,
+			texts[view_model.text_index].overflow,
+			texts[view_model.text_index].colors,
+			texts[view_model.text_index].message);
+		view_model.printer_retval = TEXT_PRINT_STEP_CONTINUE;
+		scene_onframe_callback = MainCB_textPrintStep;
+		break;
 	}
-	if (view_model) {
-		free(view_model);
-		view_model = NULL;
-	}
+}
 
-	scene_onframe_callback = &MainCB_mainMenu_init;
+static void CleanupCB_textPrintStep(void) {
+	if (view_model.dialog_window_shadow_tiles) {
+		free(view_model.dialog_window_shadow_tiles);
+		view_model.dialog_window_shadow_tiles = NULL;
+	}
 }

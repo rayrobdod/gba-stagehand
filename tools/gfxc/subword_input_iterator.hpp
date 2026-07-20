@@ -85,10 +85,15 @@ public:
 
 	subword_input_iterator<IN, OUT, DIR> operator+(unsigned delta) const {
 		subword_input_iterator<IN, OUT, DIR> retval(*this);
-		retval._subword += bitsize<OUT> * delta;
-		retval._backing += retval._subword / bitsize<IN>;
-		retval._subword %= bitsize<IN>;
+		retval += delta;
 		return retval;
+	}
+
+	subword_input_iterator<IN, OUT, DIR>& operator+=(unsigned delta) {
+		this->_subword += bitsize<OUT> * delta;
+		this->_backing += this->_subword / bitsize<IN>;
+		this->_subword %= bitsize<IN>;
+		return *this;
 	}
 };
 

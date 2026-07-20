@@ -17,7 +17,7 @@ void test_vram_op_queue_enqueue_bg_palette(void) {
 		hw_palette.background._4[1][i] = black;
 	}
 	vram_op_queue_enqueue(
-		(struct vram_op) {
+		&(struct vram_op) {
 			.type = VRAM_QUEUE_OP_BG_PALETTES,
 			.palettes = {
 				.from = &rainbow,

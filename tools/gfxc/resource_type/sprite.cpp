@@ -75,29 +75,30 @@ std::ostream& operator<<(std::ostream& os, enum sprite_size v) {
 	return os;
 }
 
-static palette_data_builder sprite_extract_palettes(std::pair<std::filesystem::path, bufferedimage> image) {
+static palette_data_builder sprite_extract_palettes(input_path_and_data input) {
 	palette_data_builder retval;
 
+	bufferedimage image = std::get<bufferedimage>(input.second);
 	std::set<rgba16_t> colors;
-	colors.insert(image.second.background().with_alpha(0));
-	colors.merge(image.second.palette());
+	colors.insert(image.background().with_alpha(0));
+	colors.merge(image.palette());
 
 	if (colors.size() > 16) {
-		std::string msg(image.first);
+		std::string msg(input.first);
 		msg += ": sprite palette larger than 16 colors";
 		throw std::logic_error(msg);
 	}
 
 	retval.colorss.insert(colors);
 
-	retval.alternates = image.second.alt_palettes();
+	retval.alternates = image.alt_palettes();
 
 	return retval;
 }
 
-static std::vector<gbatile_4bpp> sprite_extract_tiles(std::pair<std::filesystem::path, struct bufferedimage> image, palette_data palettes) {
+static std::vector<gbatile_4bpp> sprite_extract_tiles(input_path_and_data input, palette_data palettes) {
 	if (1 != palettes.colorss.size()) {
-		std::string msg(image.first);
+		std::string msg(input.first);
 		msg += ": more than one palette for sprite";
 		throw std::logic_error(msg);
 	}
@@ -105,7 +106,8 @@ static std::vector<gbatile_4bpp> sprite_extract_tiles(std::pair<std::filesystem:
 	const std::vector<rgba16_t> used_pal = palettes.colorss[0];
 	std::vector<gbatile_4bpp> retval;
 
-	for (auto subimg : image.second.subs(8, 8)) {
+	bufferedimage image = std::get<bufferedimage>(input.second);
+	for (auto subimg : image.subs(8, 8)) {
 		gbatile_4bpp tile1(subimg.to_tile_4bpp(used_pal));
 
 		retval.push_back(tile1);
@@ -129,20 +131,32 @@ static void sprite_write_struct(std::ostream& headerstream) {
 }
 
 static void sprite_write_to_elf(
-	std::pair<std::filesystem::path, struct bufferedimage> image,
+	input_path_and_data input,
 	std::pair<std::string, palette_data> palettes,
 	std::pair<std::string, tiles_data> tiles,
+	[[maybe_unused]] std::pair<std::string, tile16x3s_data> tile16x3s,
 	std::string var_name,
 	std::ostream& headerstream,
+	Object_x8664& elf_x8664,
 	Object& elf
 ) {
 	headerstream << "extern const struct shadow_oam_template " << var_name << ";" << std::endl;
 
-	enum sprite_size my_size = sprite_size(image.second.width(), image.second.height());
+	bufferedimage image = std::get<bufferedimage>(input.second);
+
+	enum sprite_size my_size = sprite_size(image.width(), image.height());
 
 	std::array<uint16_t, 8> serialized = {
 		0, 0,
 		0, 0,
+		palettes.second.tag,
+		tiles.second.tag,
+		my_size,
+		0,
+	};
+	std::array<uint16_t, 12> serialized_x8664 = {
+		0, 0, 0, 0,
+		0, 0, 0, 0,
 		palettes.second.tag,
 		tiles.second.tag,
 		my_size,
@@ -161,8 +175,21 @@ static void sprite_write_to_elf(
 			.symbol_name = tiles.first,
 		},
 	};
+	std::vector<relocation_template_x8664> relocs_x8664 {
+		{
+			.offset = 0,
+			.type = R_X86_64_64,
+			.symbol_name = palettes.first,
+		},
+		{
+			.offset = 8,
+			.type = R_X86_64_64,
+			.symbol_name = tiles.first,
+		},
+	};
 
 	elf.push_single_variable_rodata_sections({var_name, STB_GLOBAL}, serialized, relocs);
+	elf_x8664.push_single_variable_rodata_sections({var_name, STB_GLOBAL}, serialized_x8664, relocs_x8664);
 
 	for (auto alternate : palettes.second.alternates) {
 		std::string alternate_var_name;
@@ -179,8 +206,11 @@ static void sprite_write_to_elf(
 
 		serialized[4] = alternate.second.tag;
 		relocs[0].symbol_name = alternate_palette_name;
+		serialized_x8664[8] = alternate.second.tag;
+		relocs_x8664[0].symbol_name = alternate_palette_name;
 
 		elf.push_single_variable_rodata_sections({alternate_var_name, STB_GLOBAL}, serialized, relocs);
+		elf_x8664.push_single_variable_rodata_sections({alternate_var_name, STB_GLOBAL}, serialized_x8664, relocs_x8664);
 	}
 }
 
@@ -188,5 +218,6 @@ const type_functions sprite_type_functions(
 	  &sprite_write_struct
 	, &sprite_extract_palettes
 	, &sprite_extract_tiles
+	, nullptr
 	, &sprite_write_to_elf
 );

@@ -57,6 +57,35 @@ void test_compress11_sixteen_loop(void) {
 	}
 }
 
+void test_compress16_Zeros_64(void) {
+	const std::vector<uint8_t> input(64);
+	std::optional<std::vector<uint8_t>> result_opt = compressLz16(input);
+
+	const std::vector<uint8_t> expected{
+		0x16, 0x40, 0, 0,
+		0, 0x30, 0, 0, 0, 0, 0x01, 0xF0, 0x01, 0x90, 0, 0
+	};
+
+	if (result_opt) {
+		std::vector<uint8_t> result = *result_opt;
+		TEST_ASSERT_EQUAL_VECTOR_HEX8(expected, result);
+	} else {
+		TEST_FAIL("Compression failed");
+	}
+}
+
+void test_decompress16_Zeros_64(void) {
+	const std::vector<uint8_t> input{
+		0x16, 0x40, 0, 0,
+		0, 0x30, 0, 0, 0, 0, 0x01, 0xF0, 0x01, 0x90, 0, 0
+	};
+	std::vector<uint8_t> result = decompressLz16(input, false);
+
+	const std::vector<uint8_t> expected(64);
+
+	TEST_ASSERT_EQUAL_VECTOR_HEX8(expected, result);
+}
+
 int main() {
 	total = 0;
 	failed = 0;
@@ -64,6 +93,8 @@ int main() {
 	RUN_TEST(test_compress10_Zeros_32);
 	RUN_TEST(test_compress11_Zeros_32);
 	RUN_TEST(test_compress11_sixteen_loop);
+	RUN_TEST(test_compress16_Zeros_64);
+	RUN_TEST(test_decompress16_Zeros_64);
 
 	printf("Total: %d; Failing: %d\n", total, failed);
 	return 0 != failed;

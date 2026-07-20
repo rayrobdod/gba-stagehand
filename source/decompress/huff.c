@@ -14,7 +14,7 @@ bool HuffUnCompSuspendable(struct suspended_decompression* state) {
 	unsigned inIntraOffset = state->regs[0];
 	uint32_t inWord = *((uint32_t*)state->src);
 
-	while (state->dest < state->dest_end && (reg_lcd.VCOUNT < (DISPLAY_HEIGHT - 2) || reg_lcd.VCOUNT > DISPLAY_HEIGHT)) {
+	while (state->dest < state->dest_end && (reg_lcd.VCOUNT < (DISPLAY_HEIGHT - 2) || reg_lcd.VCOUNT >= DISPLAY_HEIGHT)) {
 		uint32_t outWord = 0;
 		for (unsigned outIntraOffset = 0; outIntraOffset < 8; outIntraOffset += datasize) {
 			const uint8_t* tree = state->src_ptrs[0];

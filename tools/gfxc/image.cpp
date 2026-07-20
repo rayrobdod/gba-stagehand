@@ -139,15 +139,17 @@ bufferedimage::bufferedimage(
 	unsigned width,
 	unsigned height,
 	std::vector<rgba16_t> pixels,
-	std::map<std::string, std::string> text,
+	std::map<std::string, std::string> properties,
 	rgb15_t background,
-	std::map<std::string, std::map<rgba16_t, rgba16_t>> alt_palettes)
+	std::map<std::string, std::map<rgba16_t, rgba16_t>> alt_palettes,
+	std::vector<std::pair<uint32_t, uint16_t>> cmap)
 		: _width(width),
 			_height(height),
 			_pixels(pixels),
-			_text(text),
+			_properties(properties),
 			_background(background),
-			_alt_palettes(alt_palettes) {
+			_alt_palettes(alt_palettes),
+			_cmap(cmap) {
 }
 
 unsigned bufferedimage::width() const {
@@ -158,8 +160,8 @@ unsigned bufferedimage::height() const {
 	return this->_height;
 }
 
-const std::map<std::string, std::string>& bufferedimage::text() const {
-	return this->_text;
+const std::map<std::string, std::string>& bufferedimage::properties() const {
+	return this->_properties;
 }
 
 rgba16_t bufferedimage::pixel(unsigned x, unsigned y) const {
@@ -192,6 +194,10 @@ std::map<std::string, std::vector<rgba16_t>> bufferedimage::alt_palettes(std::ve
 
 std::map<std::string, std::map<rgba16_t, rgba16_t>> bufferedimage::alt_palettes() const {
 	return this->_alt_palettes;
+}
+
+std::vector<std::pair<uint32_t, uint16_t>> bufferedimage::char_to_glyph_map() const {
+	return this->_cmap;
 }
 
 ////

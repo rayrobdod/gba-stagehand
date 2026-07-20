@@ -10,11 +10,11 @@ struct LzCopyInstruction {
 	};
 };
 
-static const std::vector<uint8_t>::size_type flags_per_byte = 8;
-
 std::vector<uint8_t> decompressLz(std::vector<uint8_t> src, bool disassemble) {
 	unsigned expected_size = src[1] | src[2] << 8 | src[3] << 16;
 	std::vector<uint8_t> dest(expected_size);
+
+	static const std::vector<uint8_t>::size_type flags_per_byte = 8;
 
 	unsigned destPos = 0;
 	unsigned srcPos = 4;
@@ -60,6 +60,8 @@ std::vector<uint8_t> decompressLz(std::vector<uint8_t> src, bool disassemble) {
 std::vector<uint8_t> decompressLz11(std::vector<uint8_t> src, bool disassemble) {
 	unsigned expected_size = src[1] | src[2] << 8 | src[3] << 16;
 	std::vector<uint8_t> dest(expected_size);
+
+	static const std::vector<uint8_t>::size_type flags_per_byte = 8;
 
 	unsigned destPos = 0;
 	unsigned srcPos = 4;
@@ -120,9 +122,59 @@ std::vector<uint8_t> decompressLz11(std::vector<uint8_t> src, bool disassemble) 
 	return dest;
 }
 
-static std::vector<LzCopyInstruction> instructions(std::vector<uint8_t> src, std::vector<uint8_t>::size_type max_length) {
+std::vector<uint8_t> decompressLz16(std::vector<uint8_t> src, bool disassemble) {
+	unsigned expected_size = src[1] | src[2] << 8 | src[3] << 16;
+	std::vector<uint8_t> dest(expected_size);
+
+	static const std::vector<uint8_t>::size_type flags_per_byte = 16;
+
+	unsigned destPos = 0;
+	unsigned srcPos = 4;
+	unsigned flagPos = flags_per_byte;
+	uint16_t flag;
+
+	while (destPos < expected_size) {
+		if (flagPos >= flags_per_byte) {
+			flag = src[srcPos++];
+			flag |= src[srcPos++] << 8;
+			flagPos = 0;
+		}
+
+		if (flag & (1 << (flags_per_byte - 1 - flagPos))) {
+			if (disassemble)
+				printf("  %8d %8d | ", srcPos, destPos);
+			unsigned opcode = src[srcPos] | (src[srcPos + 1] << 8);
+			srcPos += 2;
+			unsigned width = ((opcode >> 12) + 3) * 2;
+			unsigned distance = ((opcode & 0xFFF) + 1) * 2;
+			if (disassemble)
+				printf("COPY: %2d %d\n", width, distance);
+
+			if (destPos + width <= expected_size) {
+				for (unsigned i = 0; i < width; i++) {
+					dest[destPos] = dest[destPos - distance];
+					destPos++;
+				}
+			} else {
+				destPos += width;
+			}
+		} else {
+			if (disassemble)
+				printf("  %8d %8d | IMM : %02X\n", srcPos, destPos, src[srcPos]);
+			dest[destPos++] = src[srcPos++];
+			dest[destPos++] = src[srcPos++];
+		}
+		flagPos++;
+	}
+	if (disassemble)
+		printf("  %8d %8d | END\n\n", srcPos, destPos);
+	return dest;
+}
+
+template <typename word>
+static std::vector<LzCopyInstruction> instructions(std::vector<word> src, typename std::vector<word>::size_type max_length) {
 	static const unsigned max_offset = 0xFFF;
-	static const std::vector<uint8_t>::size_type min_length = 3;
+	static const typename std::vector<word>::size_type min_length = 3;
 
 	std::vector<LzCopyInstruction> instrs;
 
@@ -157,13 +209,15 @@ static std::vector<LzCopyInstruction> instructions(std::vector<uint8_t> src, std
 }
 
 std::optional<std::vector<uint8_t>> compressLz(std::vector<uint8_t> src) {
-	auto instrs = instructions(src, 15 + 3);
+	auto instrs = instructions<uint8_t>(src, 15 + 3);
 
 	std::vector<uint8_t> result;
 	result.push_back(0x10);
 	result.push_back(src.size());
 	result.push_back(src.size() >> 8);
 	result.push_back(src.size() >> 16);
+
+	static const std::vector<uint8_t>::size_type flags_per_byte = 8;
 
 	for (unsigned i = 0; i < instrs.size(); i += flags_per_byte) {
 		uint8_t flags(0);
@@ -191,13 +245,15 @@ std::optional<std::vector<uint8_t>> compressLz(std::vector<uint8_t> src) {
 }
 
 std::optional<std::vector<uint8_t>> compressLz11(std::vector<uint8_t> src) {
-	auto instrs = instructions(src, 0xFFFF + 0x111);
+	auto instrs = instructions<uint8_t>(src, 0xFFFF + 0x111);
 
 	std::vector<uint8_t> result;
 	result.push_back(0x11);
 	result.push_back(src.size());
 	result.push_back(src.size() >> 8);
 	result.push_back(src.size() >> 16);
+
+	static const std::vector<uint8_t>::size_type flags_per_byte = 8;
 
 	for (unsigned i = 0; i < instrs.size(); i += flags_per_byte) {
 		uint8_t flags(0);
@@ -226,6 +282,54 @@ std::optional<std::vector<uint8_t>> compressLz11(std::vector<uint8_t> src) {
 					result.push_back((length << 4) | (instrs[i + j].offset >> 8));
 					result.push_back(instrs[i + j].offset);
 				}
+			}
+		}
+	}
+
+	while (result.size() % 4 != 0) {
+		result.push_back(0);
+	}
+
+	return std::make_optional(result);
+}
+
+std::optional<std::vector<uint8_t>> compressLz16(std::vector<uint8_t> src) {
+	if (0 != src.size() % 2)
+		return std::nullopt;
+
+	std::vector<uint16_t> src16;
+	for (std::vector<unsigned char>::size_type i = 0; i < src.size(); i += 2) {
+		src16.push_back(src[i] | (src[i + 1] << 8));
+	}
+	auto instrs = instructions<uint16_t>(src16, 15 + 3);
+
+	std::vector<uint8_t> result;
+	result.push_back(0x16);
+	result.push_back(src.size());
+	result.push_back(src.size() >> 8);
+	result.push_back(src.size() >> 16);
+
+	static const std::vector<uint16_t>::size_type flags_per_byte = 16;
+
+	for (unsigned i = 0; i < instrs.size(); i += flags_per_byte) {
+		uint16_t flags(0);
+		for (unsigned j = 0; j < std::min(flags_per_byte, instrs.size() - i); j++) {
+			if (instrs[i + j].length != 1)
+				flags |= 1 << (flags_per_byte - 1 - j);
+		}
+		result.push_back(flags);
+		result.push_back(flags >> 8);
+
+		for (unsigned j = 0; j < std::min(flags_per_byte, instrs.size() - i); j++) {
+			if (instrs[i + j].length == 1) {
+				result.push_back(instrs[i + j].value);
+				result.push_back(instrs[i + j].value >> 8);
+			} else {
+				uint16_t opcode = 0;
+				opcode |= (instrs[i + j].length - 3) << 12;
+				opcode |= instrs[i + j].offset;
+				result.push_back(opcode);
+				result.push_back(opcode >> 8);
 			}
 		}
 	}

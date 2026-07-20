@@ -9,10 +9,6 @@
 #include "mgba.h"
 #include "vram_op_queue.h"
 
-typedef uint8_t shadow_oam_palid_t;
-typedef uint8_t shadow_oam_tileid_t;
-static const shadow_oam_id_t shadow_id_invalid = 0xFF;
-
 static const struct {
 	uint8_t tilecount;
 	uint8_t half_width;
@@ -148,7 +144,7 @@ void shadow_oam_free_all(void) {
 		.word_count = sizeof(shadow_tiles_used) / sizeof(uint32_t),
 		.mode = CPU_SET_FILL
 	});
-	vram_op_queue_enqueue((struct vram_op) {
+	vram_op_queue_enqueue(&(struct vram_op) {
 		.type = VRAM_QUEUE_OP_DISABLE_ALL_OAM,
 	});
 }
@@ -175,7 +171,7 @@ static int shadow_tiles_allocate(unsigned count) {
 }
 
 static shadow_oam_palid_t shadow_oam_add_palette(
-	paltag_t paltag, const palette16_t* palette) {
+	paltag_t paltag, const palette16_t* palette, bool do_vram_op) {
 
 	shadow_oam_palid_t pal_index;
 	for (pal_index = 0; pal_index < arraycount(shadow_palette); pal_index++) {
@@ -189,13 +185,16 @@ static shadow_oam_palid_t shadow_oam_add_palette(
 		if (0 == shadow_palette[pal_index].refcount) {
 			shadow_palette[pal_index].refcount = 1;
 			shadow_palette[pal_index].tag = paltag;
-			vram_op_queue_enqueue((struct vram_op){
-				.type = VRAM_QUEUE_OP_OAM_PALETTES,
-				.palettes = {
-					.from = palette,
-					.to_palette = pal_index,
-					.count = 1,
-				}});
+
+			if (do_vram_op) {
+				vram_op_queue_enqueue(&(struct vram_op){
+					.type = VRAM_QUEUE_OP_OAM_PALETTES,
+					.palettes = {
+						.from = palette,
+						.to_palette = pal_index,
+						.count = 1,
+					}});
+			}
 
 			MgbaPrintf(MGBA_LOG_DEBUG, "  pal_index = %d", pal_index);
 			return pal_index;
@@ -239,7 +238,7 @@ static shadow_oam_tileid_t shadow_oam_add_tiles(
 			shadow_tiles[shadow_tile_index].tile_start = tile_index;
 			shadow_tiles[shadow_tile_index].tile_count = tilecount;
 
-			vram_op_queue_enqueue((struct vram_op){
+			vram_op_queue_enqueue(&(struct vram_op){
 				.type = VRAM_QUEUE_OP_OAM_TILES_COMPRESSED,
 				.tiles_compressed = {
 					.from = tiles,
@@ -269,9 +268,25 @@ static void shadow_oam_release_tiles(
 
 void shadow_oam_preload_sprite(
 	const struct shadow_oam_template* template) {
-	shadow_oam_add_palette(template->paltag, template->palette);
+	shadow_oam_add_palette(template->paltag, template->palette, true);
 	const unsigned tilecount = tilesize_properties[template->shape][template->size].tilecount;
 	shadow_oam_add_tiles(template->tiletag, template->tiles, tilecount);
+}
+
+void shadow_oam_preload_sprite_no_palette_vram_op(
+	union palette512* palette,
+	const struct shadow_oam_template* template) {
+	shadow_oam_palid_t pal_index =
+		shadow_oam_add_palette(template->paltag, template->palette, false);
+	const unsigned tilecount = tilesize_properties[template->shape][template->size].tilecount;
+	shadow_oam_add_tiles(template->tiletag, template->tiles, tilecount);
+	if (palette) {
+		CpuFastCopy(
+			template->palette,
+			palette->object._4[pal_index],
+			sizeof(palette16_t) / sizeof(uint32_t));
+	}
+
 }
 
 shadow_oam_id_t shadow_oam_add_sprite(
@@ -280,7 +295,7 @@ shadow_oam_id_t shadow_oam_add_sprite(
 	MgbaPrintf(MGBA_LOG_DEBUG, "ENTER shadow_oam_add_sprite");
 
 	shadow_oam_palid_t pal_index =
-		shadow_oam_add_palette(template->paltag, template->palette);
+		shadow_oam_add_palette(template->paltag, template->palette, true);
 	if (pal_index == shadow_id_invalid) {
 		return shadow_id_invalid;
 	}
@@ -315,6 +330,53 @@ shadow_oam_id_t shadow_oam_add_sprite(
 	return shadow_oam_index;
 }
 
+shadow_oam_id_t shadow_oam_add_sprite_no_palette_vram_op(
+	union palette512* palette,
+	const struct shadow_oam_template* template,
+	const struct shadow_oam_position position) {
+	shadow_oam_palid_t pal_index =
+		shadow_oam_add_palette(template->paltag, template->palette, false);
+	if (pal_index == shadow_palid_invalid) {
+		return shadow_id_invalid;
+	}
+
+	const unsigned tilecount = tilesize_properties[template->shape][template->size].tilecount;
+	shadow_oam_tileid_t shadow_tile_index =
+		shadow_oam_add_tiles(template->tiletag, template->tiles, tilecount);
+
+	if (shadow_tile_index == shadow_tileid_invalid) {
+		return shadow_id_invalid;
+	}
+
+	unsigned shadow_oam_index;
+	for (shadow_oam_index = 0; shadow_oam_index < arraycount(shadow_oam); shadow_oam_index++) {
+		if (! shadow_oam[shadow_oam_index].in_use) {
+			shadow_oam[shadow_oam_index].in_use = true;
+			shadow_oam[shadow_oam_index].palette_index = pal_index;
+			shadow_oam[shadow_oam_index].shadow_tile_index = shadow_tile_index;
+			shadow_oam[shadow_oam_index].template = template;
+
+			shadow_oam_move_sprite(shadow_oam_index, position);
+
+			break;
+		}
+	}
+
+	if (shadow_oam_index >= arraycount(shadow_oam)) {
+		MgbaPrintf(MGBA_LOG_ERROR, "  shadow oams exhausted");
+		shadow_oam_index = shadow_id_invalid;
+	}
+
+	if (palette) {
+		CpuFastCopy(
+			template->palette,
+			palette->object._4[pal_index],
+			sizeof(palette16_t) / sizeof(uint32_t));
+	}
+
+	return shadow_oam_index;
+}
+
 void shadow_oam_remove_sprite(shadow_oam_id_t index) {
 	if (index >= arraycount(shadow_oam))
 		return;
@@ -325,7 +387,7 @@ void shadow_oam_remove_sprite(shadow_oam_id_t index) {
 	shadow_oam_release_palette(oam->palette_index);
 
 	oam->in_use = false;
-	vram_op_queue_enqueue((struct vram_op) {
+	vram_op_queue_enqueue(&(struct vram_op) {
 		.type = VRAM_QUEUE_OP_OAM_ENTRY,
 		.oam = {
 			.to_index = index,
@@ -334,6 +396,53 @@ void shadow_oam_remove_sprite(shadow_oam_id_t index) {
 			}
 		}
 	});
+}
+
+bool shadow_oam_rewrite_sprite(
+	shadow_oam_id_t shadow_oam_index,
+	const struct shadow_oam_template* template,
+	const struct shadow_oam_position position) {
+	if (shadow_oam_index >= arraycount(shadow_oam))
+		return false;
+
+	struct shadow_oam* oam = &shadow_oam[shadow_oam_index];
+
+	if (shadow_palette[oam->palette_index].tag != template->paltag) {
+		shadow_oam_palid_t old_pal_index = oam->palette_index;
+		shadow_oam_release_palette(old_pal_index);
+
+		shadow_oam_palid_t new_pal_index =
+			shadow_oam_add_palette(template->paltag, template->palette, true);
+		if (new_pal_index == shadow_id_invalid) {
+			MgbaPrintf(MGBA_LOG_ERROR, "  shadow oam palettes exhausted");
+			shadow_palette[old_pal_index].refcount++;
+			return false;
+		} else {
+			oam->palette_index = new_pal_index;
+		}
+	}
+
+	if (shadow_tiles[oam->shadow_tile_index].tag != template->tiletag) {
+		shadow_oam_palid_t old_tile_index = oam->shadow_tile_index;
+		shadow_oam_release_tiles(old_tile_index);
+
+		const unsigned tilecount = tilesize_properties[template->shape][template->size].tilecount;
+		shadow_oam_tileid_t new_tile_index =
+			shadow_oam_add_tiles(template->tiletag, template->tiles, tilecount);
+		if (new_tile_index == shadow_id_invalid) {
+			MgbaPrintf(MGBA_LOG_ERROR, "  shadow oam tiles exhausted");
+			shadow_tiles[old_tile_index].refcount++;
+			return false;
+		} else {
+			oam->shadow_tile_index = new_tile_index;
+		}
+	}
+
+	oam->template = template;
+
+	shadow_oam_move_sprite(shadow_oam_index, position);
+
+	return true;
 }
 
 void shadow_oam_move_sprite(
@@ -348,7 +457,7 @@ void shadow_oam_move_sprite(
 	const int dx = hotspot_properties[position.hotspot].x * tilesize_properties[oam->template->shape][oam->template->size].half_width;
 	const int dy = hotspot_properties[position.hotspot].y * tilesize_properties[oam->template->shape][oam->template->size].half_height;
 
-	vram_op_queue_enqueue((struct vram_op) {
+	vram_op_queue_enqueue(&(struct vram_op) {
 		.type = VRAM_QUEUE_OP_OAM_ENTRY,
 		.oam = {
 			.to_index = index,
@@ -357,6 +466,7 @@ void shadow_oam_move_sprite(
 				.x = position.coord.x - dx,
 				.hflip = position.hflip,
 				.vflip = position.vflip,
+				.priority = position.priority,
 
 				.tile_num = shadow_tiles[oam->shadow_tile_index].tile_start,
 				.palette_num = oam->palette_index,

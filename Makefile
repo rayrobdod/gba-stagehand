@@ -94,7 +94,9 @@ ROMTEST	?= ../icwic/tools/mgba/mgba-rom-test
 SOURCES_S	:= $(wildcard $(SOURCEDIR)/*.s $(SOURCEDIR)/**/*.s)
 SOURCES_C	:= $(wildcard $(SOURCEDIR)/*.c $(SOURCEDIR)/**/*.c)
 SOURCES_CPP	:= $(wildcard $(SOURCEDIR)/*.cpp $(SOURCEDIR)/**/*.cpp)
-SOURCES_PNG	:= $(wildcard $(GRAPHICSDIR)/*.png $(GRAPHICSDIR)/**/*.png)
+SOURCES_PNG	:= $(wildcard $(GRAPHICSDIR)/*.png $(GRAPHICSDIR)/**/*.png $(GRAPHICSDIR)/**/**/*.png)
+SOURCES_TILEDMAP	:= $(wildcard $(GRAPHICSDIR)/*.tmx $(GRAPHICSDIR)/**/*.tmx $(GRAPHICSDIR)/**/**/*.tmx)
+SOURCES_TILEDSET	:= $(wildcard $(GRAPHICSDIR)/*.tsx $(GRAPHICSDIR)/**/*.tsx $(GRAPHICSDIR)/**/**/*.tsx)
 
 HOSTSRCS_C	:= $(wildcard $(SOURCEDIR_HOST)/*.c) $(wildcard $(SOURCEDIR_HOST)/**/*.c)
 TESTSRCS_C	:= $(wildcard $(SOURCEDIR_TEST)/*.c) $(wildcard $(SOURCEDIR_TEST)/**/*.c)
@@ -147,10 +149,16 @@ HOSTCFLAGS += -O3
 HOSTCFLAGS += -ffunction-sections
 HOSTCFLAGS += -fdata-sections
 HOSTCFLAGS += -fanalyzer
+HOSTCFLAGS += -fPIE
+HOSTCFLAGS += -ggdb -DDEBUG
 
-HOSTLDFLAGS	+= $(LIBDIRSFLAGS) \
-                  -Wl,--gc-sections \
-                  -Wl,--start-group -lm $(LIBS) -Wl,--end-group \
+HOSTLDFLAGS += $(LIBDIRSFLAGS)
+HOSTLDFLAGS += -Wl,--gc-sections
+HOSTLDFLAGS += -Wl,--start-group
+HOSTLDFLAGS += -lm
+HOSTLDFLAGS += $(LIBS)
+HOSTLDFLAGS += -Wl,--end-group
+HOSTLDFLAGS += -fPIE
 
 TESTLDFLAGS		:= -mthumb -mthumb-interwork $(LIBDIRSFLAGS) \
 		   -Wl,--gc-sections \
@@ -262,7 +270,7 @@ $(TESTOBJDIR)/trivial_decompression.o: $(GFXC)
 	@$(MKDIR) -p $(@D)
 	$(V)$(GFXC) --decompression_suite --trivial $@
 
-$(TESTEXEDIR)/%.elf : $(TESTOBJDIR)/%.c.o $(TESTOBJDIR)/harness.c.o $(TESTOBJDIR)/benchmarks.c.o $(filter-out $(BUILDOBJDIR)/main.c.o $(BUILDOBJDIR)/scene/%.c.o, $(OBJS)) source/sys/gba_cart.ld
+$(TESTEXEDIR)/%.elf : $(TESTOBJDIR)/%.c.o $(TESTOBJDIR)/harness.c.o $(TESTOBJDIR)/benchmarks.c.o $(filter-out $(BUILDOBJDIR)/main.c.o $(BUILDOBJDIR)/scene/%.c.o $(BUILDOBJDIR)/transition/%.c.o $(BUILDOBJDIR)/management/keyinput.c.o, $(OBJS)) source/sys/gba_cart.ld
 	@echo "  LD      $@"
 	@$(MKDIR) -p $(@D)
 	$(V)$(CC) -o $@ $(filter-out %.ld,$^) $(TESTLDFLAGS) -Wl,-Map,$(@:.elf=.map)
@@ -340,11 +348,13 @@ $(BUILDOBJDIR)/dmg_music/staff_position.c.o : $(BUILDSRCDIR)/dmg_music/staff_pos
 
 generated_headers: $(BUILDSRCDIR)/graphics.h
 OBJS += $(BUILDOBJDIR)/graphics.o
-$(BUILDOBJDIR)/graphics.o $(BUILDSRCDIR)/graphics.h &: $(GFXC) $(SOURCES_PNG)
+TEST_OBJS += $(HOSTOBJDIR_HOST)/graphics.o
+$(BUILDOBJDIR)/graphics.o $(BUILDSRCDIR)/graphics.h $(HOSTOBJDIR_HOST)/graphics.o &: $(GFXC) $(SOURCES_PNG) $(SOURCES_TILEDMAP) $(SOURCES_TILEDSET)
 	@echo "  GFXC"
 	@$(MKDIR) -p $(BUILDOBJDIR)
+	@$(MKDIR) -p $(HOSTOBJDIR_HOST)
 	@$(MKDIR) -p $(BUILDSRCDIR)
-	$(V)$(GFXC) $(GRAPHICSDIR) $(BUILDOBJDIR)/graphics.o $(BUILDSRCDIR)/graphics.h
+	$(V)$(GFXC) $(GRAPHICSDIR) $(BUILDOBJDIR)/graphics.o $(BUILDSRCDIR)/graphics.h $(HOSTOBJDIR_HOST)/graphics.o
 
 generated_headers: $(BUILDSRCDIR)/graphics_types.h
 $(BUILDSRCDIR)/graphics_types.h: $(GFXC)
@@ -357,7 +367,11 @@ OBJS += $(BUILDOBJDIR)/resource_credits.o
 $(BUILDOBJDIR)/resource_credits.o $(BUILDSRCDIR)/resource_credits.h &: $(METADATA) $(SOURCES_PNG)
 	@echo "  METADATA"
 	@$(MKDIR) -p $(BUILDSRCDIR)
-	$(V)$(METADATA) --out-object $(BUILDOBJDIR)/resource_credits.o --out-header $(BUILDSRCDIR)/resource_credits.h $(SOURCES_PNG)
+	$(V)$(METADATA) \
+		--out-object $(BUILDOBJDIR)/resource_credits.o \
+		--out-header $(BUILDSRCDIR)/resource_credits.h \
+		--out-text $(BUILDDIR)/main/CREDITS.md \
+		$(SOURCES_PNG)
 
 $(ELF): $(OBJS) source/sys/gba_cart.ld
 	@echo "  LD      $@"
@@ -369,17 +383,84 @@ $(ROM): $(ELF) $(GBAFIX)
 	@echo "  GBAFIX  $@"
 	$(V)$(GBAFIX) $@ -t$(GAME_TITLE) -c$(GAME_CODE)
 
-$(HOSTEXEDIR)/test_vram_op_queue : $(HOSTOBJDIR_SRC)/management/vram_op_queue.c.o $(HOSTOBJDIR_SRC)/gba/palette.c.o $(HOSTOBJDIR_SRC)/gba/vram.c.o $(HOSTOBJDIR_SRC)/gba/oam.c.o $(HOSTOBJDIR_SRC)/gba/hw_reg.c.o
-$(TESTEXEDIR)/bench_text_printer.elf : $(BUILDOBJDIR)/graphics.o
-$(TESTEXEDIR)/bench_mode3_copy.elf : $(BUILDOBJDIR)/graphics.o
-$(TESTEXEDIR)/bench_parallax_mountain.elf : $(BUILDOBJDIR)/graphics.o
-$(TESTEXEDIR)/bench_parallax_mountain.elf : $(BUILDOBJDIR)/scene/parallax_mountain_dusk.c.o
-$(TESTEXEDIR)/bench_decompress.elf : $(patsubst $(GRAPHICSDIR)/%.png,$(TESTOBJDIR)/%.png.o,$(SOURCES_PNG))
+$(HOSTEXEDIR)/test_memcpy_sram : $(HOSTOBJDIR_HOST)/memcpy_sram.c.o
+$(HOSTEXEDIR)/test_shadow_vram : $(HOSTOBJDIR_HOST)/bios.c.o
+$(HOSTEXEDIR)/test_shadow_vram : $(HOSTOBJDIR_HOST)/graphics.o
+$(HOSTEXEDIR)/test_shadow_vram : $(HOSTOBJDIR_HOST)/identity.c.o
+$(HOSTEXEDIR)/test_shadow_vram : $(HOSTOBJDIR_HOST)/rlzero.c.o
+$(HOSTEXEDIR)/test_shadow_vram : $(HOSTOBJDIR_SRC)/decompress/by_header.c.o
+$(HOSTEXEDIR)/test_shadow_vram : $(HOSTOBJDIR_SRC)/decompress/common.c.o
+$(HOSTEXEDIR)/test_shadow_vram : $(HOSTOBJDIR_SRC)/decompress/frit.c.o
+$(HOSTEXEDIR)/test_shadow_vram : $(HOSTOBJDIR_SRC)/decompress/lz11.c.o
+$(HOSTEXEDIR)/test_shadow_vram : $(HOSTOBJDIR_SRC)/decompress/lz16.c.o
+$(HOSTEXEDIR)/test_shadow_vram : $(HOSTOBJDIR_SRC)/decompress/rlzero.c.o
+$(HOSTEXEDIR)/test_shadow_vram : $(HOSTOBJDIR_SRC)/decompress/smol.c.o
+$(HOSTEXEDIR)/test_shadow_vram : $(HOSTOBJDIR_SRC)/gba/hw_reg.c.o
+$(HOSTEXEDIR)/test_shadow_vram : $(HOSTOBJDIR_SRC)/gba/oam.c.o
+$(HOSTEXEDIR)/test_shadow_vram : $(HOSTOBJDIR_SRC)/gba/palette.c.o
+$(HOSTEXEDIR)/test_shadow_vram : $(HOSTOBJDIR_SRC)/gba/vram.c.o
+$(HOSTEXEDIR)/test_shadow_vram : $(HOSTOBJDIR_SRC)/management/shadow_vram.c.o
+$(HOSTEXEDIR)/test_shadow_vram : $(HOSTOBJDIR_SRC)/management/vram_op_queue.c.o
+$(HOSTEXEDIR)/test_text_printer : $(HOSTOBJDIR_HOST)/graphics.o
+$(HOSTEXEDIR)/test_text_printer : $(HOSTOBJDIR_SRC)/text_printer.c.o
+$(HOSTEXEDIR)/test_vram_op_queue : $(HOSTOBJDIR_SRC)/management/vram_op_queue.c.o
+$(HOSTEXEDIR)/test_vram_op_queue : $(HOSTOBJDIR_HOST)/identity.c.o
+$(HOSTEXEDIR)/test_vram_op_queue : $(HOSTOBJDIR_HOST)/rlzero.c.o
+$(HOSTEXEDIR)/test_vram_op_queue : $(HOSTOBJDIR_SRC)/decompress/by_header.c.o
+$(HOSTEXEDIR)/test_vram_op_queue : $(HOSTOBJDIR_SRC)/decompress/common.c.o
+$(HOSTEXEDIR)/test_vram_op_queue : $(HOSTOBJDIR_SRC)/decompress/frit.c.o
+$(HOSTEXEDIR)/test_vram_op_queue : $(HOSTOBJDIR_SRC)/decompress/lz11.c.o
+$(HOSTEXEDIR)/test_vram_op_queue : $(HOSTOBJDIR_SRC)/decompress/lz16.c.o
+$(HOSTEXEDIR)/test_vram_op_queue : $(HOSTOBJDIR_SRC)/decompress/rlzero.c.o
+$(HOSTEXEDIR)/test_vram_op_queue : $(HOSTOBJDIR_SRC)/decompress/smol.c.o
+$(HOSTEXEDIR)/test_vram_op_queue : $(HOSTOBJDIR_SRC)/gba/palette.c.o
+$(HOSTEXEDIR)/test_vram_op_queue : $(HOSTOBJDIR_SRC)/gba/vram.c.o
+$(HOSTEXEDIR)/test_vram_op_queue : $(HOSTOBJDIR_SRC)/gba/oam.c.o
+$(HOSTEXEDIR)/test_vram_op_queue : $(HOSTOBJDIR_SRC)/gba/hw_reg.c.o
+$(HOSTEXEDIR)/test_walkaround : $(HOSTOBJDIR_HOST)/graphics.o
+$(HOSTEXEDIR)/test_walkaround : $(HOSTOBJDIR_SRC)/gba/hw_reg.c.o
+$(HOSTEXEDIR)/test_walkaround : $(HOSTOBJDIR_SRC)/gba/palette.c.o
+$(HOSTEXEDIR)/test_walkaround : $(HOSTOBJDIR_SRC)/management/shadow_oam.c.o
+$(HOSTEXEDIR)/test_walkaround : $(HOSTOBJDIR_SRC)/management/shadow_vram.c.o
+$(HOSTEXEDIR)/test_walkaround : $(HOSTOBJDIR_SRC)/management/transition.c.o
+$(HOSTEXEDIR)/test_walkaround : $(HOSTOBJDIR_SRC)/mix_rgb.c.o
+$(HOSTEXEDIR)/test_walkaround : $(HOSTOBJDIR_SRC)/options.c.o
+$(HOSTEXEDIR)/test_walkaround : $(HOSTOBJDIR_SRC)/scene/walkaround.c.o
+$(HOSTEXEDIR)/test_walkaround : $(HOSTOBJDIR_SRC)/text_printer.c.o
+$(HOSTEXEDIR)/test_walkaround : $(HOSTOBJDIR_SRC)/transition/palette_fade.c.o
+$(HOSTEXEDIR)/test_walkaround : $(HOSTOBJDIR_SRC)/utils/ansi_text_palette.c.o
+$(HOSTEXEDIR)/test_walkaround : $(HOSTOBJDIR_SRC)/utils/one_transparent_tileset.c.o
 $(TESTEXEDIR)/bench_decompress.elf : $(TESTOBJDIR)/trivial_decompression.o
-$(TESTEXEDIR)/bench_dmgMusicUsingNotation.elf : $(BUILDOBJDIR)/graphics.o
-$(TESTEXEDIR)/bench_dmgMusicUsingNotation.elf : $(BUILDOBJDIR)/scene/dmg_music_using_notation.c.o
+$(TESTEXEDIR)/bench_decompress.elf : $(patsubst $(GRAPHICSDIR)/%.png,$(TESTOBJDIR)/%.png.o,$(SOURCES_PNG))
 $(TESTEXEDIR)/bench_dmgMusicUsingNotation.elf : $(BUILDOBJDIR)/dmg_music/frequencies.c.o
 $(TESTEXEDIR)/bench_dmgMusicUsingNotation.elf : $(BUILDOBJDIR)/dmg_music/staff_position.c.o
+$(TESTEXEDIR)/bench_dmgMusicUsingNotation.elf : $(BUILDOBJDIR)/graphics.o
+$(TESTEXEDIR)/bench_dmgMusicUsingNotation.elf : $(BUILDOBJDIR)/management/keyinput.c.o
+$(TESTEXEDIR)/bench_dmgMusicUsingNotation.elf : $(BUILDOBJDIR)/scene/dmg_music_using_notation.c.o
+$(TESTEXEDIR)/bench_dmgMusicUsingNotation.elf : $(BUILDOBJDIR)/transition/cut.c.o
+$(TESTEXEDIR)/bench_dmgMusicUsingNotation.elf : $(BUILDOBJDIR)/transition/palette_fade.c.o
+$(TESTEXEDIR)/bench_mode3_copy.elf : $(BUILDOBJDIR)/graphics.o
+$(TESTEXEDIR)/bench_parallax_mountain.elf : $(BUILDOBJDIR)/graphics.o
+$(TESTEXEDIR)/bench_parallax_mountain.elf : $(BUILDOBJDIR)/management/keyinput.c.o
+$(TESTEXEDIR)/bench_parallax_mountain.elf : $(BUILDOBJDIR)/scene/parallax_mountain_dusk.c.o
+$(TESTEXEDIR)/bench_parallax_mountain.elf : $(BUILDOBJDIR)/transition/palette_fade.c.o
+$(TESTEXEDIR)/bench_scene_gradient.elf : $(BUILDOBJDIR)/management/keyinput.c.o
+$(TESTEXEDIR)/bench_scene_gradient.elf : $(BUILDOBJDIR)/scene/gradient.c.o
+$(TESTEXEDIR)/bench_scene_gradient.elf : $(BUILDOBJDIR)/transition/cut.c.o
+$(TESTEXEDIR)/bench_text_printer.elf : $(BUILDOBJDIR)/graphics.o
+$(TESTEXEDIR)/bench_transitions.elf : $(filter $(BUILDOBJDIR)/transition/%.c.o, $(OBJS))
+$(TESTEXEDIR)/bench_walkaround.elf : $(BUILDOBJDIR)/graphics.o
+$(TESTEXEDIR)/bench_walkaround.elf : $(BUILDOBJDIR)/management/keyinput.c.o
+$(TESTEXEDIR)/bench_walkaround.elf : $(BUILDOBJDIR)/management/shadow_oam.c.o
+$(TESTEXEDIR)/bench_walkaround.elf : $(BUILDOBJDIR)/management/shadow_vram.c.o
+$(TESTEXEDIR)/bench_walkaround.elf : $(BUILDOBJDIR)/scene/walkaround.c.o
+$(TESTEXEDIR)/bench_walkaround.elf : $(BUILDOBJDIR)/transition/palette_fade.c.o
+$(TESTEXEDIR)/test_shadow_vram.elf : $(BUILDOBJDIR)/graphics.o
+$(TESTEXEDIR)/test_text_printer.elf : $(BUILDOBJDIR)/graphics.o
+$(TESTEXEDIR)/test_walkaround.elf : $(BUILDOBJDIR)/graphics.o
+$(TESTEXEDIR)/test_walkaround.elf : $(BUILDOBJDIR)/options.c.o
+$(TESTEXEDIR)/test_walkaround.elf : $(BUILDOBJDIR)/scene/walkaround.c.o
+$(TESTEXEDIR)/test_walkaround.elf : $(BUILDOBJDIR)/transition/palette_fade.c.o
 
 check_host: $(patsubst $(HOSTEXEDIR)/%,$(HOSTREPORTDIR)/%.txt,$(HOST_RUNNERS))
 	@:

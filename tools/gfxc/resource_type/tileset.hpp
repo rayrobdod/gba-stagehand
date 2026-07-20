@@ -1,5 +1,7 @@
 #include "resource_type_functions.hpp"
+#include <span>
+#include "object.hpp"
 
-palette_data_builder tileset_extract_palettes(std::pair<std::filesystem::path, bufferedimage> in);
+palette_data_builder tileset_extract_palettes(input_path_and_data);
 
 extern const type_functions tileset_type_functions;

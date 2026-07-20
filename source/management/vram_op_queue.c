@@ -35,6 +35,16 @@ static void vram_op_queue_execute_1(struct vram_op* entry) {
 				.mode = CPU_SET_COPY,
 			});
 		break;
+	case VRAM_QUEUE_OP_BG_PALETTES_FREE:
+		CpuFastSet(
+			entry->palettes_free.from,
+			&hw_palette.background._4[entry->palettes_free.to_palette],
+			(struct CpuFastSet){
+				.word_count = entry->palettes_free.count * (sizeof(palette16_t) / sizeof(uint32_t)),
+				.mode = CPU_SET_COPY,
+			});
+		free(entry->tiles_free.from);
+		break;
 	case VRAM_QUEUE_OP_OAM_PALETTES:
 		CpuFastSet(
 			entry->palettes.from,
@@ -45,6 +55,15 @@ static void vram_op_queue_execute_1(struct vram_op* entry) {
 			});
 		break;
 	case VRAM_QUEUE_OP_OAM_TILES:
+		CpuFastSet(
+			entry->tiles.from,
+			&vram.obj_charblock[entry->tiles.to_block][entry->tiles.to_tile],
+			(struct CpuFastSet){
+				.word_count = entry->tiles.count * (sizeof(tile_4bpp_t) / sizeof(uint32_t)),
+				.mode = CPU_SET_COPY,
+			});
+		break;
+	case VRAM_QUEUE_OP_OAM_TILES_FREE:
 		CpuFastSet(
 			entry->tiles.from,
 			&vram.obj_charblock[entry->tiles.to_block][entry->tiles.to_tile],
@@ -153,6 +172,21 @@ static void vram_op_queue_execute_1(struct vram_op* entry) {
 			}
 		}
 		break;
+	case VRAM_QUEUE_OP_BG_MAP_COLUMN_FREE:
+		{
+			unsigned rows = entry->map_free.count;
+			const bg_tile_t* from = entry->map_free.from;
+			uint16_t to_tile = entry->map_free.to_tile;
+
+			while (rows > 0) {
+				vram.screenblock[entry->map_free.to_block][to_tile] = *from;
+				rows--;
+				from++;
+				to_tile += 32;
+			}
+		}
+		free(entry->map_free.from);
+		break;
 	case VRAM_QUEUE_OP_OAM_ENTRY:
 		oam[entry->oam.to_index] = entry->oam.value;
 		break;
@@ -168,6 +202,21 @@ static void vram_op_queue_execute_1(struct vram_op* entry) {
 		reg_lcd.BGOFS[2] = entry->bgofss.value[2];
 		reg_lcd.BGOFS[3] = entry->bgofss.value[3];
 		break;
+	case VRAM_QUEUE_OP_HWREG_WIN:
+		reg_lcd.WIN = entry->win;
+		break;
+	case VRAM_QUEUE_OP_HWREG_WINHV:
+		if (0 == entry->winhv.to_index) {
+			reg_lcd.WIN0H = entry->winhv.h;
+			reg_lcd.WIN0V = entry->winhv.v;
+		} else {
+			reg_lcd.WIN1H = entry->winhv.h;
+			reg_lcd.WIN1V = entry->winhv.v;
+		}
+		break;
+	case VRAM_QUEUE_OP_ENABLE_WIN0:
+		reg_lcd.DISPCNT.enable_win0 = true;
+		break;
 	case VRAM_QUEUE_OP_UINT16:
 		*(entry->uint16.to) = entry->uint16.value;
 		break;
@@ -182,11 +231,77 @@ void vram_op_queue_execute(void) {
 	vram_op_queue_count = 0;
 }
 
-void vram_op_queue_enqueue(const struct vram_op new_op) {
+void vram_op_queue_enqueue(const struct vram_op* const new_op) {
 	if (vram_op_queue_count < VRAM_OP_QUEUE_CAPACITY) {
-		vram_op_queue[vram_op_queue_count] = new_op;
+		vram_op_queue[vram_op_queue_count] = *new_op;
 		vram_op_queue_count++;
 	} else {
 		MgbaPrintf(MGBA_LOG_ERROR, "VRAM Queue exhausted");
 	}
+}
+
+void benchmark_start();
+uint32_t benchmark_stop();
+static const unsigned CYCLES_PER_FRAME = 280896;
+
+static const char * const op_names[] = {
+	[VRAM_QUEUE_OP_NOOP] = "NOOP",
+	[VRAM_QUEUE_OP_DISABLE_ALL_OAM] = "DISABLE_ALL_OAM",
+	[VRAM_QUEUE_OP_BG_PALETTES] = "BG_PALETTES",
+	[VRAM_QUEUE_OP_BG_PALETTES_FREE] = "BG_PALETTES_FREE",
+	[VRAM_QUEUE_OP_BG_TILES] = "BG_TILES",
+	[VRAM_QUEUE_OP_BG_TILES_FREE] = "BG_TILES_FREE",
+	[VRAM_QUEUE_OP_BG_TILES_COMPRESSED] = "BG_TILES_COMPRESSED",
+	[VRAM_QUEUE_OP_BG_TILES_FILL] = "BG_TILES_FILL",
+	[VRAM_QUEUE_OP_BG_TILES_BITUNPACK] = "BG_TILES_BITUNPACK",
+	[VRAM_QUEUE_OP_BG_MAP] = "BG_MAP",
+	[VRAM_QUEUE_OP_BG_MAP_FREE] = "BG_MAP_FREE",
+	[VRAM_QUEUE_OP_BG_MAP_COMPRESSED] = "BG_MAP_COMPRESSED",
+	[VRAM_QUEUE_OP_BG_MAP_COLUMN] = "BG_MAP_COLUMN",
+	[VRAM_QUEUE_OP_BG_MAP_COLUMN_FREE] = "BG_MAP_COLUMN_FREE",
+	[VRAM_QUEUE_OP_BG_MAP_FILL] = "BG_MAP_FILL",
+	[VRAM_QUEUE_OP_OAM_PALETTES] = "OAM_PALETTES",
+	[VRAM_QUEUE_OP_OAM_TILES] = "OAM_TILES",
+	[VRAM_QUEUE_OP_OAM_TILES_FREE] = "OAM_TILES_FREE",
+	[VRAM_QUEUE_OP_OAM_TILES_COMPRESSED] = "OAM_TILES_COMPRESSED",
+	[VRAM_QUEUE_OP_OAM_ENTRY] = "OAM_ENTRY",
+	[VRAM_QUEUE_OP_HWREG_DISPCNT] = "HWREG_DISPCNT",
+	[VRAM_QUEUE_OP_HWREG_BGCNT] = "HWREG_BGCNT",
+	[VRAM_QUEUE_OP_HWREG_BGOFSS] = "HWREG_BGOFSS",
+	[VRAM_QUEUE_OP_HWREG_WIN] = "HWREG_WIN",
+	[VRAM_QUEUE_OP_HWREG_WINHV] = "HWREG_WINHV",
+	[VRAM_QUEUE_OP_ENABLE_WIN0] = "ENABLE_WIN0",
+	[VRAM_QUEUE_OP_UINT16] = "UINT16",
+};
+
+uint32_t vram_op_queue_execute_verbose(unsigned indent) {
+	uint32_t total_time = 0;
+	MgbaPrintf(MGBA_LOG_INFO, "%*svram_op_queue_count = %d",
+		indent, "",
+		vram_op_queue_count);
+	for (unsigned i = 0; i < vram_op_queue_count; i++) {
+		struct vram_op* entry = vram_op_queue + i;
+
+		benchmark_start();
+		vram_op_queue_execute_1(entry);
+		uint32_t time = benchmark_stop();
+		total_time += time;
+
+		MgbaPrintf(MGBA_LOG_INFO, "%*s[%3d] %20s: %8ld cycles = %2ld.%03ld frames",
+			indent, "",
+			i,
+			(op_names[entry->type] ? op_names[entry->type] : "???"),
+			(long unsigned int) (time),
+			(long unsigned int) (time / CYCLES_PER_FRAME),
+			(long unsigned int) ((time * 1000 / CYCLES_PER_FRAME) % 1000));
+	}
+	if (false) {
+		MgbaPrintf(MGBA_LOG_INFO, "%*stotal_time = %8ld cycles = %2ld.%03ld frames",
+			indent, "",
+			(long unsigned int) (total_time),
+			(long unsigned int) (total_time / CYCLES_PER_FRAME),
+			(long unsigned int) ((total_time * 1000 / CYCLES_PER_FRAME) % 1000));
+	}
+	vram_op_queue_count = 0;
+	return total_time;
 }

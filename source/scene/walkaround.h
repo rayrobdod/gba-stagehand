@@ -1,0 +1,1 @@
+extern const struct transitionTargetCallbacks transitionTargetCbs_walkaround_newgame;

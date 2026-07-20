@@ -1,6 +1,7 @@
 #include "mix_rgb.h"
 
 #include <stdio.h>
+#include "gba/hw_reg.h"
 #include "gba/palette.h"
 #include "management/isr.h"
 #include "utils/arraycount.h"
@@ -41,6 +42,7 @@ void bench_mix_rgb_512_1(void) {
 }
 
 int main() {
+	reg_interrupt.WAITCNT = common_waitcnt;
 	isr_switchboard_init();
 	isr_enable(II_VBLANK);
 	MgbaOpen();
