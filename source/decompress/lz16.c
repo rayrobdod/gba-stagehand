@@ -50,18 +50,17 @@ bool LZ16UnCompSuspendable(struct suspended_decompression* state) {
 	const uint16_t* src16 = (const uint16_t*)state->src;
 	volatile uint16_t* dest16 = (volatile uint16_t*)state->dest;
 	volatile uint16_t* const dest_end = (volatile uint16_t*)state->dest_end;
+	unsigned flags = state->regs[0];
+	unsigned flag_counter = state->regs[1];
 
-	while (dest16 < dest_end && (reg_lcd.VCOUNT < (DISPLAY_HEIGHT - 15) || reg_lcd.VCOUNT >= DISPLAY_HEIGHT)) {
-		unsigned flags = *src16++;
+	while (dest16 < dest_end && (reg_lcd.VCOUNT < (DISPLAY_HEIGHT - 1) || reg_lcd.VCOUNT >= DISPLAY_HEIGHT)) {
+		if (0 == flag_counter) {
+			flag_counter = 16;
+			flags = *src16++;
+		} else {
+			flag_counter -= 1;
 
-		for (int i = 15; i >= 0; --i) {
-			if (dest16 >= dest_end) {
-				state->dest = (volatile uint8_t*) dest16;
-				state->src = (const uint8_t*) src16;
-				return true;
-			}
-
-			if (flags & (1 << i)) {
+			if (flags & (1 << flag_counter)) {
 				unsigned width = 3 + (*src16 >> 12);
 				unsigned distance = 1 + (*src16 & 0xFFF);
 				src16 += 1;
@@ -77,5 +76,7 @@ bool LZ16UnCompSuspendable(struct suspended_decompression* state) {
 	}
 	state->dest = (volatile uint8_t*) dest16;
 	state->src = (const uint8_t*) src16;
+	state->regs[0] = flags;
+	state->regs[1] = flag_counter;
 	return state->dest >= state->dest_end;
 }
