@@ -11,7 +11,7 @@ struct CompressedData {
 
 struct suspended_decompression {
 	const uint8_t* src;
-	const uint8_t* src_ptrs[2];
+	const uint8_t* src_ptrs[3];
 	volatile uint8_t* dest;
 	volatile uint8_t* dest_end;
 	uint8_t magic;

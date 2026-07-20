@@ -16,3 +16,9 @@ void Smol1UnCompSuspendableInit(
 	struct suspended_decompression*,
 	const struct CompressedData* src,
 	volatile void* dest);
+
+bool Smol2UnCompSuspendable(struct suspended_decompression*);
+void Smol2UnCompSuspendableInit(
+	struct suspended_decompression*,
+	const struct CompressedData* src,
+	volatile void* dest);
