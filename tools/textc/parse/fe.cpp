@@ -69,6 +69,8 @@ static void parseFeImpl(std::vector<std::pair<std::string, std::string>>& parsed
 			switch (c) {
 			case '#':
 				state = parseFeState::HEADER;
+				if ('\0' != value.back())
+					value.push_back('\0');
 				if (! key.empty())
 					parsed.emplace_back(key, value);
 				key.clear();
@@ -124,6 +126,8 @@ static void parseFeImpl(std::vector<std::pair<std::string, std::string>>& parsed
 			break;
 		}
 	}
+	if ('\0' != value.back())
+		value.push_back('\0');
 	if (! key.empty())
 		parsed.emplace_back(key, value);
 }
