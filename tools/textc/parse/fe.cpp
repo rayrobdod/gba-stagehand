@@ -24,10 +24,12 @@ template<class R>
 static void parseFeImpl(std::vector<std::pair<std::string, std::string>>& parsed, R file) {
 	const std::map<std::string, std::string> macros(macros_raw.begin(), macros_raw.end());
 
+	const std::locale locale = std::locale();
+	const auto& facet = std::use_facet<std::ctype<char>>(locale);
+
 	std::string key;
 	std::string value;
 	std::string macro;
-	std::string pending;
 	parseFeState state = parseFeState::START_OF_LINE;
 
 	for (char c : file) {
@@ -44,9 +46,10 @@ static void parseFeImpl(std::vector<std::pair<std::string, std::string>>& parsed
 				state = parseFeState::MACRO;
 				break;
 			default:
-				value += pending;
-				pending.clear();
+				if (!value.empty() && !facet.is(std::ctype_base::space, value.back()))
+					value.push_back(' ');
 				value += c;
+				state = parseFeState::VALUE;
 				break;
 			}
 			break;
@@ -59,8 +62,6 @@ static void parseFeImpl(std::vector<std::pair<std::string, std::string>>& parsed
 				state = parseFeState::MACRO;
 				break;
 			default:
-				value += pending;
-				pending.clear();
 				value += c;
 				break;
 			}
@@ -97,8 +98,6 @@ static void parseFeImpl(std::vector<std::pair<std::string, std::string>>& parsed
 			switch (c) {
 			case ' ':
 				if (!key.empty()) {
-					key += pending;
-					pending.clear();
 					key += c;
 				}
 				break;
@@ -106,8 +105,6 @@ static void parseFeImpl(std::vector<std::pair<std::string, std::string>>& parsed
 				state = parseFeState::START_OF_LINE;
 				break;
 			default:
-				key += pending;
-				pending.clear();
 				key += c;
 				break;
 			}
@@ -133,5 +130,9 @@ static void parseFeImpl(std::vector<std::pair<std::string, std::string>>& parsed
 }
 
 void parseFe(std::vector<std::pair<std::string, std::string>>& parsed, const fmmap& file) {
+	parseFeImpl(parsed, file);
+}
+
+void parseFe(std::vector<std::pair<std::string, std::string>>& parsed, const std::string_view& file) {
 	parseFeImpl(parsed, file);
 }

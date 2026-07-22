@@ -28,11 +28,15 @@ V := @
 BUILDDIR	:= build
 BUILDOBJDIR	:= $(BUILDDIR)/main/objs
 BUILDGFXCOBJDIR	:= $(BUILDDIR)/main/gfxc_objs
+TEST_OBJ_DIR	:= build/test/objs
+TEST_RUNNER_DIR	:= build/test/exe
+TEST_REPORT_DIR	:= build/test/report
 
 # Source files
 
 SRCS_C	:= $(wildcard *.c)
 SRCS_CPP	:= $(wildcard *.cpp) $(wildcard parse/*.cpp)
+SRCS_TEST_CPP	:= $(wildcard test/*.cpp)
 
 # Flags
 
@@ -60,7 +64,17 @@ OBJS	:= \
 	$(BUILDGFXCOBJDIR)/object.cpp.o \
 	$(BUILDGFXCOBJDIR)/object_x8664.cpp.o \
 
-DEPS	:= $(OBJS:.o=.d)
+TEST_OBJS := \
+	$(patsubst test/%.cpp,$(TEST_OBJ_DIR)/%.cpp.o,$(SRCS_TEST_CPP)) \
+
+TEST_RUNNERS := \
+	$(patsubst test/%.cpp,$(TEST_RUNNER_DIR)/%,$(SRCS_TEST_CPP)) \
+
+TEST_REPORTS := \
+	$(patsubst $(TEST_RUNNER_DIR)/%,$(TEST_REPORT_DIR)/%.txt,$(TEST_RUNNERS))
+
+DEPS	+= $(OBJS:.o=.d)
+DEPS	+= $(TEST_OBJS:.o=.d)
 
 # Rules
 
@@ -78,6 +92,21 @@ $(BUILDGFXCOBJDIR)/%.cpp.o : ../gfxc/%.cpp
 	@echo "  HOSTCXX $<"
 	@$(MKDIR) -p $(@D)
 	$(V)$(CXX) $(CXXFLAGS) -MMD -MP -c -o $@ $<
+
+$(TEST_OBJ_DIR)/%.cpp.o : test/%.cpp
+	@echo "  HOSTCXX $<"
+	@$(MKDIR) -p $(@D)
+	$(V)$(CXX) $(CXXFLAGS) -MMD -MP -c -o $@ $<
+
+$(TEST_RUNNER_DIR)/% : $(TEST_OBJ_DIR)/%.cpp.o
+	@echo "  HOSTLD  $@"
+	@$(MKDIR) -p $(@D)
+	$(V)$(CXX) -o $@ $^ $(LDFLAGS)
+
+$(TEST_REPORT_DIR)/%.txt : $(TEST_RUNNER_DIR)/%
+	@echo "  CALL    $<"
+	@$(MKDIR) -p $(@D)
+	$(V)bash -c "set -o pipefail; $< | tee $@"
 
 # Targets
 
@@ -97,6 +126,12 @@ all: $(NAME)
 $(NAME): $(OBJS)
 	@echo "  HOSTLD  $@"
 	$(V)$(CXX) -o $@ $(OBJS) $(LDFLAGS)
+
+$(TEST_RUNNER_DIR)/test_parse_fe: $(BUILDOBJDIR)/parse/fe.cpp.o
+$(TEST_RUNNER_DIR)/test_parse_fe: $(BUILDOBJDIR)/fmmap.cpp.o
+
+check: $(TEST_REPORTS)
+	@:
 
 clean:
 	@echo "  CLEAN"

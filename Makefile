@@ -476,6 +476,7 @@ check_mgba: $(patsubst $(TESTEXEDIR)/%.elf,$(TESTREPORTDIR)/%.txt,$(TEST_RUNNERS
 
 check_all: check_host check_mgba
 	$(V)cd tools/gfxc && $(MAKE) check
+	$(V)cd tools/textc && $(MAKE) check
 
 $(DUMP): $(ELF)
 	@echo "  OBJDUMP $@"
