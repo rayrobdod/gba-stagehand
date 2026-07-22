@@ -74,12 +74,12 @@
  <objectgroup id="4" name="events">
   <object id="1" gid="332" x="32" y="160" width="16" height="16">
    <properties>
-    <property name="message" value="Nothing interesting in here."/>
+    <property name="message" value="text__walkaround__mushroom_village__barrel"/>
    </properties>
   </object>
   <object id="2" gid="332" x="64" y="80" width="16" height="16">
    <properties>
-    <property name="message" value="Stuff that way."/>
+    <property name="message" value="text__walkaround__mushroom_village__sign"/>
    </properties>
   </object>
   <object id="3" name="house_center" gid="333" x="112" y="96" width="16" height="16">

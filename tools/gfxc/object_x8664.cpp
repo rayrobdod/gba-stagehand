@@ -172,6 +172,18 @@ void Object_x8664::push_symbol(Elf64_Sym_Template hdr) {
 	});
 }
 
+void Object_x8664::push_undefined_symbol(std::string name) {
+	uint32_t st_name = symbol_strings.find_or_push(name);
+	public_symbols.push_back({
+		.st_name = st_name,
+		.st_info = ELF64_ST_INFO(STB_GLOBAL, STT_NOTYPE),
+		.st_other = STV_DEFAULT,
+		.st_shndx = SHN_UNDEF,
+		.st_value = 0,
+		.st_size = 0,
+	});
+}
+
 Elf64_Section Object_x8664::index_of_section(const std::string_view name) const {
 	if (name == "<ABS>") return SHN_ABS;
 

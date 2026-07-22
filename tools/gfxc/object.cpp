@@ -205,6 +205,18 @@ void Object::push_symbol(Elf32_Sym_Template hdr) {
 	});
 }
 
+void Object::push_undefined_symbol(std::string name) {
+	uint32_t st_name = symbol_strings.find_or_push(name);
+	public_symbols.push_back({
+		.st_name = st_name,
+		.st_value = 0,
+		.st_size = 0,
+		.st_info = ELF32_ST_INFO(STB_GLOBAL, STT_NOTYPE),
+		.st_other = 0,
+		.st_shndx = SHN_UNDEF,
+	});
+}
+
 Elf32_Section Object::index_of_section(const std::string_view name) const {
 	if (name == "<ABS>") return SHN_ABS;
 

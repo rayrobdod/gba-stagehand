@@ -94,6 +94,8 @@ public:
 
 	void push_symbol(Elf32_Sym_Template);
 
+	void push_undefined_symbol(std::string);
+
 	template<std::ranges::contiguous_range DATAS>
 	void push_bytes_section(
 			const Elf32_Shdr_Template header,

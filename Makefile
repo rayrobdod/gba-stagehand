@@ -456,6 +456,7 @@ $(TESTEXEDIR)/bench_walkaround.elf : $(BUILDOBJDIR)/management/keyinput.c.o
 $(TESTEXEDIR)/bench_walkaround.elf : $(BUILDOBJDIR)/management/shadow_oam.c.o
 $(TESTEXEDIR)/bench_walkaround.elf : $(BUILDOBJDIR)/management/shadow_vram.c.o
 $(TESTEXEDIR)/bench_walkaround.elf : $(BUILDOBJDIR)/scene/walkaround.c.o
+$(TESTEXEDIR)/bench_walkaround.elf : $(BUILDOBJDIR)/strings.o
 $(TESTEXEDIR)/bench_walkaround.elf : $(BUILDOBJDIR)/transition/palette_fade.c.o
 $(TESTEXEDIR)/test_shadow_vram.elf : $(BUILDOBJDIR)/graphics.o
 $(TESTEXEDIR)/test_text_printer.elf : $(BUILDOBJDIR)/graphics.o

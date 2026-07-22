@@ -183,17 +183,15 @@ static void tile16x3map_write_to_elf(
 		);
 	}
 
-	std::string strings_name("stringdata.");
-	strings_name += var_name;
-	StringTableBuilder strings;
-
 	std::string signs_name("signsdata.");
 	signs_name += var_name;
 	StructBytesBuilder signs;
 	for (auto sign : mapimage.signs()) {
+		hostelf.push_undefined_symbol(sign.message);
+		elf.push_undefined_symbol(sign.message);
 		signs.push_uint16(static_cast<uint16_t>(sign.x));
 		signs.push_uint16(static_cast<uint16_t>(sign.y));
-		signs.push_pointer(strings_name, strings.find_or_push(sign.message));
+		signs.push_pointer(sign.message);
 		signs.self_align();
 	}
 
@@ -243,8 +241,6 @@ static void tile16x3map_write_to_elf(
 		serialized.push_uint16(i);
 	}
 
-	elf.push_single_variable_rodata_sections({strings_name, STB_LOCAL}, strings.to_bytes());
-	hostelf.push_single_variable_rodata_sections({strings_name, STB_LOCAL}, strings.to_bytes());
 	elf.push_single_variable_rodata_sections({signs_name, STB_LOCAL}, signs.bytes_arm, signs.relocs_arm);
 	hostelf.push_single_variable_rodata_sections({signs_name, STB_LOCAL}, signs.bytes_x8664, signs.relocs_x8664);
 	elf.push_single_variable_rodata_sections({warps_name, STB_LOCAL}, warps.bytes_arm, warps.relocs_arm);
