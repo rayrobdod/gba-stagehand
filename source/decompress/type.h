@@ -15,7 +15,7 @@ struct suspended_decompression {
 	volatile uint8_t* dest;
 	volatile uint8_t* dest_end;
 	uint8_t magic;
-	uint16_t regs[4];
+	uint16_t regs[5];
 };
 
 #endif        //  #ifndef DECOMPRESS_TYPE_H

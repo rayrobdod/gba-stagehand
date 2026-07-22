@@ -61,6 +61,8 @@ static UnCompSuspendableFn MagicToUnCompSuspendable(unsigned magic) {
 		return &Smol1UnCompSuspendable;
 	case 0xF2:
 		return &Smol2UnCompSuspendable;
+	case 0xF3:
+		return &Smol3UnCompSuspendable;
 	default:
 		return NULL;
 	}
@@ -103,6 +105,8 @@ static UnCompSuspendableInitFn MagicToUnCompSuspendableInit(unsigned magic) {
 		return &Smol1UnCompSuspendableInit;
 	case 0xF2:
 		return &Smol2UnCompSuspendableInit;
+	case 0xF3:
+		return &Smol3UnCompSuspendableInit;
 	default:
 		return NULL;
 	}

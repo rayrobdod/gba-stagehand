@@ -388,6 +388,58 @@ void Smol3UnComp(const struct CompressedData* src, volatile void* dest) {
 	}
 }
 
+[[gnu::alias("Smol2UnCompSuspendableInit")]]
+void Smol3UnCompSuspendableInit(struct suspended_decompression* state, const struct CompressedData* src, volatile void* dest);
+
+bool Smol3UnCompSuspendable(struct suspended_decompression* state) {
+	volatile uint16_t* dest16 = (volatile uint16_t*) state->dest;
+	const uint8_t* lenOffs = state->src;
+	const uint8_t* const lenOffs_end = state->src_ptrs[2];
+
+	struct decoding_tans_cell symbol_tans_table[TANS_FREQUENCIES];
+	generate_decoding_tans_table(symbol_tans_table, (const uint32_t*) (state->src_ptrs[0]));
+
+	struct bitstream bitstream = {
+		.src = (const uint16_t*) (state->src_ptrs[1]),
+		.buffer = (state->regs[3] << 16) | state->regs[2],
+		.buffer_size = state->regs[1],
+	};
+	uint32_t tansState = state->regs[0];
+
+	uint32_t previousNibble = state->regs[4];
+
+	while (lenOffs < lenOffs_end && (reg_lcd.VCOUNT < (DISPLAY_HEIGHT - 10) || reg_lcd.VCOUNT >= DISPLAY_HEIGHT)) {
+		const unsigned length = parseVarint(&lenOffs);
+		const unsigned offset = parseVarint(&lenOffs);
+
+		if (0 == length) {
+			for (unsigned j = 0; j < offset; j++) {
+				*dest16 = parseTansBitstream_Deltau16(&bitstream, &tansState, &previousNibble, symbol_tans_table);
+				++dest16;
+			}
+		} else {
+			*dest16 = parseTansBitstream_Deltau16(&bitstream, &tansState, &previousNibble, symbol_tans_table);
+			++dest16;
+			for (unsigned j = 0; j < length; j++) {
+				*dest16 = *(dest16 - offset);
+				++dest16;
+			}
+		}
+	}
+
+	state->dest = (volatile uint8_t*) dest16;
+	state->src = lenOffs;
+	state->src_ptrs[1] = (const uint8_t*) bitstream.src;
+
+	state->regs[0] = tansState;
+	state->regs[1] = bitstream.buffer_size;
+	state->regs[2] = bitstream.buffer;
+	state->regs[3] = bitstream.buffer >> 16;
+	state->regs[4] = previousNibble;
+
+	return lenOffs >= lenOffs_end;
+}
+
 void Smol4UnComp(const struct CompressedData* src, volatile void* dest) {
 	//const uint32_t mode = src->data[0] & 0xF;
 	//const uint32_t imageSize = (src->data[0] >> 4) | (src->data[1] << 4) | ((src->data[2] & 0x3) << 12);
