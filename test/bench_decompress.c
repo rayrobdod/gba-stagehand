@@ -161,7 +161,7 @@ void run_decompress_benchmark(const struct decompression_suite * suite) {
 		++total;
 	}
 
-	if (suite->data->magic < 0xF4)
+	if (suite->data->magic < 0xF5)
 	{
 		struct suspended_decompression state;
 		bool currentTestFailed = false;

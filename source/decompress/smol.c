@@ -485,6 +485,80 @@ void Smol4UnComp(const struct CompressedData* src, volatile void* dest) {
 	}
 }
 
+void Smol4UnCompSuspendableInit(
+		struct suspended_decompression* state,
+		const struct CompressedData* src,
+		volatile void* dest) {
+	//const uint32_t mode = src->data[0] & 0xF;
+	//const uint32_t imageSize = (src->data[0] >> 4) | (src->data[1] << 4) | ((src->data[2] & 0x3) << 12);
+	//const uint32_t symbolsSize = (src->data[2] >> 2) | (src->data[3] << 6);
+	const uint32_t tansState = src->data[4] & 0x3F;
+	const uint32_t bitstreamSize = (src->data[4] >> 6) | (src->data[5] << 2) | ((src->data[6] & 0x7) << 10);
+	const uint32_t lengthoffsetSize = (src->data[6] >> 3) | (src->data[7] << 5);
+
+	state->src = src->data + 8 + 12 + 4 * bitstreamSize;
+	state->src_ptrs[0] = src->data + 8;
+	state->src_ptrs[1] = src->data + 8 + 12;
+	state->src_ptrs[2] = (const uint8_t*)(intptr_t) lengthoffsetSize;
+	state->dest = (volatile uint8_t*)dest;
+	state->dest_end = dest + (src->size / sizeof(uint8_t));
+	state->magic = src->magic;
+	state->regs[0] = tansState;
+	for (unsigned i = 1; i < arraycount(state->regs); i++)
+		state->regs[i] = 0;
+}
+
+bool Smol4UnCompSuspendable(struct suspended_decompression* state) {
+	volatile uint16_t* dest16 = (volatile uint16_t*) state->dest;
+	const uint16_t* symbols = (const uint16_t*) state->src;
+	const uint32_t lengthoffsetSize = (uint32_t)(intptr_t) state->src_ptrs[2];
+
+	struct decoding_tans_cell lo_tans_table[TANS_FREQUENCIES];
+	generate_decoding_tans_table(lo_tans_table, (const uint32_t*) (state->src_ptrs[0]));
+
+	struct bitstream bitstream = {
+		.src = (const uint16_t*) (state->src_ptrs[1]),
+		.buffer = (state->regs[3] << 16) | state->regs[2],
+		.buffer_size = state->regs[1],
+	};
+	uint32_t tansState = state->regs[0];
+
+	uint32_t lo_bytes_read = state->regs[4];
+
+	while (lo_bytes_read < lengthoffsetSize && (reg_lcd.VCOUNT < (DISPLAY_HEIGHT - 10) || reg_lcd.VCOUNT >= DISPLAY_HEIGHT)) {
+		const unsigned length = parseTansBitstream_Varint(&bitstream, &tansState, &lo_bytes_read, lo_tans_table);
+		const unsigned offset = parseTansBitstream_Varint(&bitstream, &tansState, &lo_bytes_read, lo_tans_table);
+
+		if (0 == length) {
+			for (unsigned j = 0; j < offset; j++) {
+				*dest16 = *symbols;
+				++dest16;
+				++symbols;
+			}
+		} else {
+			*dest16 = *symbols;
+			++dest16;
+			++symbols;
+			for (unsigned j = 0; j < length; j++) {
+				*dest16 = *(dest16 - offset);
+				++dest16;
+			}
+		}
+	}
+
+	state->dest = (volatile uint8_t*) dest16;
+	state->src = (const uint8_t*) symbols;
+	state->src_ptrs[1] = (const uint8_t*)(intptr_t) bitstream.src;
+
+	state->regs[0] = tansState;
+	state->regs[1] = bitstream.buffer_size;
+	state->regs[2] = bitstream.buffer;
+	state->regs[3] = bitstream.buffer >> 16;
+	state->regs[4] = lo_bytes_read;
+
+	return lo_bytes_read >= lengthoffsetSize;
+}
+
 void Smol5UnComp(const struct CompressedData* src, volatile void* dest) {
 	//const uint32_t mode = src->data[0] & 0xF;
 	//const uint32_t imageSize = (src->data[0] >> 4) | (src->data[1] << 4) | ((src->data[2] & 0x3) << 12);
