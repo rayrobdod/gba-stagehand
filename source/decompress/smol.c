@@ -561,7 +561,7 @@ bool Smol4UnCompSuspendable(struct suspended_decompression* state) {
 
 void Smol5UnComp(const struct CompressedData* src, volatile void* dest) {
 	//const uint32_t mode = src->data[0] & 0xF;
-	//const uint32_t imageSize = (src->data[0] >> 4) | (src->data[1] << 4) | ((src->data[2] & 0x3) << 12);
+	const uint32_t imageSize = (src->data[0] >> 4) | (src->data[1] << 4) | ((src->data[2] & 0x3) << 12);
 	//const uint32_t symbolsSize = (src->data[2] >> 2) | (src->data[3] << 6);
 	uint32_t tansState = src->data[4] & 0x3F;
 	//const uint32_t bitstreamSize = (src->data[4] >> 6) | (src->data[5] << 2) | ((src->data[6] & 0x7) << 10);
@@ -581,29 +581,38 @@ void Smol5UnComp(const struct CompressedData* src, volatile void* dest) {
 		.buffer_size = 0,
 	};
 
-	uint16_t* const instructions_start = malloc(2 * lengthoffsetSize);
-	if (NULL == instructions_start) {
-		MgbaPrintf(MGBA_LOG_FATAL, "Smol5UnComp: Out of memory");
-		return;
-	}
-
 	uint32_t lo_bytes_read = 0;
 
-	uint16_t* instructions = instructions_start;
-	while (lo_bytes_read < lengthoffsetSize) {
-		*instructions = parseTansBitstream_Varint(&bitstream, &tansState, &lo_bytes_read, lo_tans_table);
-		instructions++;
-		*instructions = parseTansBitstream_Varint(&bitstream, &tansState, &lo_bytes_read, lo_tans_table);
-		instructions++;
+	/*
+	   As long as the compressed data does not include a no-op length-offset
+	   nor encode varints with an overlong encoding,
+	   a two byte length-offset instruction encodes at least two bytes of output,
+	   and a three-or-four byte instruction encodes more than four bytes.
+
+	   This allows the varint version of the length-offset instructions to be decoded in-place,
+	*/
+	volatile uint8_t* const instructions_start = dest + 4 * imageSize - lengthoffsetSize;
+
+	volatile uint16_t* instructions16 = (uint16_t*)((intptr_t)instructions_start &~ 1);
+	if ((intptr_t)instructions_start % 2 != 0)
+	{
+		uint16_t instr = 0;
+		instr |= parseTansBitstream_Nibble(&bitstream, &tansState, lo_tans_table) << 8;
+		instr |= parseTansBitstream_Nibble(&bitstream, &tansState, lo_tans_table) << 12;
+		*instructions16++ = instr;
+		lo_bytes_read += 1;
 	}
-	uint16_t* const instructions_end = instructions;
-	instructions = instructions_start;
+
+	while (lo_bytes_read < lengthoffsetSize) {
+		*instructions16++ = parseTansBitstream_u16(&bitstream, &tansState, lo_tans_table);
+		lo_bytes_read += 2;
+	}
+	uint8_t* const instructions_end = (uint8_t*)instructions16;
+	const uint8_t* instructions = (const uint8_t*) instructions_start;
 
 	while (instructions < instructions_end) {
-		const unsigned length = *instructions;
-		instructions++;
-		const unsigned offset = *instructions;
-		instructions++;
+		const unsigned length = parseVarint(&instructions);
+		const unsigned offset = parseVarint(&instructions);
 
 		if (0 == length) {
 			for (unsigned j = 0; j < offset; j++) {
@@ -619,13 +628,11 @@ void Smol5UnComp(const struct CompressedData* src, volatile void* dest) {
 			}
 		}
 	}
-
-	free(instructions_start);
 }
 
 void Smol6UnComp(const struct CompressedData* src, volatile void* dest) {
 	//const uint32_t mode = src->data[0] & 0xF;
-	//const uint32_t imageSize = (src->data[0] >> 4) | (src->data[1] << 4) | ((src->data[2] & 0x3) << 12);
+	const uint32_t imageSize = (src->data[0] >> 4) | (src->data[1] << 4) | ((src->data[2] & 0x3) << 12);
 	//const uint32_t symbolsSize = (src->data[2] >> 2) | (src->data[3] << 6);
 	uint32_t tansState = src->data[4] & 0x3F;
 	//const uint32_t bitstreamSize = (src->data[4] >> 6) | (src->data[5] << 2) | ((src->data[6] & 0x7) << 10);
@@ -645,31 +652,40 @@ void Smol6UnComp(const struct CompressedData* src, volatile void* dest) {
 		.buffer_size = 0,
 	};
 
-	uint16_t* const instructions_start = malloc(2 * lengthoffsetSize);
-	if (NULL == instructions_start) {
-		MgbaPrintf(MGBA_LOG_FATAL, "Smol6UnComp: Out of memory");
-		return;
-	}
-
 	uint32_t lo_bytes_read = 0;
 
-	uint16_t* instructions = instructions_start;
-	while (lo_bytes_read < lengthoffsetSize) {
-		*instructions = parseTansBitstream_Varint(&bitstream, &tansState, &lo_bytes_read, lo_tans_table);
-		instructions++;
-		*instructions = parseTansBitstream_Varint(&bitstream, &tansState, &lo_bytes_read, lo_tans_table);
-		instructions++;
+	/*
+	   As long as the compressed data does not include a no-op length-offset
+	   nor encode varints with an overlong encoding,
+	   a two byte length-offset instruction encodes at least two bytes of output,
+	   and a three-or-four byte instruction encodes more than four bytes.
+
+	   This allows the varint version of the length-offset instructions to be decoded in-place,
+	*/
+	volatile uint8_t* const instructions_start = dest + 4 * imageSize - lengthoffsetSize;
+
+	volatile uint16_t* instructions16 = (uint16_t*)((intptr_t)instructions_start &~ 1);
+	if ((intptr_t)instructions_start % 2 != 0)
+	{
+		uint16_t instr = 0;
+		instr |= parseTansBitstream_Nibble(&bitstream, &tansState, lo_tans_table) << 8;
+		instr |= parseTansBitstream_Nibble(&bitstream, &tansState, lo_tans_table) << 12;
+		*instructions16++ = instr;
+		lo_bytes_read += 1;
 	}
-	uint16_t* const instructions_end = instructions;
-	instructions = instructions_start;
+
+	while (lo_bytes_read < lengthoffsetSize) {
+		*instructions16++ = parseTansBitstream_u16(&bitstream, &tansState, lo_tans_table);
+		lo_bytes_read += 2;
+	}
+	uint8_t* const instructions_end = (uint8_t*)instructions16;
+	const uint8_t* instructions = (const uint8_t*) instructions_start;
 
 	uint32_t previousNibble = 0;
 
 	while (instructions < instructions_end) {
-		const unsigned length = *instructions;
-		instructions++;
-		const unsigned offset = *instructions;
-		instructions++;
+		const unsigned length = parseVarint(&instructions);
+		const unsigned offset = parseVarint(&instructions);
 
 		if (0 == length) {
 			for (unsigned j = 0; j < offset; j++) {
@@ -685,8 +701,6 @@ void Smol6UnComp(const struct CompressedData* src, volatile void* dest) {
 			}
 		}
 	}
-
-	free(instructions_start);
 }
 
 void Smol8UnComp(const struct CompressedData* src, volatile void* dest) {
