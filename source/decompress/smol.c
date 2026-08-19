@@ -70,14 +70,8 @@ static void generate_decoding_tans_table(struct decoding_tans_cell retval[TANS_F
 	}
 }
 
-struct bitstream {
-	const uint16_t* src;
-	unsigned buffer;
-	unsigned buffer_size;
-};
-
 static uint16_t parseTansBitstream_Nibble(
-			struct bitstream* bitstream,
+			struct smol_bitstream* bitstream,
 			uint32_t* tansState,
 			const struct decoding_tans_cell tans_table[TANS_FREQUENCIES]) {
 	if (__builtin_expect(bitstream->buffer_size < 16, 0)) {
@@ -100,7 +94,7 @@ static uint16_t parseTansBitstream_Nibble(
 }
 
 static uint16_t parseTansBitstream_DeltaNibble(
-			struct bitstream* bitstream,
+			struct smol_bitstream* bitstream,
 			uint32_t* tansState,
 			uint32_t* previousNibble,
 			const struct decoding_tans_cell tans_table[TANS_FREQUENCIES]) {
@@ -111,7 +105,7 @@ static uint16_t parseTansBitstream_DeltaNibble(
 }
 
 static uint16_t parseTansBitstream_u16(
-			struct bitstream* bitstream,
+			struct smol_bitstream* bitstream,
 			uint32_t* tansState,
 			const struct decoding_tans_cell tans_table[TANS_FREQUENCIES]) {
 	uint16_t retval = 0;
@@ -122,7 +116,7 @@ static uint16_t parseTansBitstream_u16(
 }
 
 static uint16_t parseTansBitstream_Deltau16(
-			struct bitstream* bitstream,
+			struct smol_bitstream* bitstream,
 			uint32_t* tansState,
 			uint32_t* previousNibble,
 			const struct decoding_tans_cell tans_table[TANS_FREQUENCIES]) {
@@ -134,7 +128,7 @@ static uint16_t parseTansBitstream_Deltau16(
 }
 
 static uint16_t parseTansBitstream_Varint(
-			struct bitstream* bitstream,
+			struct smol_bitstream* bitstream,
 			uint32_t* tansState,
 			uint32_t* lo_bytes_read,
 			const struct decoding_tans_cell tans_table[TANS_FREQUENCIES]) {
@@ -194,21 +188,20 @@ void Smol1UnCompSuspendableInit(
 	//const uint32_t bitstreamSize = (src->data[4] >> 6) | (src->data[5] << 2) | ((src->data[6] & 0x7) << 10);
 	const uint32_t lengthoffsetSize = (src->data[6] >> 3) | (src->data[7] << 5);
 
+	*state = (struct suspended_decompression) {};
 	state->src = src->data + 8 + 2 * symbolsSize;
-	state->src_ptrs[0] = src->data + 8;
-	state->src_ptrs[1] = src->data + 8 + 2 * symbolsSize + lengthoffsetSize;
+	state->smol.symbols = (const uint16_t*)(src->data + 8);
+	state->smol.src_end = src->data + 8 + 2 * symbolsSize + lengthoffsetSize;
 	state->dest = (volatile uint8_t*)dest;
 	state->dest_end = dest + (src->size / sizeof(uint8_t));
 	state->magic = src->magic;
-	for (unsigned i = 0; i < arraycount(state->regs); i++)
-		state->regs[i] = 0;
 }
 
 bool Smol1UnCompSuspendable(struct suspended_decompression* state) {
 	volatile uint16_t* dest16 = (volatile uint16_t*) state->dest;
-	const uint16_t* symbols = (const uint16_t*) state->src_ptrs[0];
+	const uint16_t* symbols = state->smol.symbols;
 	const uint8_t* lenOffs = state->src;
-	const uint8_t* const lenOffs_end = state->src_ptrs[1];
+	const uint8_t* const lenOffs_end = state->smol.src_end;
 
 	while (lenOffs < lenOffs_end && (reg_lcd.VCOUNT < (DISPLAY_HEIGHT - 10) || reg_lcd.VCOUNT >= DISPLAY_HEIGHT)) {
 		const unsigned length = parseVarint(&lenOffs);
@@ -229,7 +222,7 @@ bool Smol1UnCompSuspendable(struct suspended_decompression* state) {
 
 	state->dest = (volatile uint8_t*) dest16;
 	state->src = lenOffs;
-	state->src_ptrs[0] = (const uint8_t*) symbols;
+	state->smol.symbols = symbols;
 	return lenOffs >= lenOffs_end;
 }
 
@@ -246,7 +239,7 @@ void Smol2UnComp(const struct CompressedData* src, volatile void* dest) {
 	struct decoding_tans_cell symbol_tans_table[TANS_FREQUENCIES];
 	generate_decoding_tans_table(symbol_tans_table, (const uint32_t*) (src->data + 8));
 
-	struct bitstream bitstream = {
+	struct smol_bitstream bitstream = {
 		.src = (const uint16_t*) (src->data + 8 + 12),
 		.buffer = 0,
 		.buffer_size = 0,
@@ -286,32 +279,26 @@ void Smol2UnCompSuspendableInit(
 	const uint32_t bitstreamSize = (src->data[4] >> 6) | (src->data[5] << 2) | ((src->data[6] & 0x7) << 10);
 	const uint32_t lengthoffsetSize = (src->data[6] >> 3) | (src->data[7] << 5);
 
+	*state = (struct suspended_decompression) {};
 	state->src = src->data + 8 + 12 + 4 * bitstreamSize;
-	state->src_ptrs[0] = src->data + 8;
-	state->src_ptrs[1] = src->data + 8 + 12;
-	state->src_ptrs[2] = src->data + 8 + 12 + 4 * bitstreamSize + lengthoffsetSize;
+	state->smol.tans_table = (const uint32_t*) (src->data + 8);
+	state->smol.bitstream.src = (const uint16_t*) (src->data + 8 + 12);
+	state->smol.src_end = src->data + 8 + 12 + 4 * bitstreamSize + lengthoffsetSize;
 	state->dest = (volatile uint8_t*)dest;
 	state->dest_end = dest + (src->size / sizeof(uint8_t));
 	state->magic = src->magic;
-	state->regs[0] = tansState;
-	for (unsigned i = 1; i < arraycount(state->regs); i++)
-		state->regs[i] = 0;
+	state->smol.tansState = tansState;
 }
 
 bool Smol2UnCompSuspendable(struct suspended_decompression* state) {
 	volatile uint16_t* dest16 = (volatile uint16_t*) state->dest;
 	const uint8_t* lenOffs = state->src;
-	const uint8_t* const lenOffs_end = state->src_ptrs[2];
+	const uint8_t* const lenOffs_end = state->smol.src_end;
 
 	struct decoding_tans_cell symbol_tans_table[TANS_FREQUENCIES];
-	generate_decoding_tans_table(symbol_tans_table, (const uint32_t*) (state->src_ptrs[0]));
+	generate_decoding_tans_table(symbol_tans_table, state->smol.tans_table);
 
-	struct bitstream bitstream = {
-		.src = (const uint16_t*) (state->src_ptrs[1]),
-		.buffer = (state->regs[3] << 16) | state->regs[2],
-		.buffer_size = state->regs[1],
-	};
-	uint32_t tansState = state->regs[0];
+	uint32_t tansState = state->smol.tansState;
 
 	while (lenOffs < lenOffs_end && (reg_lcd.VCOUNT < (DISPLAY_HEIGHT - 10) || reg_lcd.VCOUNT >= DISPLAY_HEIGHT)) {
 		const unsigned length = parseVarint(&lenOffs);
@@ -319,11 +306,11 @@ bool Smol2UnCompSuspendable(struct suspended_decompression* state) {
 
 		if (0 == length) {
 			for (unsigned j = 0; j < offset; j++) {
-				*dest16 = parseTansBitstream_u16(&bitstream, &tansState, symbol_tans_table);
+				*dest16 = parseTansBitstream_u16(&state->smol.bitstream, &tansState, symbol_tans_table);
 				++dest16;
 			}
 		} else {
-			*dest16 = parseTansBitstream_u16(&bitstream, &tansState, symbol_tans_table);
+			*dest16 = parseTansBitstream_u16(&state->smol.bitstream, &tansState, symbol_tans_table);
 			++dest16;
 			for (unsigned j = 0; j < length; j++) {
 				*dest16 = *(dest16 - offset);
@@ -334,12 +321,8 @@ bool Smol2UnCompSuspendable(struct suspended_decompression* state) {
 
 	state->dest = (volatile uint8_t*) dest16;
 	state->src = lenOffs;
-	state->src_ptrs[1] = (const uint8_t*) bitstream.src;
 
-	state->regs[0] = tansState;
-	state->regs[1] = bitstream.buffer_size;
-	state->regs[2] = bitstream.buffer;
-	state->regs[3] = bitstream.buffer >> 16;
+	state->smol.tansState = tansState;
 
 	return lenOffs >= lenOffs_end;
 }
@@ -357,7 +340,7 @@ void Smol3UnComp(const struct CompressedData* src, volatile void* dest) {
 	struct decoding_tans_cell symbol_tans_table[TANS_FREQUENCIES];
 	generate_decoding_tans_table(symbol_tans_table, (const uint32_t*) (src->data + 8));
 
-	struct bitstream bitstream = {
+	struct smol_bitstream bitstream = {
 		.src = (const uint16_t*) (src->data + 8 + 12),
 		.buffer = 0,
 		.buffer_size = 0,
@@ -394,19 +377,13 @@ void Smol3UnCompSuspendableInit(struct suspended_decompression* state, const str
 bool Smol3UnCompSuspendable(struct suspended_decompression* state) {
 	volatile uint16_t* dest16 = (volatile uint16_t*) state->dest;
 	const uint8_t* lenOffs = state->src;
-	const uint8_t* const lenOffs_end = state->src_ptrs[2];
+	const uint8_t* const lenOffs_end = state->smol.src_end;
 
 	struct decoding_tans_cell symbol_tans_table[TANS_FREQUENCIES];
-	generate_decoding_tans_table(symbol_tans_table, (const uint32_t*) (state->src_ptrs[0]));
+	generate_decoding_tans_table(symbol_tans_table, state->smol.tans_table);
 
-	struct bitstream bitstream = {
-		.src = (const uint16_t*) (state->src_ptrs[1]),
-		.buffer = (state->regs[3] << 16) | state->regs[2],
-		.buffer_size = state->regs[1],
-	};
-	uint32_t tansState = state->regs[0];
-
-	uint32_t previousNibble = state->regs[4];
+	uint32_t tansState = state->smol.tansState;
+	uint32_t previousNibble = state->smol.previousNibble;
 
 	while (lenOffs < lenOffs_end && (reg_lcd.VCOUNT < (DISPLAY_HEIGHT - 10) || reg_lcd.VCOUNT >= DISPLAY_HEIGHT)) {
 		const unsigned length = parseVarint(&lenOffs);
@@ -414,11 +391,11 @@ bool Smol3UnCompSuspendable(struct suspended_decompression* state) {
 
 		if (0 == length) {
 			for (unsigned j = 0; j < offset; j++) {
-				*dest16 = parseTansBitstream_Deltau16(&bitstream, &tansState, &previousNibble, symbol_tans_table);
+				*dest16 = parseTansBitstream_Deltau16(&state->smol.bitstream, &tansState, &previousNibble, symbol_tans_table);
 				++dest16;
 			}
 		} else {
-			*dest16 = parseTansBitstream_Deltau16(&bitstream, &tansState, &previousNibble, symbol_tans_table);
+			*dest16 = parseTansBitstream_Deltau16(&state->smol.bitstream, &tansState, &previousNibble, symbol_tans_table);
 			++dest16;
 			for (unsigned j = 0; j < length; j++) {
 				*dest16 = *(dest16 - offset);
@@ -429,13 +406,9 @@ bool Smol3UnCompSuspendable(struct suspended_decompression* state) {
 
 	state->dest = (volatile uint8_t*) dest16;
 	state->src = lenOffs;
-	state->src_ptrs[1] = (const uint8_t*) bitstream.src;
 
-	state->regs[0] = tansState;
-	state->regs[1] = bitstream.buffer_size;
-	state->regs[2] = bitstream.buffer;
-	state->regs[3] = bitstream.buffer >> 16;
-	state->regs[4] = previousNibble;
+	state->smol.tansState = tansState;
+	state->smol.previousNibble = previousNibble;
 
 	return lenOffs >= lenOffs_end;
 }
@@ -453,7 +426,7 @@ void Smol4UnComp(const struct CompressedData* src, volatile void* dest) {
 	struct decoding_tans_cell lo_tans_table[TANS_FREQUENCIES];
 	generate_decoding_tans_table(lo_tans_table, (const uint32_t*) (src->data + 8));
 
-	struct bitstream bitstream = {
+	struct smol_bitstream bitstream = {
 		.src = (const uint16_t*) (src->data + 8 + 12),
 		.buffer = 0,
 		.buffer_size = 0,
@@ -496,38 +469,31 @@ void Smol4UnCompSuspendableInit(
 	const uint32_t bitstreamSize = (src->data[4] >> 6) | (src->data[5] << 2) | ((src->data[6] & 0x7) << 10);
 	const uint32_t lengthoffsetSize = (src->data[6] >> 3) | (src->data[7] << 5);
 
+	*state = (struct suspended_decompression) {};
 	state->src = src->data + 8 + 12 + 4 * bitstreamSize;
-	state->src_ptrs[0] = src->data + 8;
-	state->src_ptrs[1] = src->data + 8 + 12;
-	state->src_ptrs[2] = (const uint8_t*)(intptr_t) lengthoffsetSize;
+	state->smol.tans_table = (const uint32_t*)(src->data + 8);
+	state->smol.bitstream.src = (const uint16_t*) (src->data + 8 + 12);
+	state->smol.lengthoffsetSize = lengthoffsetSize;
 	state->dest = (volatile uint8_t*)dest;
 	state->dest_end = dest + (src->size / sizeof(uint8_t));
 	state->magic = src->magic;
-	state->regs[0] = tansState;
-	for (unsigned i = 1; i < arraycount(state->regs); i++)
-		state->regs[i] = 0;
+	state->smol.tansState = tansState;
 }
 
 bool Smol4UnCompSuspendable(struct suspended_decompression* state) {
 	volatile uint16_t* dest16 = (volatile uint16_t*) state->dest;
 	const uint16_t* symbols = (const uint16_t*) state->src;
-	const uint32_t lengthoffsetSize = (uint32_t)(intptr_t) state->src_ptrs[2];
+	const uint32_t lengthoffsetSize = state->smol.lengthoffsetSize;
 
 	struct decoding_tans_cell lo_tans_table[TANS_FREQUENCIES];
-	generate_decoding_tans_table(lo_tans_table, (const uint32_t*) (state->src_ptrs[0]));
+	generate_decoding_tans_table(lo_tans_table, state->smol.tans_table);
 
-	struct bitstream bitstream = {
-		.src = (const uint16_t*) (state->src_ptrs[1]),
-		.buffer = (state->regs[3] << 16) | state->regs[2],
-		.buffer_size = state->regs[1],
-	};
-	uint32_t tansState = state->regs[0];
-
-	uint32_t lo_bytes_read = state->regs[4];
+	uint32_t tansState = state->smol.tansState;
+	uint32_t lo_bytes_read = state->smol.previousNibble;
 
 	while (lo_bytes_read < lengthoffsetSize && (reg_lcd.VCOUNT < (DISPLAY_HEIGHT - 10) || reg_lcd.VCOUNT >= DISPLAY_HEIGHT)) {
-		const unsigned length = parseTansBitstream_Varint(&bitstream, &tansState, &lo_bytes_read, lo_tans_table);
-		const unsigned offset = parseTansBitstream_Varint(&bitstream, &tansState, &lo_bytes_read, lo_tans_table);
+		const unsigned length = parseTansBitstream_Varint(&state->smol.bitstream, &tansState, &lo_bytes_read, lo_tans_table);
+		const unsigned offset = parseTansBitstream_Varint(&state->smol.bitstream, &tansState, &lo_bytes_read, lo_tans_table);
 
 		if (0 == length) {
 			for (unsigned j = 0; j < offset; j++) {
@@ -548,13 +514,9 @@ bool Smol4UnCompSuspendable(struct suspended_decompression* state) {
 
 	state->dest = (volatile uint8_t*) dest16;
 	state->src = (const uint8_t*) symbols;
-	state->src_ptrs[1] = (const uint8_t*)(intptr_t) bitstream.src;
 
-	state->regs[0] = tansState;
-	state->regs[1] = bitstream.buffer_size;
-	state->regs[2] = bitstream.buffer;
-	state->regs[3] = bitstream.buffer >> 16;
-	state->regs[4] = lo_bytes_read;
+	state->smol.tansState = tansState;
+	state->smol.previousNibble = lo_bytes_read;
 
 	return lo_bytes_read >= lengthoffsetSize;
 }
@@ -575,7 +537,7 @@ void Smol5UnComp(const struct CompressedData* src, volatile void* dest) {
 	struct decoding_tans_cell symbol_tans_table[TANS_FREQUENCIES];
 	generate_decoding_tans_table(symbol_tans_table, (const uint32_t*) (src->data + 8 + 12));
 
-	struct bitstream bitstream = {
+	struct smol_bitstream bitstream = {
 		.src = (const uint16_t*) (src->data + 8 + 12 + 12),
 		.buffer = 0,
 		.buffer_size = 0,
@@ -646,7 +608,7 @@ void Smol6UnComp(const struct CompressedData* src, volatile void* dest) {
 	struct decoding_tans_cell symbol_tans_table[TANS_FREQUENCIES];
 	generate_decoding_tans_table(symbol_tans_table, (const uint32_t*) (src->data + 8 + 12));
 
-	struct bitstream bitstream = {
+	struct smol_bitstream bitstream = {
 		.src = (const uint16_t*) (src->data + 8 + 12 + 12),
 		.buffer = 0,
 		.buffer_size = 0,
