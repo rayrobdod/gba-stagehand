@@ -34,9 +34,9 @@ static char ewram_buffer[1024 * 96];
 
 __attribute__((noinline))
 void setUp(void){
-	CpuFastSet(&initial_memory_fill, vram.screenblock[0], (struct CpuFastSet) {.word_count = sizeof(vram) / sizeof(uint32_t), .mode = CPU_SET_FILL});
-	CpuFastSet(&initial_memory_fill, iwram_buffer, (struct CpuFastSet) {.word_count = sizeof(iwram_buffer) / sizeof(uint32_t), .mode = CPU_SET_FILL});
-	CpuFastSet(&initial_memory_fill, ewram_buffer, (struct CpuFastSet) {.word_count = sizeof(ewram_buffer) / sizeof(uint32_t), .mode = CPU_SET_FILL});
+	CpuFastFill(initial_memory_fill, vram.screenblock[0], sizeof(vram) / sizeof(uint32_t));
+	CpuFastFill(initial_memory_fill, iwram_buffer, sizeof(iwram_buffer) / sizeof(uint32_t));
+	CpuFastFill(initial_memory_fill, ewram_buffer, sizeof(ewram_buffer) / sizeof(uint32_t));
 }
 void tearDown(void){}
 

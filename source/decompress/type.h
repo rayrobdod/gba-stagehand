@@ -17,10 +17,24 @@ struct smol_bitstream {
 
 struct suspended_decompression {
 	const uint8_t* src;
-	const uint8_t* src_ptrs[3];
 	volatile uint8_t* dest;
 	volatile uint8_t* dest_end;
 	union {
+		struct {
+			uint8_t flags;
+			uint8_t flag_counter;
+		} lz11;
+		struct {
+			uint16_t flags;
+			uint8_t flag_counter;
+		} lz16;
+		struct {
+			const uint8_t* src_tree;
+			uint16_t inIntraOffset;
+		} huff;
+		struct {
+			uint16_t regs[4];
+		} frit;
 		struct {
 			const uint8_t* src_end;
 			uint32_t lengthoffsetSize;
@@ -32,7 +46,6 @@ struct suspended_decompression {
 		} smol;
 	};
 	uint8_t magic;
-	uint16_t regs[4];
 };
 
 #endif        //  #ifndef DECOMPRESS_TYPE_H

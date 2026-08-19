@@ -39,8 +39,6 @@ static const struct shadow_tiles_window_allocate whole_screen_window = {
 	.height = 32,
 };
 
-static const uint32_t zero_uint32 = 0;
-
 static const char lorem_ipsum[] =
 	"Lorem ipsum dolor sit amet, consectetur\n"
 	"adipiscing elit, sed do eiusmod tempor\n"
@@ -98,13 +96,9 @@ void MainCB_textPrintProfile(void) {
 	}
 
 
-	CpuFastSet(
-		&zero_uint32,
+	CpuFastFill(0,
 		vram.bg_charblock[0],
-		(struct CpuFastSet) {
-			.word_count = 2 * sizeof(charblock_t) / sizeof(uint32_t),
-			.mode = CPU_SET_FILL
-		});
+		2 * sizeof(charblock_t) / sizeof(uint32_t));
 
 
 	profile_start();

@@ -248,13 +248,10 @@ static union palette512 InitFadeIn_options(void) {
 	border_transparent_tile = border_transparent_tile | (border_transparent_tile << 16);
 	bg_tile_t* border_map = malloc(sizeof(screenblock_t));
 	if (border_map) {
-		CpuFastSet(
-			&border_transparent_tile,
+		CpuFastFill(
+			border_transparent_tile,
 			border_map,
-			(struct CpuFastSet) {
-				.word_count = sizeof(screenblock_t) / sizeof(uint32_t),
-				.mode = CPU_SET_FILL,
-			}
+			sizeof(screenblock_t) / sizeof(uint32_t)
 		);
 		border_map[BORDER_LEFT + 32 * BORDER_TOP] = (bg_tile_t) {options_viewmodel.border_tile.tileid, false, false, options_viewmodel.border_tile.palid};
 		border_map[BORDER_RIGHT + 32 * BORDER_TOP] = (bg_tile_t) {options_viewmodel.border_tile.tileid + 2, false, false, options_viewmodel.border_tile.palid};
@@ -290,14 +287,9 @@ static union palette512 InitFadeIn_options(void) {
 	if (title_buffer) {
 		coord16_t kerning = {.x = 1, .y = 1};
 		const char* message = "OPTIONS";
-		uint32_t zero = 0;
-		CpuFastSet(
-			&zero,
+		CpuFastFill(0,
 			title_buffer,
-			(struct CpuFastSet){
-				.word_count = title_buffer_size / sizeof(uint32_t),
-				.mode = CPU_SET_FILL,
-			});
+			title_buffer_size / sizeof(uint32_t));
 
 		text_print_immediate(
 			title_buffer,

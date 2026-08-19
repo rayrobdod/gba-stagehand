@@ -120,14 +120,14 @@ bool FUNCTION_NAME_SUSPEND(struct suspended_decompression* state) {
 			unsigned lowValue = (low ? *(src++) : 0);
 			unsigned operand = hiValue | lowValue;
 
-			state->regs[to] = state->regs[from] ^ operand;
+			state->frit.regs[to] = state->frit.regs[from] ^ operand;
 		} else {
 			unsigned regId = bit_mask_and_shift(op, 2, 4);
 			unsigned length = (op & 0x0F) + 1;
 			if (length == 0x10) {
 				length = *(src++) + 31;
 			}
-			unsigned regValue = state->regs[regId];
+			unsigned regValue = state->frit.regs[regId];
 
 			if (2 == op_code) {
 				for (unsigned i = 0; i < length; i++) {
@@ -140,7 +140,7 @@ bool FUNCTION_NAME_SUSPEND(struct suspended_decompression* state) {
 					*(dest++) = regValue;
 					regValue += delta;
 				}
-				state->regs[regId] = regValue;
+				state->frit.regs[regId] = regValue;
 			} else {
 				signed delta = ((signed) op_code) - 2;
 				// looking at assembly indicates that gcc does know that `op_code == 3` and therefore `delta == 1` here
@@ -150,7 +150,7 @@ bool FUNCTION_NAME_SUSPEND(struct suspended_decompression* state) {
 					*(dest++) = regValue;
 					regValue += delta;
 				}
-				state->regs[regId] = regValue;
+				state->frit.regs[regId] = regValue;
 			}
 		}
 	}

@@ -11,13 +11,13 @@ bool HuffUnCompSuspendable(struct suspended_decompression* state) {
 	unsigned datasize = state->magic & 0xF;
 	unsigned datamask = (0xFFFFFFFF << (32 - datasize)) >> (32 - datasize);
 
-	unsigned inIntraOffset = state->regs[0];
+	unsigned inIntraOffset = state->huff.inIntraOffset;
 	uint32_t inWord = *((uint32_t*)state->src);
 
 	while (state->dest < state->dest_end && (reg_lcd.VCOUNT < (DISPLAY_HEIGHT - 2) || reg_lcd.VCOUNT >= DISPLAY_HEIGHT)) {
 		uint32_t outWord = 0;
 		for (unsigned outIntraOffset = 0; outIntraOffset < 8; outIntraOffset += datasize) {
-			const uint8_t* tree = state->src_ptrs[0];
+			const uint8_t* tree = state->huff.src_tree;
 			while (true) {
 				uint8_t treeValue = *tree;
 
@@ -45,7 +45,7 @@ bool HuffUnCompSuspendable(struct suspended_decompression* state) {
 		state->dest += 1;
 	}
 
-	state->regs[0] = inIntraOffset;
+	state->huff.inIntraOffset = inIntraOffset;
 	return state->dest >= state->dest_end;
 }
 
@@ -55,12 +55,11 @@ void HuffUnCompSuspendableInit(
 		volatile void* dest) {
 	char tree_size = *(src->data);
 
+	*state = (struct suspended_decompression) {};
+
 	state->src = src->data + tree_size * 2 + 2;
-	for (unsigned i = 0; i < arraycount(state->src_ptrs); i++)
-		state->src_ptrs[i] = src->data + 1;
+	state->huff.src_tree = src->data + 1;
 	state->dest = (volatile uint8_t*)dest;
 	state->dest_end = dest + (src->size / sizeof(uint8_t));
 	state->magic = src->magic;
-	for (unsigned i = 0; i < arraycount(state->regs); i++)
-		state->regs[i] = 0;
 }

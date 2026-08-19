@@ -138,12 +138,8 @@ void shadow_oam_free_all(void) {
 	for (unsigned i = 0; i < arraycount(shadow_oam); i++) {
 		shadow_oam[i].in_use = false;
 	}
-	uint32_t i = 0;
 	_Static_assert(0 == (sizeof(shadow_tiles_used) % 32), "CpuFastSet requires 32-byte-multiple length");
-	CpuFastSet(&i, shadow_tiles_used, (struct CpuFastSet) {
-		.word_count = sizeof(shadow_tiles_used) / sizeof(uint32_t),
-		.mode = CPU_SET_FILL
-	});
+	CpuFastFill(0, shadow_tiles_used, sizeof(shadow_tiles_used) / sizeof(uint32_t));
 	vram_op_queue_enqueue(&(struct vram_op) {
 		.type = VRAM_QUEUE_OP_DISABLE_ALL_OAM,
 	});

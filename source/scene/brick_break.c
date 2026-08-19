@@ -165,14 +165,9 @@ static const struct shadow_tiles_window_allocate score_window_template = (struct
 static void redraw_score_window() {
 	char scorestr[8];
 	snprintf(scorestr, sizeof(scorestr), "%ld", score);
-	uint32_t zero = 0;
-	CpuFastSet(
-		&zero,
+	CpuFastFill(0,
 		score_window_shadow_tiles,
-		(struct CpuFastSet){
-			.word_count = sizeof(score_window_shadow_tiles) / sizeof(uint32_t),
-			.mode = CPU_SET_FILL,
-		});
+		sizeof(score_window_shadow_tiles) / sizeof(uint32_t));
 
 	uint16_t text_x = 6*8 - 2 - text_width(
 		&breakout_set_font,
