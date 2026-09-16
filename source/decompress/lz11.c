@@ -64,20 +64,23 @@ void LZ11UnCompVram(const struct CompressedData* src, volatile void* dest) {
 						buffer = *(dest16 - distance / 2) & 0xFF;
 					}
 				} else {
+					volatile uint8_t* from = ((volatile uint8_t*)dest16) - distance;
 					if (buffer_has_value) {
-						buffer |= (*(dest16 - (distance / 2)) << 8);
+						buffer |= (*(from + 1) << 8);
 						*(dest16++) = buffer;
+						from += 2;
 						--width;
 					}
 					while (width >= 2) {
-						buffer = *(dest16 - 1 - distance / 2) >> 8;
-						buffer |= (*(dest16 - (distance / 2)) << 8);
+						buffer = *from;
+						buffer |= (*(from + 1) << 8);
 						*(dest16++) = buffer;
+						from += 2;
 						width -= 2;
 					}
 					buffer_has_value = width != 0;
 					if (buffer_has_value) {
-						buffer = *(dest16 - 1 - distance / 2) >> 8;
+						buffer = *from;
 					}
 				}
 			} else {
