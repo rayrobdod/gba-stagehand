@@ -48,6 +48,7 @@ struct suspended_decompression {
 			enum {
 				SMOL_PHASE_INSTRS,
 				SMOL_PHASE_SYMBOLS,
+				SMOL_PHASE_DELTA,
 			} phase;
 		} smol;
 	};

@@ -69,6 +69,8 @@ static UnCompSuspendableFn MagicToUnCompSuspendable(unsigned magic) {
 		return &Smol5UnCompSuspendable;
 	case 0xF6:
 		return &Smol6UnCompSuspendable;
+	case 0xF8:
+		return &Smol8UnCompSuspendable;
 	default:
 		return NULL;
 	}
@@ -119,6 +121,8 @@ static UnCompSuspendableInitFn MagicToUnCompSuspendableInit(unsigned magic) {
 		return &Smol5UnCompSuspendableInit;
 	case 0xF6:
 		return &Smol6UnCompSuspendableInit;
+	case 0xF8:
+		return &Smol8UnCompSuspendableInit;
 	default:
 		return NULL;
 	}

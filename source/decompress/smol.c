@@ -873,3 +873,68 @@ void Smol8UnComp(const struct CompressedData* src, volatile void* dest) {
 		dest16++;
 	}
 }
+
+void Smol8UnCompSuspendableInit(
+		struct suspended_decompression* state,
+		const struct CompressedData* src,
+		volatile void* dest) {
+	//const uint32_t mode = src->data[0] & 0xF;
+	//const uint32_t imageSize = (src->data[0] >> 4) | (src->data[1] << 4) | ((src->data[2] & 0x3) << 12);
+	const uint32_t symbolsSize = (src->data[2] >> 2) | (src->data[3] << 6);
+	const uint32_t lengthoffsetSize = (src->data[4]) | (src->data[5] << 8) | (src->data[6] << 16) | (src->data[7] << 24);
+
+	*state = (struct suspended_decompression) {};
+	state->src = src->data + 8 + 2 * symbolsSize;
+	state->smol.symbols = (const uint16_t*)(src->data + 8);
+	state->smol.src_end = src->data + 8 + 2 * symbolsSize + lengthoffsetSize;
+	state->dest = (volatile uint8_t*)dest;
+	state->smol.dest_start = (volatile uint8_t*)dest;
+	state->dest_end = dest + (src->size / sizeof(uint8_t));
+	state->magic = src->magic;
+}
+
+bool Smol8UnCompSuspendable(struct suspended_decompression* state) {
+	if (SMOL_PHASE_INSTRS == state->smol.phase) {
+		volatile uint16_t* dest16 = (volatile uint16_t*) state->dest;
+		const uint16_t* symbols = state->smol.symbols;
+		const uint8_t* lenOffs = state->src;
+		const uint8_t* const lenOffs_end = state->smol.src_end;
+
+		while (lenOffs < lenOffs_end && (reg_lcd.VCOUNT < (DISPLAY_HEIGHT - 10) || reg_lcd.VCOUNT >= DISPLAY_HEIGHT)) {
+			const unsigned length = parseVarint(&lenOffs);
+			const unsigned offset = parseVarint(&lenOffs);
+
+			if (0 == length) {
+				for (unsigned j = 0; j < offset; j++) {
+					*dest16++ = *symbols++;
+				}
+			} else {
+				*dest16++ = *symbols++;
+				for (unsigned j = 0; j < length; j++) {
+					*dest16 = *(dest16 - offset);
+					++dest16;
+				}
+			}
+		}
+
+		if (lenOffs < lenOffs_end) {
+			state->dest = (volatile uint8_t*) dest16;
+			state->src = lenOffs;
+			state->smol.symbols = symbols;
+			return false;
+		} else {
+			state->dest = state->smol.dest_start + sizeof(uint16_t);
+			state->smol.phase = SMOL_PHASE_DELTA;
+			return Smol8UnCompSuspendable(state);
+		}
+	} else {
+		volatile uint16_t* const dest16End = (volatile uint16_t*) state->dest_end;
+		volatile uint16_t* dest16 = (volatile uint16_t*) state->dest;
+		while (dest16 < dest16End && (reg_lcd.VCOUNT < (DISPLAY_HEIGHT - 2) || reg_lcd.VCOUNT >= DISPLAY_HEIGHT)) {
+			*dest16 += *(dest16 - 1);
+			dest16++;
+		}
+		state->dest = (volatile uint8_t*) dest16;
+		return dest16 >= dest16End;
+	}
+}
