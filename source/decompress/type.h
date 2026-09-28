@@ -38,11 +38,17 @@ struct suspended_decompression {
 		struct {
 			const uint8_t* src_end;
 			uint32_t lengthoffsetSize;
+			uint32_t lengthoffsetsRead;
 			const uint16_t* symbols;
 			const uint32_t* tans_table;
+			volatile uint8_t* dest_start;
 			struct smol_bitstream bitstream;
 			uint8_t tansState;
 			uint8_t previousNibble;
+			enum {
+				SMOL_PHASE_INSTRS,
+				SMOL_PHASE_SYMBOLS,
+			} phase;
 		} smol;
 	};
 	uint8_t magic;
