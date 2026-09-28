@@ -671,8 +671,7 @@ bool Smol5UnCompSuspendable(struct suspended_decompression* state) {
 
 			if (0 == length) {
 				for (unsigned j = 0; j < offset; j++) {
-					*dest16 = parseTansBitstream_u16(&state->smol.bitstream, &tansState, symbol_tans_table);
-					++dest16;
+					*dest16++ = parseTansBitstream_u16(&state->smol.bitstream, &tansState, symbol_tans_table);
 				}
 			} else {
 				*dest16++ = parseTansBitstream_u16(&state->smol.bitstream, &tansState, symbol_tans_table);
@@ -762,6 +761,74 @@ void Smol6UnComp(const struct CompressedData* src, volatile void* dest) {
 				++dest16;
 			}
 		}
+	}
+}
+
+[[gnu::alias("Smol5UnCompSuspendableInit")]]
+void Smol6UnCompSuspendableInit(struct suspended_decompression* state, const struct CompressedData* src, volatile void* dest);
+
+bool Smol6UnCompSuspendable(struct suspended_decompression* state) {
+	if (SMOL_PHASE_INSTRS == state->smol.phase) {
+		volatile uint16_t* dest16 = (volatile uint16_t*) state->dest;
+		const uint32_t lengthoffsetSize = state->smol.lengthoffsetSize;
+		uint32_t lengthoffsetsRead = state->smol.lengthoffsetsRead;
+
+		struct decoding_tans_cell lo_tans_table[TANS_FREQUENCIES];
+		generate_decoding_tans_table(lo_tans_table, state->smol.tans_table);
+
+		uint32_t tansState = state->smol.tansState;
+
+		while (lengthoffsetsRead < lengthoffsetSize && (reg_lcd.VCOUNT < (DISPLAY_HEIGHT - 10) || reg_lcd.VCOUNT >= DISPLAY_HEIGHT)) {
+			*dest16++ = parseTansBitstream_u16(&state->smol.bitstream, &tansState, lo_tans_table);
+			lengthoffsetsRead += 2;
+		}
+
+		state->smol.tansState = tansState;
+		if (lengthoffsetsRead < lengthoffsetSize) {
+			state->smol.lengthoffsetsRead = lengthoffsetsRead;
+			return false;
+		} else {
+			state->smol.tans_table += 3;
+			state->smol.lengthoffsetsRead = 0;
+			state->dest = state->smol.dest_start;
+			state->smol.phase = SMOL_PHASE_SYMBOLS;
+			return Smol6UnCompSuspendable(state);
+		}
+	} else {
+		volatile uint16_t* dest16 = (volatile uint16_t*) state->dest;
+		const uint8_t* lenOffs = state->src;
+		const uint8_t* const lenOffs_end = state->smol.src_end;
+		uint32_t previousNibble = state->smol.previousNibble;
+
+		struct decoding_tans_cell symbol_tans_table[TANS_FREQUENCIES];
+		generate_decoding_tans_table(symbol_tans_table, state->smol.tans_table);
+
+		uint32_t tansState = state->smol.tansState;
+
+		while (lenOffs < lenOffs_end && (reg_lcd.VCOUNT < (DISPLAY_HEIGHT - 10) || reg_lcd.VCOUNT >= DISPLAY_HEIGHT)) {
+			const unsigned length = parseVarint(&lenOffs);
+			const unsigned offset = parseVarint(&lenOffs);
+
+			if (0 == length) {
+				for (unsigned j = 0; j < offset; j++) {
+					*dest16++ = parseTansBitstream_Deltau16(&state->smol.bitstream, &tansState, &previousNibble, symbol_tans_table);
+				}
+			} else {
+				*dest16++ = parseTansBitstream_Deltau16(&state->smol.bitstream, &tansState, &previousNibble, symbol_tans_table);
+				for (unsigned j = 0; j < length; j++) {
+					*dest16 = *(dest16 - offset);
+					++dest16;
+				}
+			}
+		}
+
+		state->dest = (volatile uint8_t*) dest16;
+		state->src = lenOffs;
+
+		state->smol.tansState = tansState;
+		state->smol.previousNibble = previousNibble;
+
+		return lenOffs >= lenOffs_end;
 	}
 }
 
