@@ -147,11 +147,11 @@ static uint16_t parseTansBitstream_Varint(
 
 void Smol1UnComp(const struct CompressedData* src, volatile void* dest) {
 	//const uint32_t mode = src->data[0] & 0xF;
-	//const uint32_t imageSize = (src->data[0] >> 4) | (src->data[1] << 4) | ((src->data[2] & 0x3) << 12);
-	const uint32_t symbolsSize = (src->data[2] >> 2) | (src->data[3] << 6);
+	//const uint32_t imageSize = (((uint32_t*)src->data)[0] << 14) >> 18;
+	const uint32_t symbolsSize = ((const uint16_t*)src->data)[1] >> 2;
 	//const uint32_t tansState = src->data[4] & 0x3F;
-	//const uint32_t bitstreamSize = (src->data[4] >> 6) | (src->data[5] << 2) | ((src->data[6] & 0x7) << 10);
-	const uint32_t lengthoffsetSize = (src->data[6] >> 3) | (src->data[7] << 5);
+	//const uint32_t bitstreamSize = (((uint32_t*)src->data)[1] << 13) >> 19;
+	const uint32_t lengthoffsetSize = ((const uint16_t*)src->data)[3] >> 3;
 
 	volatile uint16_t* dest16 = (volatile uint16_t*) dest;
 
@@ -182,11 +182,11 @@ void Smol1UnCompSuspendableInit(
 		const struct CompressedData* src,
 		volatile void* dest) {
 	//const uint32_t mode = src->data[0] & 0xF;
-	//const uint32_t imageSize = (src->data[0] >> 4) | (src->data[1] << 4) | ((src->data[2] & 0x3) << 12);
-	const uint32_t symbolsSize = (src->data[2] >> 2) | (src->data[3] << 6);
+	//const uint32_t imageSize = (((uint32_t*)src->data)[0] << 14) >> 18;
+	const uint32_t symbolsSize = ((const uint16_t*)src->data)[1] >> 2;
 	//const uint32_t tansState = src->data[4] & 0x3F;
-	//const uint32_t bitstreamSize = (src->data[4] >> 6) | (src->data[5] << 2) | ((src->data[6] & 0x7) << 10);
-	const uint32_t lengthoffsetSize = (src->data[6] >> 3) | (src->data[7] << 5);
+	//const uint32_t bitstreamSize = (((uint32_t*)src->data)[1] << 13) >> 19;
+	const uint32_t lengthoffsetSize = ((const uint16_t*)src->data)[3] >> 3;
 
 	*state = (struct suspended_decompression) {};
 	state->src = src->data + 8 + 2 * symbolsSize;
@@ -228,11 +228,12 @@ bool Smol1UnCompSuspendable(struct suspended_decompression* state) {
 
 void Smol2UnComp(const struct CompressedData* src, volatile void* dest) {
 	//const uint32_t mode = src->data[0] & 0xF;
-	//const uint32_t imageSize = (src->data[0] >> 4) | (src->data[1] << 4) | ((src->data[2] & 0x3) << 12);
-	//const uint32_t symbolsSize = (src->data[2] >> 2) | (src->data[3] << 6);
-	uint32_t tansState = src->data[4] & 0x3F;
-	const uint32_t bitstreamSize = (src->data[4] >> 6) | (src->data[5] << 2) | ((src->data[6] & 0x7) << 10);
-	const uint32_t lengthoffsetSize = (src->data[6] >> 3) | (src->data[7] << 5);
+	//const uint32_t imageSize = (((uint32_t*)src->data)[0] << 14) >> 18;
+	//const uint32_t symbolsSize = ((const uint16_t*)src->data)[1] >> 2;
+	const uint32_t src_data_1 = ((uint32_t*)src->data)[1];
+	uint32_t tansState = src_data_1 & 0x3F;
+	const uint32_t bitstreamSize = (src_data_1 << 13) >> 19;
+	const uint32_t lengthoffsetSize = src_data_1 >> 19;
 
 	volatile uint16_t* dest16 = (volatile uint16_t*) dest;
 
@@ -273,11 +274,12 @@ void Smol2UnCompSuspendableInit(
 		const struct CompressedData* src,
 		volatile void* dest) {
 	//const uint32_t mode = src->data[0] & 0xF;
-	//const uint32_t imageSize = (src->data[0] >> 4) | (src->data[1] << 4) | ((src->data[2] & 0x3) << 12);
-	//const uint32_t symbolsSize = (src->data[2] >> 2) | (src->data[3] << 6);
-	const uint32_t tansState = src->data[4] & 0x3F;
-	const uint32_t bitstreamSize = (src->data[4] >> 6) | (src->data[5] << 2) | ((src->data[6] & 0x7) << 10);
-	const uint32_t lengthoffsetSize = (src->data[6] >> 3) | (src->data[7] << 5);
+	//const uint32_t imageSize = (((uint32_t*)src->data)[0] << 14) >> 18;
+	//const uint32_t symbolsSize = ((const uint16_t*)src->data)[1] >> 2;
+	const uint32_t src_data_1 = ((uint32_t*)src->data)[1];
+	const uint32_t tansState = src_data_1 & 0x3F;
+	const uint32_t bitstreamSize = (src_data_1 << 13) >> 19;
+	const uint32_t lengthoffsetSize = src_data_1 >> 19;
 
 	*state = (struct suspended_decompression) {};
 	state->src = src->data + 8 + 12 + 4 * bitstreamSize;
@@ -329,11 +331,12 @@ bool Smol2UnCompSuspendable(struct suspended_decompression* state) {
 
 void Smol3UnComp(const struct CompressedData* src, volatile void* dest) {
 	//const uint32_t mode = src->data[0] & 0xF;
-	//const uint32_t imageSize = (src->data[0] >> 4) | (src->data[1] << 4) | ((src->data[2] & 0x3) << 12);
-	//const uint32_t symbolsSize = (src->data[2] >> 2) | (src->data[3] << 6);
-	uint32_t tansState = src->data[4] & 0x3F;
-	const uint32_t bitstreamSize = (src->data[4] >> 6) | (src->data[5] << 2) | ((src->data[6] & 0x7) << 10);
-	const uint32_t lengthoffsetSize = (src->data[6] >> 3) | (src->data[7] << 5);
+	//const uint32_t imageSize = (((uint32_t*)src->data)[0] << 14) >> 18;
+	//const uint32_t symbolsSize = ((const uint16_t*)src->data)[1] >> 2;
+	const uint32_t src_data_1 = ((uint32_t*)src->data)[1];
+	uint32_t tansState = src_data_1 & 0x3F;
+	const uint32_t bitstreamSize = (src_data_1 << 13) >> 19;
+	const uint32_t lengthoffsetSize = src_data_1 >> 19;
 
 	volatile uint16_t* dest16 = (volatile uint16_t*) dest;
 
@@ -415,11 +418,12 @@ bool Smol3UnCompSuspendable(struct suspended_decompression* state) {
 
 void Smol4UnComp(const struct CompressedData* src, volatile void* dest) {
 	//const uint32_t mode = src->data[0] & 0xF;
-	//const uint32_t imageSize = (src->data[0] >> 4) | (src->data[1] << 4) | ((src->data[2] & 0x3) << 12);
-	//const uint32_t symbolsSize = (src->data[2] >> 2) | (src->data[3] << 6);
-	uint32_t tansState = src->data[4] & 0x3F;
-	const uint32_t bitstreamSize = (src->data[4] >> 6) | (src->data[5] << 2) | ((src->data[6] & 0x7) << 10);
-	const uint32_t lengthoffsetSize = (src->data[6] >> 3) | (src->data[7] << 5);
+	//const uint32_t imageSize = (((uint32_t*)src->data)[0] << 14) >> 18;
+	//const uint32_t symbolsSize = ((const uint16_t*)src->data)[1] >> 2;
+	const uint32_t src_data_1 = ((uint32_t*)src->data)[1];
+	uint32_t tansState = src_data_1 & 0x3F;
+	const uint32_t bitstreamSize = (src_data_1 << 13) >> 19;
+	const uint32_t lengthoffsetSize = src_data_1 >> 19;
 
 	volatile uint16_t* dest16 = (volatile uint16_t*) dest;
 
@@ -463,11 +467,12 @@ void Smol4UnCompSuspendableInit(
 		const struct CompressedData* src,
 		volatile void* dest) {
 	//const uint32_t mode = src->data[0] & 0xF;
-	//const uint32_t imageSize = (src->data[0] >> 4) | (src->data[1] << 4) | ((src->data[2] & 0x3) << 12);
-	//const uint32_t symbolsSize = (src->data[2] >> 2) | (src->data[3] << 6);
-	const uint32_t tansState = src->data[4] & 0x3F;
-	const uint32_t bitstreamSize = (src->data[4] >> 6) | (src->data[5] << 2) | ((src->data[6] & 0x7) << 10);
-	const uint32_t lengthoffsetSize = (src->data[6] >> 3) | (src->data[7] << 5);
+	//const uint32_t imageSize = (((uint32_t*)src->data)[0] << 14) >> 18;
+	//const uint32_t symbolsSize = ((const uint16_t*)src->data)[1] >> 2;
+	const uint32_t src_data_1 = ((uint32_t*)src->data)[1];
+	const uint32_t tansState = src_data_1 & 0x3F;
+	const uint32_t bitstreamSize = (src_data_1 << 13) >> 19;
+	const uint32_t lengthoffsetSize = src_data_1 >> 19;
 
 	*state = (struct suspended_decompression) {};
 	state->src = src->data + 8 + 12 + 4 * bitstreamSize;
@@ -523,11 +528,11 @@ bool Smol4UnCompSuspendable(struct suspended_decompression* state) {
 
 void Smol5UnComp(const struct CompressedData* src, volatile void* dest) {
 	//const uint32_t mode = src->data[0] & 0xF;
-	const uint32_t imageSize = (src->data[0] >> 4) | (src->data[1] << 4) | ((src->data[2] & 0x3) << 12);
-	//const uint32_t symbolsSize = (src->data[2] >> 2) | (src->data[3] << 6);
+	const uint32_t imageSize = (((uint32_t*)src->data)[0] << 14) >> 18;
+	//const uint32_t symbolsSize = ((const uint16_t*)src->data)[1] >> 2;
 	uint32_t tansState = src->data[4] & 0x3F;
-	//const uint32_t bitstreamSize = (src->data[4] >> 6) | (src->data[5] << 2) | ((src->data[6] & 0x7) << 10);
-	const uint32_t lengthoffsetSize = (src->data[6] >> 3) | (src->data[7] << 5);
+	//const uint32_t bitstreamSize = (((uint32_t*)src->data)[1] << 13) >> 19;
+	const uint32_t lengthoffsetSize = ((const uint16_t*)src->data)[3] >> 3;
 
 	volatile uint16_t* dest16 = (volatile uint16_t*) dest;
 
@@ -597,11 +602,11 @@ void Smol5UnCompSuspendableInit(
 		const struct CompressedData* src,
 		volatile void* dest) {
 	//const uint32_t mode = src->data[0] & 0xF;
-	const uint32_t imageSize = (src->data[0] >> 4) | (src->data[1] << 4) | ((src->data[2] & 0x3) << 12);
-	//const uint32_t symbolsSize = (src->data[2] >> 2) | (src->data[3] << 6);
+	const uint32_t imageSize = (((uint32_t*)src->data)[0] << 14) >> 18;
+	//const uint32_t symbolsSize = ((const uint16_t*)src->data)[1] >> 2;
 	uint32_t tansState = src->data[4] & 0x3F;
-	//const uint32_t bitstreamSize = (src->data[4] >> 6) | (src->data[5] << 2) | ((src->data[6] & 0x7) << 10);
-	const uint32_t lengthoffsetSize = (src->data[6] >> 3) | (src->data[7] << 5);
+	//const uint32_t bitstreamSize = (((uint32_t*)src->data)[1] << 13) >> 19;
+	const uint32_t lengthoffsetSize = ((const uint16_t*)src->data)[3] >> 3;
 
 	*state = (struct suspended_decompression) {};
 	state->src = ((const uint8_t*)dest) + 4 * imageSize - lengthoffsetSize;
@@ -693,11 +698,11 @@ bool Smol5UnCompSuspendable(struct suspended_decompression* state) {
 
 void Smol6UnComp(const struct CompressedData* src, volatile void* dest) {
 	//const uint32_t mode = src->data[0] & 0xF;
-	const uint32_t imageSize = (src->data[0] >> 4) | (src->data[1] << 4) | ((src->data[2] & 0x3) << 12);
-	//const uint32_t symbolsSize = (src->data[2] >> 2) | (src->data[3] << 6);
+	const uint32_t imageSize = (((uint32_t*)src->data)[0] << 14) >> 18;
+	//const uint32_t symbolsSize = ((const uint16_t*)src->data)[1] >> 2;
 	uint32_t tansState = src->data[4] & 0x3F;
-	//const uint32_t bitstreamSize = (src->data[4] >> 6) | (src->data[5] << 2) | ((src->data[6] & 0x7) << 10);
-	const uint32_t lengthoffsetSize = (src->data[6] >> 3) | (src->data[7] << 5);
+	//const uint32_t bitstreamSize = (((uint32_t*)src->data)[1] << 13) >> 19;
+	const uint32_t lengthoffsetSize = ((const uint16_t*)src->data)[3] >> 3;
 
 	volatile uint16_t* dest16 = (volatile uint16_t*) dest;
 
@@ -834,9 +839,9 @@ bool Smol6UnCompSuspendable(struct suspended_decompression* state) {
 
 void Smol8UnComp(const struct CompressedData* src, volatile void* dest) {
 	//const uint32_t mode = src->data[0] & 0xF;
-	//const uint32_t imageSize = (src->data[0] >> 4) | (src->data[1] << 4) | ((src->data[2] & 0x3) << 12);
-	const uint32_t symbolsSize = (src->data[2] >> 2) | (src->data[3] << 6);
-	const uint32_t lengthoffsetSize = (src->data[4]) | (src->data[5] << 8) | (src->data[6] << 16) | (src->data[7] << 24);
+	//const uint32_t imageSize = (((uint32_t*)src->data)[0] << 14) >> 18;
+	const uint32_t symbolsSize = ((const uint16_t*)src->data)[1] >> 2;
+	const uint32_t lengthoffsetSize = ((const uint32_t*)src->data)[1];
 
 	volatile uint16_t* const dest16Begin = (volatile uint16_t*) dest;
 	volatile uint16_t* dest16 = dest16Begin;
@@ -879,9 +884,9 @@ void Smol8UnCompSuspendableInit(
 		const struct CompressedData* src,
 		volatile void* dest) {
 	//const uint32_t mode = src->data[0] & 0xF;
-	//const uint32_t imageSize = (src->data[0] >> 4) | (src->data[1] << 4) | ((src->data[2] & 0x3) << 12);
-	const uint32_t symbolsSize = (src->data[2] >> 2) | (src->data[3] << 6);
-	const uint32_t lengthoffsetSize = (src->data[4]) | (src->data[5] << 8) | (src->data[6] << 16) | (src->data[7] << 24);
+	//const uint32_t imageSize = (((uint32_t*)src->data)[0] << 14) >> 18;
+	const uint32_t symbolsSize = ((const uint16_t*)src->data)[1] >> 2;
+	const uint32_t lengthoffsetSize = ((const uint32_t*)src->data)[1];
 
 	*state = (struct suspended_decompression) {};
 	state->src = src->data + 8 + 2 * symbolsSize;
